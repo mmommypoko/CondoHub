@@ -1,0 +1,38 @@
+import type { HTMLAttributes, ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
+import { STATUS_ICONS, type StatusKind } from "./status-icons";
+import { cx } from "./cx";
+
+export type BadgeVariant = StatusKind;
+
+export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
+  variant?: BadgeVariant;
+  icon?: LucideIcon;
+  children: ReactNode;
+}
+
+const VARIANT_STYLES: Record<BadgeVariant, string> = {
+  success: "border-success-border bg-success text-success-foreground",
+  warning: "border-warning-border bg-warning text-warning-foreground",
+  danger: "border-danger-border bg-danger text-danger-foreground",
+  info: "border-info-border bg-info text-info-foreground",
+  neutral: "border-neutral-border bg-neutral text-neutral-foreground",
+  pending: "border-neutral-border bg-neutral text-neutral-foreground",
+};
+
+export function Badge({ variant = "neutral", icon, className, children, ...rest }: BadgeProps) {
+  const Icon = icon ?? STATUS_ICONS[variant];
+  return (
+    <span
+      className={cx(
+        "inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-xs font-medium",
+        VARIANT_STYLES[variant],
+        className,
+      )}
+      {...rest}
+    >
+      <Icon aria-hidden="true" className="size-4 shrink-0" />
+      {children}
+    </span>
+  );
+}

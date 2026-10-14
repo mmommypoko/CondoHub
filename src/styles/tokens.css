@@ -1,0 +1,99 @@
+:root {
+  color-scheme: light;
+
+  --ui-background: #fafafa;
+  --ui-surface: #ffffff;
+  --ui-surface-raised: #ffffff;
+  --ui-overlay: rgba(24, 24, 27, 0.5);
+
+  --ui-foreground: #18181b;
+  --ui-secondary-foreground: #3f3f46;
+  --ui-muted-foreground: #71717a;
+
+  --ui-border: #e4e4e7;
+  --ui-border-strong: #d4d4d8;
+  --ui-input: #ffffff;
+  --ui-input-border: #d4d4d8;
+  --ui-input-placeholder: #71717a;
+
+  --ui-primary: #18181b;
+  --ui-primary-foreground: #fafafa;
+  --ui-secondary: #f4f4f5;
+  --ui-secondary-foreground: #18181b;
+  --ui-destructive: #dc2626;
+  --ui-destructive-foreground: #ffffff;
+  --ui-ghost-hover: #f4f4f5;
+
+  --ui-success: #ecfdf5;
+  --ui-success-foreground: #047857;
+  --ui-success-border: #a7f3d0;
+  --ui-warning: #fffbeb;
+  --ui-warning-foreground: #b45309;
+  --ui-warning-border: #fde68a;
+  --ui-danger: #fef2f2;
+  --ui-danger-foreground: #b91c1c;
+  --ui-danger-border: #fecaca;
+  --ui-info: #eff6ff;
+  --ui-info-foreground: #1d4ed8;
+  --ui-info-border: #bfdbfe;
+  --ui-neutral: #f4f4f5;
+  --ui-neutral-foreground: #52525b;
+  --ui-neutral-border: #e4e4e7;
+
+  --ui-focus-ring: #2563eb;
+  --ui-disabled: #f4f4f5;
+  --ui-disabled-foreground: #a1a1aa;
+  --ui-disabled-border: #e4e4e7;
+  --ui-skeleton: #e4e4e7;
+  --ui-link: #1d4ed8;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), var(--font-noto-sans-thai), system-ui, sans-serif;
+
+  --color-background: var(--ui-background);
+  --color-surface: var(--ui-surface);
+  --color-surface-raised: var(--ui-surface-raised);
+  --color-overlay: var(--ui-overlay);
+
+  --color-foreground: var(--ui-foreground);
+  --color-secondary-foreground: var(--ui-secondary-foreground);
+  --color-muted-foreground: var(--ui-muted-foreground);
+
+  --color-border: var(--ui-border);
+  --color-border-strong: var(--ui-border-strong);
+  --color-input: var(--ui-input);
+  --color-input-border: var(--ui-input-border);
+  --color-input-placeholder: var(--ui-input-placeholder);
+
+  --color-primary: var(--ui-primary);
+  --color-primary-foreground: var(--ui-primary-foreground);
+  --color-secondary: var(--ui-secondary);
+  --color-secondary-foreground: var(--ui-secondary-foreground);
+  --color-destructive: var(--ui-destructive);
+  --color-destructive-foreground: var(--ui-destructive-foreground);
+  --color-ghost-hover: var(--ui-ghost-hover);
+
+  --color-success: var(--ui-success);
+  --color-success-foreground: var(--ui-success-foreground);
+  --color-success-border: var(--ui-success-border);
+  --color-warning: var(--ui-warning);
+  --color-warning-foreground: var(--ui-warning-foreground);
+  --color-warning-border: var(--ui-warning-border);
+  --color-danger: var(--ui-danger);
+  --color-danger-foreground: var(--ui-danger-foreground);
+  --color-danger-border: var(--ui-danger-border);
+  --color-info: var(--ui-info);
+  --color-info-foreground: var(--ui-info-foreground);
+  --color-info-border: var(--ui-info-border);
+  --color-neutral: var(--ui-neutral);
+  --color-neutral-foreground: var(--ui-neutral-foreground);
+  --color-neutral-border: var(--ui-neutral-border);
+
+  --color-focus-ring: var(--ui-focus-ring);
+  --color-disabled: var(--ui-disabled);
+  --color-disabled-foreground: var(--ui-disabled-foreground);
+  --color-disabled-border: var(--ui-disabled-border);
+  --color-skeleton: var(--ui-skeleton);
+  --color-link: var(--ui-link);
+}
