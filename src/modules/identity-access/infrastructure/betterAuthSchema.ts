@@ -16,6 +16,7 @@ export const user = pgTable("user", {
   phone: text("phone"),
   accountStatus: text("account_status").default("ACTIVE").notNull(),
   mustChangePassword: boolean("must_change_password").default(true).notNull(),
+  isSystemAdmin: boolean("is_system_admin").default(false).notNull(),
 });
 
 export const session = pgTable(

@@ -19,6 +19,7 @@ export function newRunId(now = new Date()): string {
 export default async function globalSetup(): Promise<void> {
   const runId = process.env.E2E_RUN_ID ?? newRunId();
   await execFileAsync('pnpm', ['db:seed:e2e', '--', '--run', runId], {
+    shell: process.platform === 'win32',
     cwd: path.resolve(__dirname, '..'),
     env: { ...process.env, E2E_RUN_ID: runId },
   });

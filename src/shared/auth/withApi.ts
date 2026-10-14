@@ -24,6 +24,27 @@ export interface WithApiOptions {
   rateLimitKey?: (request: Request, actor: Actor | null) => string;
 }
 
+const PAGED_MARKER = Symbol('paged');
+
+export interface PagedResult<T> {
+  data: T;
+  meta: Record<string, unknown>;
+  [PAGED_MARKER]: true;
+}
+
+export function paged<T>(data: T, meta: Record<string, unknown>): PagedResult<T> {
+  return { data, meta, [PAGED_MARKER]: true };
+}
+
+function isPagedResult(value: unknown): value is PagedResult<unknown> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    PAGED_MARKER in value &&
+    (value as Record<symbol, unknown>)[PAGED_MARKER] === true
+  );
+}
+
 export const FIRST_LOGIN_ALLOWLIST = [
   'POST /api/auth/change-password',
   'POST /api/auth/sign-out',
@@ -46,11 +67,15 @@ function rateLimitResponse(requestId: string, retryAfterMs: number): NextRespons
   return response;
 }
 
+export interface RouteParams {
+  params: Promise<Record<string, string>>;
+}
+
 export function withApi<T>(
-  handler: (request: Request, ctx: ApiContext) => Promise<T>,
+  handler: (request: Request, ctx: ApiContext, route?: RouteParams) => Promise<T>,
   opts?: WithApiOptions,
-): (request: Request) => Promise<Response> {
-  return async (request: Request) => {
+): (request: Request, route?: RouteParams) => Promise<Response> {
+  return async (request: Request, route?: RouteParams) => {
     const requestId = resolveRequestId(request.headers);
     const log = childLogger({ requestId });
     const startedAt = Date.now();
@@ -65,8 +90,9 @@ export function withApi<T>(
       const actor = requireActor(peeked);
       if (actor.accountStatus !== 'ACTIVE') throw new AppError('ACCESS_DENIED');
       if (opts?.allowFirstLogin !== true) assertNoFirstLogin(actor);
-      const data = await handler(request, { actor, requestId });
-      const response = NextResponse.json({ data });
+      const data = await handler(request, { actor, requestId }, route);
+      const body = isPagedResult(data) ? { data: data.data, meta: data.meta } : { data };
+      const response = NextResponse.json(body);
       response.headers.set(REQUEST_ID_HEADER, requestId);
       return response;
     } catch (error) {

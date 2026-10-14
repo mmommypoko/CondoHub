@@ -3,6 +3,11 @@ import next from 'next';
 import { env } from '@/config/env';
 import { logger } from '@/shared/observability/logger';
 import { attachSocket } from './socket';
+import {
+  createSocketRevokeFanOut,
+  setRevokeFanOut,
+} from '@/modules/identity-access/infrastructure/revokeFanOut';
+import { wireRoomProvisioningPorts } from '@/modules/property-membership/application/index';
 
 const app = next({ dev: env.NODE_ENV !== 'production' });
 const handler = app.getRequestHandler();
@@ -12,7 +17,9 @@ async function main(): Promise<void> {
   const httpServer = createServer((req, res) => {
     void handler(req, res);
   });
-  attachSocket(httpServer);
+  const io = attachSocket(httpServer);
+  setRevokeFanOut(createSocketRevokeFanOut(io));
+  wireRoomProvisioningPorts();
   httpServer.listen(env.PORT, '0.0.0.0', () => {
     logger.info({ port: env.PORT }, 'server listening');
   });

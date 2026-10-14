@@ -104,13 +104,20 @@ export interface PgErrorMapOptions {
 }
 
 function asPgErrorLike(error: unknown): PgErrorLike | null {
-  if (typeof error !== 'object' || error === null) return null;
-  const record = error as Record<string, unknown>;
-  if (typeof record.code !== 'string') return null;
-  return {
-    code: record.code,
-    constraint: typeof record.constraint === 'string' ? record.constraint : undefined,
-  };
+  let current: unknown = error;
+  for (let depth = 0; depth < 4; depth += 1) {
+    if (typeof current !== 'object' || current === null) return null;
+    const record = current as Record<string, unknown>;
+    if (typeof record.code === 'string') {
+      return {
+        code: record.code,
+        constraint: typeof record.constraint === 'string' ? record.constraint : undefined,
+      };
+    }
+    if (!('cause' in record)) return null;
+    current = record.cause;
+  }
+  return null;
 }
 
 export function mapPgError(error: unknown, opts?: PgErrorMapOptions): AppError {

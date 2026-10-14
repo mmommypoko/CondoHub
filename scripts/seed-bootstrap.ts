@@ -47,8 +47,19 @@ async function main(): Promise<void> {
   const pool = new Pool({ connectionString, max: 1, ssl: { rejectUnauthorized: false } });
   try {
     const db = drizzle(pool);
-    const existing = await db.select({ id: user.id }).from(user).where(eq(user.username, 'admin')).limit(1);
-    if (existing.length > 0) throw new Error('Bootstrap admin already exists. Aborting.');
+    const existing = await db
+      .select({ id: user.id, isSystemAdmin: user.isSystemAdmin })
+      .from(user)
+      .where(eq(user.username, 'admin'))
+      .limit(1);
+    const found = existing[0];
+    if (found !== undefined) {
+      if (!found.isSystemAdmin) {
+        await db.update(user).set({ isSystemAdmin: true }).where(eq(user.id, found.id));
+      }
+      console.log(`Bootstrap admin already exists. username=admin id=${found.id} isSystemAdmin ensured.`);
+      return;
+    }
     const tempPassword = generateTempPassword();
     const auth = betterAuth({
       database: drizzleAdapter(db, { provider: 'pg', schema: betterAuthSchema }),
@@ -59,6 +70,7 @@ async function main(): Promise<void> {
           phone: { type: 'string', required: false },
           accountStatus: { type: 'string', required: true, defaultValue: 'ACTIVE', input: false },
           mustChangePassword: { type: 'boolean', required: true, defaultValue: true, input: false },
+          isSystemAdmin: { type: 'boolean', required: true, defaultValue: false, input: false },
         },
       },
     });
@@ -77,6 +89,7 @@ async function main(): Promise<void> {
         username: 'admin',
         accountStatus: 'ACTIVE',
         mustChangePassword: true,
+        isSystemAdmin: true,
       }, { method: 'admin' });
       if (createdUser === null) throw new Error('Bootstrap admin creation failed.');
       const hash = await ctx.password.hash(tempPassword);

@@ -9,6 +9,7 @@ export default async function globalTeardown(): Promise<void> {
   const ctx = await readRunContext().catch(() => null);
   if (ctx === null) return;
   await execFileAsync('pnpm', ['db:seed:reset', '--', '--run', ctx.runId], {
+    shell: process.platform === 'win32',
     cwd: path.resolve(__dirname, '..'),
     env: { ...process.env, E2E_RUN_ID: ctx.runId },
   }).catch((error: unknown) => {

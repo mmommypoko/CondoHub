@@ -27,6 +27,7 @@ export const auth = betterAuth({
       phone: { type: 'string', required: false },
       accountStatus: { type: 'string', required: true, defaultValue: 'ACTIVE', input: false },
       mustChangePassword: { type: 'boolean', required: true, defaultValue: true, input: false },
+      isSystemAdmin: { type: 'boolean', required: true, defaultValue: false, input: false },
     },
   },
   session: {

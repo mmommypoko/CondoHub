@@ -13,7 +13,7 @@ const contentSecurityPolicy = [
   "default-src 'self'",
   `img-src ${imgSrc.join(" ")}`,
   `connect-src ${connectSrc.join(" ")}`,
-  "script-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   "frame-ancestors 'none'",
 ].join("; ");

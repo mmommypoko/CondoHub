@@ -1,16 +1,20 @@
-import { Badge } from "@/shared/ui/Badge";
+import 'server-only';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { getActorFromSession } from '@/shared/auth/actor';
+import { systemClock } from '@/shared/utils/clock';
+import { getActiveResidentRooms } from '@/modules/property-membership/application/index';
 
-export default function HomePage() {
-  return (
-    <main
-      data-testid="skeleton-landing"
-      className="flex min-h-screen flex-col items-center justify-center gap-3 p-6 text-center"
-    >
-      <h1 className="text-2xl font-semibold text-foreground">CondoHub</h1>
-      <Badge variant="neutral">Walking skeleton</Badge>
-      <p className="max-w-md text-sm text-muted-foreground">
-        The design foundation is live. The resident and admin workspaces are under construction.
-      </p>
-    </main>
-  );
+export default async function HomePage() {
+  const actor = await getActorFromSession();
+  if (actor === null) redirect('/login?returnUrl=/');
+  if (actor.mustChangePassword) redirect('/change-password');
+  if (actor.accountStatus !== 'ACTIVE') redirect('/login?returnUrl=/');
+  if (actor.isSystemAdmin) redirect('/admin/buildings');
+  const jar = await cookies();
+  const lastRoomId = jar.get('lastRoomId')?.value ?? null;
+  const roomIds = await getActiveResidentRooms(actor.userId, systemClock.now());
+  if (lastRoomId !== null && roomIds.includes(lastRoomId)) redirect(`/rooms/${lastRoomId}`);
+  if (roomIds.length > 0) redirect(`/rooms/${roomIds[0]}`);
+  redirect('/rooms');
 }

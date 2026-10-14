@@ -17,10 +17,15 @@ export interface SessionUser {
   id: string;
   accountStatus?: unknown;
   mustChangePassword?: unknown;
+  isSystemAdmin?: unknown;
 }
 
 function parseAccountStatus(value: unknown): AccountStatus {
   return value === 'SUSPENDED' ? 'SUSPENDED' : 'ACTIVE';
+}
+
+function parseIsSystemAdmin(value: unknown): boolean {
+  return value === true;
 }
 
 export function buildActor(user: SessionUser, isSystemAdmin: boolean): Actor {
@@ -36,5 +41,5 @@ export async function getActorFromSession(): Promise<Actor | null> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (session === null) return null;
   const user = session.user as SessionUser;
-  return buildActor(user, false);
+  return buildActor(user, parseIsSystemAdmin(user.isSystemAdmin));
 }
