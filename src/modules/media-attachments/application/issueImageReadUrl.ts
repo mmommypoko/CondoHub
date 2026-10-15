@@ -5,7 +5,7 @@ import { AppError } from '@/shared/utils/errors';
 import { createReadUrl } from '@/shared/storage/presignedUrls';
 import { evaluateScopeAcl } from './scopeRegistry';
 import { findImageById } from '../infrastructure/imageRepository';
-import { extensionForMime } from '../domain/imageVerification';
+import { canonicalObjectKey } from '../domain/imageVerification';
 import type { MediaCtx } from './ctx';
 
 export interface ImageAccessResult {
@@ -40,14 +40,7 @@ export async function issueImageReadUrl(
     }
     throw new AppError('ACCESS_DENIED');
   }
-  const readKey = canonicalReadKey(image.objectKey, image.mime);
+  const readKey = canonicalObjectKey(image.objectKey, image.mime);
   const signed = await createReadUrl(readKey);
   return { url: signed.url, expiresAt: signed.expiresAt.toISOString() };
-}
-
-function canonicalReadKey(objectKey: string, mime: string): string {
-  if (mime !== 'image/jpeg' && mime !== 'image/png' && mime !== 'image/webp') return objectKey;
-  const dot = objectKey.lastIndexOf('.');
-  const base = dot < 0 ? objectKey : objectKey.slice(0, dot);
-  return `${base}.${extensionForMime(mime)}`;
 }

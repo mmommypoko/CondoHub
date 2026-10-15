@@ -37,7 +37,7 @@ export const auth = betterAuth({
   },
   rateLimit: {
     customRules: {
-      '/sign-in/*': { window: 60, max: 30 },
+      '/sign-in/*': { window: 60, max: 120 },
     },
   },
 });

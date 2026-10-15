@@ -40,7 +40,7 @@ test.describe('announcements: full lifecycle', () => {
       runId,
       workerIndex: testInfo.workerIndex,
       stem: 'reader',
-      baseURL: 'http://localhost:3000',
+      baseURL: process.env.TEST_BASE_URL ?? 'http://localhost:3000',
     });
     const readerPage = resident.page;
 
@@ -151,7 +151,7 @@ test.describe('announcements: full lifecycle', () => {
       runId,
       workerIndex: testInfo.workerIndex,
       stem: 'watcher',
-      baseURL: 'http://localhost:3000',
+      baseURL: process.env.TEST_BASE_URL ?? 'http://localhost:3000',
     });
     const watcherPage = resident.page;
 

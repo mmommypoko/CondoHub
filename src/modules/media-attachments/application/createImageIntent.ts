@@ -42,6 +42,7 @@ export async function createImageIntent(
 ): Promise<CreateImageIntentResult> {
   if (actor.accountStatus !== 'ACTIVE') throw new AppError('ACCESS_DENIED');
   if (actor.mustChangePassword) throw new AppError('FIRST_LOGIN_PASSWORD_CHANGE_REQUIRED');
+  if (input.scope === 'ANNOUNCEMENT' && !actor.isSystemAdmin) throw new AppError('ACCESS_DENIED');
   const now = ctx.clock.now();
   const verdict = await evaluateScopeAcl(
     input.scope,
@@ -60,7 +61,7 @@ export async function createImageIntent(
   }
   const action = SCOPE_COUNT_ACTION[input.scope];
   const max = IMAGE_COUNT_CAPS[action].max;
-  const used = await countUserOpenIntents(db, { uploadedBy: actor.userId, scope: input.scope });
+  const used = await countUserOpenIntents(db, { uploadedBy: actor.userId, scope: input.scope, now });
   if (!precheckCountAllows(used, max)) {
     throw new AppError('VALIDATION_ERROR', `Too many images. The maximum is ${max}.`);
   }

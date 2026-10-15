@@ -43,10 +43,13 @@ export function exceedsByteCap(sizeBytes: number, byteCap: number): boolean {
   return sizeBytes > byteCap;
 }
 
-export function precheckCountAllows(used: number, max: number): boolean {
-  return used < max;
+export function canonicalObjectKey(objectKey: string, mime: string): string {
+  if (mime !== 'image/jpeg' && mime !== 'image/png' && mime !== 'image/webp') return objectKey;
+  const dot = objectKey.lastIndexOf('.');
+  const base = dot < 0 ? objectKey : objectKey.slice(0, dot);
+  return `${base}.${MIME_EXTENSIONS[mime]}`;
 }
 
-export function attachCountValid(count: number, max: number): boolean {
-  return count <= max;
+export function precheckCountAllows(used: number, max: number): boolean {
+  return used < max;
 }

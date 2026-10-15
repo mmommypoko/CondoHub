@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { apiJson } from '../../helpers/api';
 import { readRunContext, workerNamespace } from '../../fixtures/run-context';
-import { loginAsAdmin } from '../../helpers/owner';
+import { loginAsPoolAdmin } from '../../helpers/owner';
 import { buildFakeImage, buildValidImage } from '../../helpers/announcementFiles';
 
 interface IntentEnvelope {
@@ -43,7 +43,7 @@ test.describe('announcement images: intent, upload, complete, attach, access', (
   }, testInfo) => {
     const { runId } = await readRunContext();
     const ns = workerNamespace(runId, testInfo.workerIndex);
-    await loginAsAdmin(page);
+    await loginAsPoolAdmin(page, 'images');
 
     const created = await apiJson<AnnouncementEnvelope>(page.request, {
       method: 'POST',
@@ -108,7 +108,7 @@ test.describe('announcement images: intent, upload, complete, attach, access', (
   test('fake image bytes are rejected before READY', async ({ page }, testInfo) => {
     const { runId } = await readRunContext();
     const ns = workerNamespace(runId, testInfo.workerIndex);
-    await loginAsAdmin(page);
+    await loginAsPoolAdmin(page, 'images');
 
     const fixture = buildFakeImage();
     const intent = await apiJson<IntentEnvelope>(page.request, {

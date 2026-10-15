@@ -174,6 +174,7 @@ export function AnnouncementCreateForm() {
           Create announcement
         </Button>
         <Button
+          data-testid="announcement-create-cancel"
           type="button"
           variant="secondary"
           onClick={() => router.push('/admin/announcements')}

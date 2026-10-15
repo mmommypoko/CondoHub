@@ -53,6 +53,20 @@ export async function findAnnouncementById(db: Db, id: string): Promise<Announce
   return row === undefined ? null : toRecord(row);
 }
 
+export async function findAnnouncementByIdForUpdate(
+  tx: Tx,
+  id: string,
+): Promise<AnnouncementRecord | null> {
+  const rows = await tx
+    .select()
+    .from(announcement)
+    .where(eq(announcement.id, id))
+    .limit(1)
+    .for('update');
+  const row = rows[0];
+  return row === undefined ? null : toRecord(row);
+}
+
 export async function listAllAnnouncements(db: Db): Promise<AnnouncementRecord[]> {
   const rows = await db
     .select()

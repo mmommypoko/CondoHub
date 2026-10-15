@@ -16,6 +16,7 @@ import {
   insertAnnouncementRevision,
   updateAnnouncement,
   findAnnouncementById,
+  findAnnouncementByIdForUpdate,
   listAllAnnouncements,
   listAnnouncementRevisions,
 } from '../infrastructure/announcementRepository';
@@ -142,6 +143,8 @@ export async function updateAnnouncementEntry(
   const publishedBefore = statusBefore === 'PUBLISHED' || statusBefore === 'HIDDEN';
   try {
     const updated = await db.transaction(async (tx) => {
+      const locked = await findAnnouncementByIdForUpdate(tx, announcementId);
+      if (locked === null) throw new AppError('RESOURCE_NOT_FOUND');
       if (input.imageIds !== undefined) {
         const current = await listAnnouncementImages(tx, announcementId);
         const currentIds = current.map((image) => image.id);
@@ -200,8 +203,7 @@ export async function updateAnnouncementEntry(
       });
       return next;
     });
-    void updated;
-    const dto = await toAnnouncementDto(actor, announcementId, now);
+    const dto = await toAnnouncementDto(actor, updated.id, now);
     if (dto === null) throw new AppError('RESOURCE_NOT_FOUND');
     return dto;
   } catch (error) {

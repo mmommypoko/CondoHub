@@ -1,4 +1,6 @@
+import { DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { Pool } from 'pg';
+import { createS3Client, readS3Settings } from '@/shared/storage/s3Client';
 import { assertSeedAllowed, loadDotenv, parseRunId } from './seed-common';
 
 loadDotenv('.env.local');
@@ -11,6 +13,41 @@ interface ResetTarget {
 
 function resetTargets(): ResetTarget[] {
   return [
+    {
+      label: 'quota_adjustment',
+      sql: `DELETE FROM "quota_adjustment" WHERE "facility_id" IN (SELECT "id" FROM "facility" WHERE "code" LIKE '%' || $1 || '%' ESCAPE '\\')`,
+      pattern: 'raw',
+    },
+    {
+      label: 'quota_period_lock',
+      sql: `DELETE FROM "quota_period_lock" WHERE "facility_id" IN (SELECT "id" FROM "facility" WHERE "code" LIKE '%' || $1 || '%' ESCAPE '\\')`,
+      pattern: 'raw',
+    },
+    {
+      label: 'booking_slot',
+      sql: `DELETE FROM "booking_slot" WHERE "facility_id" IN (SELECT "id" FROM "facility" WHERE "code" LIKE '%' || $1 || '%' ESCAPE '\\')`,
+      pattern: 'raw',
+    },
+    {
+      label: 'booking',
+      sql: `DELETE FROM "booking" WHERE "facility_id" IN (SELECT "id" FROM "facility" WHERE "code" LIKE '%' || $1 || '%' ESCAPE '\\')`,
+      pattern: 'raw',
+    },
+    {
+      label: 'facility_closure',
+      sql: `DELETE FROM "facility_closure" WHERE "facility_id" IN (SELECT "id" FROM "facility" WHERE "code" LIKE '%' || $1 || '%' ESCAPE '\\')`,
+      pattern: 'raw',
+    },
+    {
+      label: 'facility_config',
+      sql: `DELETE FROM "facility_config" WHERE "facility_id" IN (SELECT "id" FROM "facility" WHERE "code" LIKE '%' || $1 || '%' ESCAPE '\\')`,
+      pattern: 'raw',
+    },
+    {
+      label: 'facility',
+      sql: `DELETE FROM "facility" WHERE "code" LIKE '%' || $1 || '%' ESCAPE '\\'`,
+      pattern: 'raw',
+    },
     {
       label: 'image_attachment',
       sql: `DELETE FROM "image_attachment" WHERE "object_key" LIKE 'e2e/%' || $1 || '%' ESCAPE '\\'`,
@@ -72,6 +109,31 @@ function normalizedRun(runId: string): string {
   return runId.replace(/[^a-z0-9]/gi, '').toLowerCase();
 }
 
+async function deleteRunPrefixObjects(runId: string): Promise<number> {
+  const prefix = `e2e/${runId}/`;
+  const settings = readS3Settings();
+  const client = createS3Client(settings);
+  let deleted = 0;
+  let token: string | undefined;
+  for (;;) {
+    const listed = await client.send(
+      new ListObjectsV2Command({
+        Bucket: settings.bucket,
+        Prefix: prefix,
+        ContinuationToken: token,
+        MaxKeys: 1000,
+      }),
+    );
+    for (const object of listed.Contents ?? []) {
+      if (object.Key === undefined || !object.Key.startsWith(prefix)) continue;
+      await client.send(new DeleteObjectCommand({ Bucket: settings.bucket, Key: object.Key }));
+      deleted += 1;
+    }
+    if (listed.IsTruncated !== true) return deleted;
+    token = listed.NextContinuationToken;
+  }
+}
+
 async function main(): Promise<void> {
   assertSeedAllowed();
   const runId = parseRunId(process.argv.slice(2));
@@ -88,6 +150,12 @@ async function main(): Promise<void> {
       } catch (error) {
         console.log(`reset ${target.label}: skipped (${error instanceof Error ? error.message : 'unknown error'}).`);
       }
+    }
+    try {
+      const deleted = await deleteRunPrefixObjects(runId);
+      console.log(`reset s3-prefix: deleted ${deleted} objects for run ${runId}.`);
+    } catch (error) {
+      console.log(`reset s3-prefix: skipped (${error instanceof Error ? error.message : 'unknown error'}).`);
     }
   } finally {
     await pool.end();

@@ -249,6 +249,7 @@ export function AnnouncementEditForm({
             Save changes
           </Button>
           <Button
+            data-testid="announcement-edit-cancel"
             type="button"
             variant="secondary"
             onClick={() => router.push('/admin/announcements')}

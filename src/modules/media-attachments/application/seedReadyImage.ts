@@ -40,6 +40,7 @@ export async function seedReadyImage(
       });
       const sha256 = createHash('sha256').update(input.bytes).digest('hex');
       const ready = await markImageReady(tx, intent.id, {
+        objectKey,
         sizeBytes: input.bytes.length,
         mimeVerified: input.mime,
         width: input.width,

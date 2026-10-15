@@ -26,7 +26,15 @@ import {
 import {
   createMediaCtx,
   seedReadyImage,
+  seedStaleImage,
 } from '@/modules/media-attachments/application/index';
+import {
+  createBookingCtx,
+  seedBooking,
+  seedCancelSlot,
+  seedDirectBooking,
+  seedFacility,
+} from '@/modules/facility-booking/application/index';
 
 const LONG_TEXT =
   'Maple Residences Tower of Enduring Harmony and Perpetual Serenity by the Riverside Gardens Extension Block C Wing D Unit Corridor North';
@@ -202,6 +210,15 @@ export async function runPropertyScenario(runId: string): Promise<void> {
     propertyCtx,
   );
   await runAnnouncementScenario(runId, requestId, admin);
+  await runOrphanSweepScenario(runId, requestId, admin);
+  await runBookingScenario(
+    runId,
+    requestId,
+    admin,
+    building.projectId,
+    rooms,
+    userIds.get('privt') ?? '',
+  );
   console.log(`Scenario seed complete for run ${runId}.`);
 }
 
@@ -317,4 +334,268 @@ async function runAnnouncementScenario(runId: string, requestId: string, admin: 
     mediaCtx,
   );
   console.log(`Announcement seed complete for run ${runId}.`);
+}
+
+async function runOrphanSweepScenario(runId: string, requestId: string, admin: Actor): Promise<void> {
+  const { default: sharp } = await import('sharp');
+  const mediaCtx = createMediaCtx({ requestId, isSeedActor: true });
+  const now = Date.now();
+  const hourMs = 3_600_000;
+  const tinyPng = await sharp({
+    create: { width: 8, height: 8, channels: 3, background: '#8f4f4f' },
+  })
+    .png()
+    .toBuffer();
+  const staleInput = {
+    runId,
+    mime: 'image/png' as const,
+    bytes: tinyPng,
+    width: 8,
+    height: 8,
+  };
+  await seedStaleImage(
+    admin,
+    {
+      ...staleInput,
+      fileName: 'sweep-stale-pending.png',
+      scope: 'CHAT',
+      createdAt: new Date(now - 2 * hourMs),
+      ready: false,
+    },
+    mediaCtx,
+  );
+  await seedStaleImage(
+    admin,
+    {
+      ...staleInput,
+      fileName: 'sweep-aged-pending.png',
+      scope: 'CHAT',
+      createdAt: new Date(now - 25 * hourMs),
+      ready: false,
+    },
+    mediaCtx,
+  );
+  await seedStaleImage(
+    admin,
+    {
+      ...staleInput,
+      fileName: 'sweep-aged-ready.png',
+      scope: 'MAINTENANCE',
+      createdAt: new Date(now - 25 * hourMs),
+      ready: true,
+    },
+    mediaCtx,
+  );
+  await seedStaleImage(
+    admin,
+    {
+      ...staleInput,
+      fileName: 'sweep-young-pending.png',
+      scope: 'CHAT',
+      createdAt: new Date(now - 5 * 60_000),
+      ready: false,
+    },
+    mediaCtx,
+  );
+  const attached = await seedStaleImage(
+    admin,
+    {
+      ...staleInput,
+      fileName: 'sweep-attached-control.png',
+      scope: 'ANNOUNCEMENT',
+      createdAt: new Date(now - 48 * hourMs),
+      ready: true,
+    },
+    mediaCtx,
+  );
+  const announcementCtx = createAnnouncementCtx({ requestId, isSeedActor: true });
+  const control = await seedAnnouncement(
+    admin,
+    {
+      title: `E2E-${runId} sweep control notice`,
+      body: `Attached control for the orphan sweeper. Run ${runId}.`,
+      publishAt: new Date(now - hourMs),
+      authorId: admin.userId,
+    },
+    announcementCtx,
+  );
+  await updateAnnouncementEntry(
+    admin,
+    control.announcementId,
+    { imageIds: [attached.imageId] },
+    { ...announcementCtx, isSeedActor: false },
+  );
+  console.log(`Orphan sweep seed complete for run ${runId}.`);
+}
+
+async function runBookingScenario(
+  runId: string,
+  requestId: string,
+  admin: Actor,
+  projectId: string,
+  rooms: Map<string, string>,
+  createdBy: string,
+): Promise<void> {
+  const bookingCtx = createBookingCtx({ requestId, isSeedActor: true });
+  const now = Date.now();
+  const dayMs = 86_400_000;
+  const buildDays = (
+    build: (day: string) => { open: Array<{ start: string; end: string }>; breaks: Array<{ start: string; end: string }> },
+  ): Record<'0' | '1' | '2' | '3' | '4' | '5' | '6', { open: Array<{ start: string; end: string }>; breaks: Array<{ start: string; end: string }> }> => ({
+    '0': build('0'),
+    '1': build('1'),
+    '2': build('2'),
+    '3': build('3'),
+    '4': build('4'),
+    '5': build('5'),
+    '6': build('6'),
+  });
+  const openDays = buildDays((day) =>
+    day === '0'
+      ? { open: [], breaks: [] }
+      : { open: [{ start: '08:00', end: '20:00' }], breaks: [{ start: '12:00', end: '13:00' }] },
+  );
+  const wideDays = buildDays(() => ({ open: [{ start: '00:00', end: '24:00' }], breaks: [] }));
+  const room102 = rooms.get('102') ?? '';
+  await seedFacility(
+    admin,
+    {
+      projectId,
+      code: `E2E-${runId}-POOL`,
+      name: `E2E ${runId} Lap Pool`,
+      description: `Eight-lane lap pool seeded for run ${runId}.`,
+      status: 'ACTIVE',
+      capacity: 2,
+      schedule: { days: openDays, holidays: [] },
+      slotMinutes: 60,
+      quotaKind: 'DAILY',
+      quotaLimit: 2,
+      advanceDays: 30,
+      effectiveAt: new Date(now - 7 * dayMs),
+      pending: {
+        schedule: { days: openDays, holidays: [] },
+        slotMinutes: 60,
+        quotaKind: 'DAILY',
+        quotaLimit: 3,
+        advanceDays: 30,
+        effectiveAt: new Date(now + 30 * dayMs),
+      },
+      closures: [
+        {
+          startsAt: new Date(now + 3 * dayMs),
+          endsAt: new Date(now + 3 * dayMs + 2 * 3_600_000),
+          reason: `E2E-${runId} pump maintenance window`,
+        },
+      ],
+    },
+    bookingCtx,
+  );
+  const longHall = await seedFacility(
+    admin,
+    {
+      projectId,
+      code: `E2E-${runId}-HALL`,
+      name: `E2E ${runId} ${LONG_TEXT}`.slice(0, 255),
+      description: `${LONG_TEXT} Run ${runId}. ${LONG_TEXT}`.slice(0, 20000),
+      status: 'ACTIVE',
+      capacity: 1,
+      schedule: { days: openDays, holidays: [] },
+      slotMinutes: 60,
+      quotaKind: 'WEEKLY',
+      quotaLimit: 5,
+      advanceDays: 30,
+      effectiveAt: new Date(now - 7 * dayMs),
+    },
+    bookingCtx,
+  );
+  const midnightStudio = await seedFacility(
+    admin,
+    {
+      projectId,
+      code: `E2E-${runId}-STUDIO`,
+      name: `E2E ${runId} Midnight Studio`,
+      description: `Open around the clock for midnight-boundary probes. Run ${runId}.`,
+      status: 'ACTIVE',
+      capacity: 1,
+      schedule: { days: wideDays, holidays: [] },
+      slotMinutes: 60,
+      quotaKind: 'DAILY',
+      quotaLimit: 4,
+      advanceDays: 30,
+      effectiveAt: new Date(now - 7 * dayMs),
+    },
+    bookingCtx,
+  );
+  const bangkokToday = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(now + 2 * dayMs));
+  const [yearText, monthText, dayText] = bangkokToday.split('-') as [string, string, string];
+  const atLocal = (hour: number, minute: number): Date =>
+    new Date(Date.UTC(Number(yearText), Number(monthText) - 1, Number(dayText), hour - 7, minute));
+  const triple = await seedDirectBooking(
+    admin,
+    {
+      facilityId: longHall.facilityId,
+      roomId: room102,
+      createdBy,
+      slots: [
+        { startsAt: atLocal(9, 0), endsAt: atLocal(10, 0) },
+        { startsAt: atLocal(10, 0), endsAt: atLocal(11, 0) },
+        { startsAt: atLocal(14, 0), endsAt: atLocal(15, 0) },
+      ],
+    },
+    bookingCtx,
+  );
+  const { toPeriodKey } = await import('@/shared/utils/clock');
+  const weeklyKey = toPeriodKey(atLocal(10, 0), 'WEEKLY');
+  await seedCancelSlot(
+    admin,
+    {
+      bookingId: triple.bookingId,
+      slotId: triple.slotIds[1] ?? '',
+      refundQuota: false,
+      reason: `E2E-${runId} resident cancels the middle slot`,
+      periodKey: weeklyKey,
+      roomId: room102,
+      facilityId: longHall.facilityId,
+      admin: false,
+    },
+    bookingCtx,
+  );
+  const refunded = await seedDirectBooking(
+    admin,
+    {
+      facilityId: longHall.facilityId,
+      roomId: room102,
+      createdBy,
+      slots: [{ startsAt: atLocal(15, 0), endsAt: atLocal(16, 0) }],
+    },
+    bookingCtx,
+  );
+  await seedCancelSlot(
+    admin,
+    {
+      bookingId: refunded.bookingId,
+      slotId: refunded.slotIds[0] ?? '',
+      refundQuota: true,
+      reason: `E2E-${runId} admin refunds one slot`,
+      periodKey: weeklyKey,
+      roomId: room102,
+      facilityId: longHall.facilityId,
+      admin: true,
+    },
+    bookingCtx,
+  );
+  const probeStart = new Date(now + 2 * dayMs);
+  probeStart.setUTCMinutes(0, 0, 0);
+  await seedBooking(
+    admin,
+    midnightStudio.facilityId,
+    { roomId: room102, startsAt: [probeStart.toISOString()] },
+    bookingCtx,
+  );
+  console.log(`Booking seed complete for run ${runId}.`);
 }

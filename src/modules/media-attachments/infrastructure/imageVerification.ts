@@ -8,6 +8,10 @@ export interface VerifiedImage {
   height: number | null;
 }
 
+export const IMAGE_DECODE_PIXEL_LIMIT = 268_435_456;
+
+export const IMAGE_DECODE_TIMEOUT_SECONDS = 10;
+
 export type ImageDecodeFailure = 'UNREADABLE' | 'UNSUPPORTED';
 
 export async function verifyAndStripImage(
@@ -16,7 +20,9 @@ export async function verifyAndStripImage(
 ): Promise<VerifiedImage | ImageDecodeFailure> {
   if (bytes.length > byteCap) return 'UNREADABLE';
   try {
-    const pipeline = sharp(bytes, { limitInputPixels: 268_435_456 }).timeout({ seconds: 10 });
+    const pipeline = sharp(bytes, { limitInputPixels: IMAGE_DECODE_PIXEL_LIMIT }).timeout({
+      seconds: IMAGE_DECODE_TIMEOUT_SECONDS,
+    });
     const metadata = await pipeline.metadata();
     const format = metadata.format;
     if (format !== 'jpeg' && format !== 'png' && format !== 'webp') return 'UNSUPPORTED';

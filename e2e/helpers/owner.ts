@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { apiJson } from './api';
+import { poolAdminFor, readRunContext } from '../fixtures/run-context';
 
 interface ProvisionResult {
   data: { created: boolean; userId: string; tempPassword?: string };
@@ -50,6 +51,12 @@ export async function loginAsAdmin(page: Page): Promise<void> {
     process.env.E2E_ADMIN_USERNAME ?? 'admin',
     process.env.E2E_ADMIN_PASSWORD ?? '',
   );
+}
+
+export async function loginAsPoolAdmin(page: Page, fileKey: string): Promise<void> {
+  const ctx = await readRunContext();
+  const picked = poolAdminFor(ctx, fileKey);
+  await loginWithRetry(page, picked.username, picked.tempPassword);
 }
 
 export async function loginAsUser(page: Page, username: string, password: string): Promise<void> {

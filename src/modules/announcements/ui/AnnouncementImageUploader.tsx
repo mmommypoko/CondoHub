@@ -26,7 +26,12 @@ interface ErrorEnvelope {
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_IMAGES = 5;
 
-function putWithProgress(url: string, file: File, onProgress: (percent: number) => void): Promise<void> {
+function putWithProgress(
+  url: string,
+  file: File,
+  onProgress: (percent: number) => void,
+  onXhr: (xhr: XMLHttpRequest) => void,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('PUT', url, true);
@@ -41,6 +46,8 @@ function putWithProgress(url: string, file: File, onProgress: (percent: number) 
       else reject(new Error(`Upload failed with status ${xhr.status}.`));
     };
     xhr.onerror = () => reject(new Error('Upload failed.'));
+    xhr.onabort = () => reject(new Error('Upload cancelled.'));
+    onXhr(xhr);
     xhr.send(file);
   });
 }
@@ -55,6 +62,8 @@ export function AnnouncementImageUploader({
   testIdPrefix: string;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const xhrRef = useRef<XMLHttpRequest | null>(null);
+  const cancelledRef = useRef(false);
   const [progress, setProgress] = useState<{ fileName: string; percent: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -70,6 +79,7 @@ export function AnnouncementImageUploader({
     }
     setBusy(true);
     setError(null);
+    cancelledRef.current = false;
     setProgress({ fileName: file.name, percent: 0 });
     try {
       const intentResponse = await fetch('/api/images/intents', {
@@ -87,9 +97,16 @@ export function AnnouncementImageUploader({
         throw new Error(payload?.error.message ?? 'Could not start the upload.');
       }
       const intent = (await intentResponse.json()) as IntentEnvelope;
-      await putWithProgress(intent.data.uploadUrl, file, (percent) =>
-        setProgress({ fileName: file.name, percent }),
+      if (cancelledRef.current) throw new Error('Upload cancelled.');
+      await putWithProgress(
+        intent.data.uploadUrl,
+        file,
+        (percent) => setProgress({ fileName: file.name, percent }),
+        (xhr) => {
+          xhrRef.current = xhr;
+        },
       );
+      if (cancelledRef.current) throw new Error('Upload cancelled.');
       const completeResponse = await fetch(`/api/images/${intent.data.imageId}/complete`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -112,10 +129,16 @@ export function AnnouncementImageUploader({
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : 'Upload failed.');
     } finally {
+      xhrRef.current = null;
       setBusy(false);
       setProgress(null);
       if (inputRef.current !== null) inputRef.current.value = '';
     }
+  }
+
+  function cancelUpload(): void {
+    cancelledRef.current = true;
+    xhrRef.current?.abort();
   }
 
   return (
@@ -144,6 +167,7 @@ export function AnnouncementImageUploader({
         accept="image/jpeg,image/png,image/webp"
         className="sr-only"
         aria-label="Choose an image to upload"
+        disabled={busy}
         onChange={(event) => {
           const file = event.target.files?.[0];
           if (file !== undefined) void uploadFile(file);
@@ -154,9 +178,21 @@ export function AnnouncementImageUploader({
       </p>
       {progress !== null ? (
         <div data-testid={`${testIdPrefix}-upload-progress`} role="status" className="flex flex-col gap-1">
-          <span className="truncate text-xs text-muted-foreground">
-            Uploading {progress.fileName} — {progress.percent}%
-          </span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="min-w-0 truncate text-xs text-muted-foreground">
+              Uploading {progress.fileName} — {progress.percent}%
+            </span>
+            <Button
+              data-testid={`${testIdPrefix}-upload-cancel`}
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={cancelUpload}
+            >
+              <X aria-hidden="true" className="size-4" />
+              Cancel
+            </Button>
+          </div>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-skeleton">
             <div
               className="h-full rounded-full bg-primary transition-[width]"

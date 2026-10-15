@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import type { Actor } from '@/shared/auth/actor';
 import { db } from '@/shared/db/client';
 import { AppError } from '@/shared/utils/errors';
+import { childLogger } from '@/shared/observability/logger';
 import { IMAGE_BYTE_CAPS } from '@/config/imageLimits';
 import {
   deleteObject,
@@ -18,9 +19,9 @@ import {
 } from '../infrastructure/imageRepository';
 import { verifyAndStripImage } from '../infrastructure/imageVerification';
 import {
+  canonicalObjectKey,
   detectMimeFromMagic,
   exceedsByteCap,
-  extensionForMime,
 } from '../domain/imageVerification';
 import { canCompleteFrom, isIntentExpired, isTerminalImageState } from '../domain/imageState';
 import type { MediaCtx } from './ctx';
@@ -61,7 +62,7 @@ export async function completeImageUpload(
   }
   if (exceedsByteCap(head.sizeBytes, IMAGE_BYTE_CAPS[image.scope])) {
     await rejectInTx(actor.userId, imageId, 'BYTE_CAP_EXCEEDED', ctx.requestId);
-    await deleteObject(image.objectKey).catch(() => undefined);
+    await removeObjectBestEffort(image.objectKey, ctx.requestId);
     throw new AppError(
       'FILE_TOO_LARGE',
       `The image exceeds the ${Math.round(IMAGE_BYTE_CAPS[image.scope] / 1_000_000)} MB limit.`,
@@ -74,7 +75,7 @@ export async function completeImageUpload(
   }
   if (exceedsByteCap(stored.length, IMAGE_BYTE_CAPS[image.scope])) {
     await rejectInTx(actor.userId, imageId, 'BYTE_CAP_EXCEEDED', ctx.requestId);
-    await deleteObject(image.objectKey).catch(() => undefined);
+    await removeObjectBestEffort(image.objectKey, ctx.requestId);
     throw new AppError(
       'FILE_TOO_LARGE',
       `The image exceeds the ${Math.round(IMAGE_BYTE_CAPS[image.scope] / 1_000_000)} MB limit.`,
@@ -83,7 +84,7 @@ export async function completeImageUpload(
   const magicMime = detectMimeFromMagic(stored);
   if (magicMime === null) {
     await rejectInTx(actor.userId, imageId, 'TYPE_MISMATCH', ctx.requestId);
-    await deleteObject(image.objectKey).catch(() => undefined);
+    await removeObjectBestEffort(image.objectKey, ctx.requestId);
     throw new AppError(
       'FILE_NOT_ALLOWED',
       'This file is not a supported image. Supported types: JPEG, PNG, WebP.',
@@ -92,17 +93,18 @@ export async function completeImageUpload(
   const verified = await verifyAndStripImage(stored, IMAGE_BYTE_CAPS[image.scope]);
   if (verified === 'UNREADABLE' || verified === 'UNSUPPORTED') {
     await rejectInTx(actor.userId, imageId, 'DECODE_FAILED', ctx.requestId);
-    await deleteObject(image.objectKey).catch(() => undefined);
+    await removeObjectBestEffort(image.objectKey, ctx.requestId);
     throw new AppError('VALIDATION_ERROR', 'This image cannot be processed. Please choose another file.');
   }
-  const strippedKey = objectKeyWithExtension(image.objectKey, extensionForMime(verified.mime));
+  const strippedKey = canonicalObjectKey(image.objectKey, verified.mime);
   const sha256 = createHash('sha256').update(verified.bytes).digest('hex');
   await putObjectBytes(strippedKey, verified.bytes, verified.mime);
   if (strippedKey !== image.objectKey) {
-    await deleteObject(image.objectKey).catch(() => undefined);
+    await removeObjectBestEffort(image.objectKey, ctx.requestId);
   }
   const ready = await db.transaction(async (tx) => {
     const updated = await markImageReady(tx, imageId, {
+      objectKey: strippedKey,
       sizeBytes: verified.bytes.length,
       mimeVerified: verified.mime,
       width: verified.width,
@@ -131,10 +133,12 @@ export async function completeImageUpload(
   };
 }
 
-function objectKeyWithExtension(objectKey: string, extension: string): string {
-  const dot = objectKey.lastIndexOf('.');
-  const base = dot < 0 ? objectKey : objectKey.slice(0, dot);
-  return `${base}.${extension}`;
+async function removeObjectBestEffort(objectKey: string, requestId: string): Promise<void> {
+  try {
+    await deleteObject(objectKey);
+  } catch (error) {
+    childLogger({ requestId }).warn({ objectKey, error: String(error) }, 'image cleanup delete failed');
+  }
 }
 
 async function rejectInTx(
