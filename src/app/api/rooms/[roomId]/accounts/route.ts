@@ -6,6 +6,7 @@ import { RATE_LIMIT_PRESETS } from '@/shared/utils/rateLimit';
 import { getIdempotencyKey } from '@/shared/utils/idempotency';
 import { createIdentityCtx, provisionUser } from '@/modules/identity-access/application/index';
 import { getRoomProvisioningPorts } from '@/modules/identity-access/application/roomProvisioningPorts';
+import { wireRoomProvisioningPorts } from '@/modules/property-membership/application/provisioningPorts';
 import {
   parseWithFieldErrors,
   provisionAccountBody,
@@ -22,6 +23,7 @@ export const POST = withApi(
     const body = parseWithFieldErrors(provisionAccountBody, await request.json());
     const idempotencyKey = getIdempotencyKey(request.headers);
     const identityCtx = createIdentityCtx({ requestId: ctx.requestId });
+    wireRoomProvisioningPorts();
     const ports = getRoomProvisioningPorts();
     return provisionUser(
       ctx.actor,

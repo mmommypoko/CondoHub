@@ -35,6 +35,11 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24,
     cookieCache: { enabled: false },
   },
+  rateLimit: {
+    customRules: {
+      '/sign-in/*': { window: 60, max: 30 },
+    },
+  },
 });
 
 export type Auth = typeof auth;

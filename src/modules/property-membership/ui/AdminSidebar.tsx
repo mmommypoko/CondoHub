@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, Home, KeyRound, Users } from 'lucide-react';
+import { Building2, Home, KeyRound, Megaphone, Users } from 'lucide-react';
 import { cx } from '@/shared/ui/cx';
 
 const WORKSPACE_LINKS = [{ href: '/rooms', label: 'My Rooms', icon: Home, testId: 'nav-my-rooms' }];
@@ -11,6 +11,7 @@ const ADMIN_LINKS = [
   { href: '/admin/buildings', label: 'Buildings', icon: Building2, testId: 'nav-buildings' },
   { href: '/admin/ownership', label: 'Ownership', icon: KeyRound, testId: 'nav-ownership' },
   { href: '/admin/users', label: 'Users', icon: Users, testId: 'nav-users' },
+  { href: '/admin/announcements', label: 'Announcements', icon: Megaphone, testId: 'nav-announcements' },
 ];
 
 export function AdminSidebar() {

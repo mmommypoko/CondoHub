@@ -108,6 +108,42 @@ export async function deleteObject(objectKey: string, deps?: PresignedUrlDeps): 
   await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: objectKey }));
 }
 
+export async function getObjectBytes(
+  objectKey: string,
+  deps?: PresignedUrlDeps,
+): Promise<Buffer | null> {
+  const { client, bucket } = resolveDeps(deps);
+  try {
+    const output = await client.send(new GetObjectCommand({ Bucket: bucket, Key: objectKey }));
+    if (output.Body === undefined) return null;
+    const chunks: Buffer[] = [];
+    const body = output.Body as AsyncIterable<Uint8Array>;
+    for await (const chunk of body) chunks.push(Buffer.from(chunk));
+    return Buffer.concat(chunks);
+  } catch (error) {
+    if (isNotFoundError(error)) return null;
+    throw error;
+  }
+}
+
+export async function putObjectBytes(
+  objectKey: string,
+  bytes: Buffer,
+  contentType: AllowedImageContentType,
+  deps?: PresignedUrlDeps,
+): Promise<void> {
+  const { client, bucket } = resolveDeps(deps);
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: objectKey,
+      Body: bytes,
+      ContentType: contentType,
+      ContentLength: bytes.length,
+    }),
+  );
+}
+
 function isNotFoundError(error: unknown): boolean {
   if (typeof error !== 'object' || error === null) return false;
   const record = error as Record<string, unknown>;

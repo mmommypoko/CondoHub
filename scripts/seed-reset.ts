@@ -12,6 +12,21 @@ interface ResetTarget {
 function resetTargets(): ResetTarget[] {
   return [
     {
+      label: 'image_attachment',
+      sql: `DELETE FROM "image_attachment" WHERE "object_key" LIKE 'e2e/%' || $1 || '%' ESCAPE '\\'`,
+      pattern: 'raw',
+    },
+    {
+      label: 'announcement_revision',
+      sql: `DELETE FROM "announcement_revision" WHERE "announcement_id" IN (SELECT "id" FROM "announcement" WHERE "title" LIKE '%' || $1 || '%' ESCAPE '\\')`,
+      pattern: 'raw',
+    },
+    {
+      label: 'announcement',
+      sql: `DELETE FROM "announcement" WHERE "title" LIKE '%' || $1 || '%' ESCAPE '\\'`,
+      pattern: 'raw',
+    },
+    {
       label: 'room_membership',
       sql: `DELETE FROM "room_membership" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\')`,
       pattern: 'raw',

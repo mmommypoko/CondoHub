@@ -18,6 +18,15 @@ import {
   transferOwnership,
   wireRoomProvisioningPorts,
 } from '@/modules/property-membership/application/index';
+import {
+  createAnnouncementCtx,
+  seedAnnouncement,
+  updateAnnouncementEntry,
+} from '@/modules/announcements/application/index';
+import {
+  createMediaCtx,
+  seedReadyImage,
+} from '@/modules/media-attachments/application/index';
 
 const LONG_TEXT =
   'Maple Residences Tower of Enduring Harmony and Perpetual Serenity by the Riverside Gardens Extension Block C Wing D Unit Corridor North';
@@ -192,5 +201,120 @@ export async function runPropertyScenario(runId: string): Promise<void> {
     },
     propertyCtx,
   );
+  await runAnnouncementScenario(runId, requestId, admin);
   console.log(`Scenario seed complete for run ${runId}.`);
+}
+
+async function runAnnouncementScenario(runId: string, requestId: string, admin: Actor): Promise<void> {
+  const { default: sharp } = await import('sharp');
+  const announcementCtx = createAnnouncementCtx({ requestId, isSeedActor: true });
+  const mediaCtx = createMediaCtx({ requestId, isSeedActor: true });
+  const adminId = admin.userId;
+  const now = Date.now();
+  const dayMs = 86_400_000;
+  await seedAnnouncement(
+    admin,
+    {
+      title: `E2E-${runId} draft notice`,
+      body: `This draft is invisible to residents. Run ${runId}.`,
+      publishAt: null,
+      authorId: adminId,
+    },
+    announcementCtx,
+  );
+  await seedAnnouncement(
+    admin,
+    {
+      title: `E2E-${runId} scheduled notice`,
+      body: `Scheduled one week out. Run ${runId}.`,
+      publishAt: new Date(now + 7 * dayMs),
+      authorId: adminId,
+    },
+    announcementCtx,
+  );
+  const tinyPng = await sharp({
+    create: { width: 8, height: 8, channels: 3, background: '#4f8f4f' },
+  })
+    .png()
+    .toBuffer();
+  const seedImages: string[] = [];
+  for (let index = 0; index < 5; index += 1) {
+    const seeded = await seedReadyImage(
+      admin,
+      {
+        runId,
+        fileName: `seed-cap-${index}.png`,
+        scope: 'ANNOUNCEMENT',
+        mime: 'image/png',
+        bytes: tinyPng,
+        width: 8,
+        height: 8,
+      },
+      mediaCtx,
+    );
+    seedImages.push(seeded.imageId);
+  }
+  const published = await seedAnnouncement(
+    admin,
+    {
+      title: `E2E-${runId} published notice`,
+      body: `Visible to every active account. Run ${runId}.`,
+      publishAt: new Date(now - dayMs),
+      authorId: adminId,
+    },
+    announcementCtx,
+  );
+  await updateAnnouncementEntry(
+    admin,
+    published.announcementId,
+    { imageIds: seedImages },
+    { ...announcementCtx, isSeedActor: false },
+  );
+  const longBody = `${LONG_TEXT}. Run ${runId}. ${LONG_TEXT}.`;
+  const longPublished = await seedAnnouncement(
+    admin,
+    {
+      title: `E2E-${runId} ${LONG_TEXT}`.slice(0, 255),
+      body: longBody.slice(0, 20000),
+      publishAt: new Date(now - 2 * dayMs),
+      authorId: adminId,
+    },
+    announcementCtx,
+  );
+  await updateAnnouncementEntry(
+    admin,
+    longPublished.announcementId,
+    { body: `${longBody} Edited after publish.`.slice(0, 20000) },
+    { ...announcementCtx, isSeedActor: false },
+  );
+  await seedAnnouncement(
+    admin,
+    {
+      title: `E2E-${runId} hidden notice`,
+      body: `Hidden after publish. Run ${runId}.`,
+      publishAt: new Date(now - 3 * dayMs),
+      hiddenAt: new Date(now - dayMs),
+      authorId: adminId,
+    },
+    announcementCtx,
+  );
+  const capProbePng = await sharp({
+    create: { width: 8, height: 8, channels: 3, background: '#3f6fbf' },
+  })
+    .png()
+    .toBuffer();
+  await seedReadyImage(
+    admin,
+    {
+      runId,
+      fileName: 'seed-extra-6th.png',
+      scope: 'ANNOUNCEMENT',
+      mime: 'image/png',
+      bytes: capProbePng,
+      width: 8,
+      height: 8,
+    },
+    mediaCtx,
+  );
+  console.log(`Announcement seed complete for run ${runId}.`);
 }
