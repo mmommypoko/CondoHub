@@ -210,6 +210,8 @@ export const invoice = pgTable(
     paymentInstructionSnapshot: jsonb('payment_instruction_snapshot'),
     ownershipIntervalRef: uuid('ownership_interval_ref'),
     version: integer('version').notNull(),
+    pastDueDateConfirmed: boolean('past_due_date_confirmed'),
+    pastDueDateConfirmedAt: timestamp('past_due_date_confirmed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

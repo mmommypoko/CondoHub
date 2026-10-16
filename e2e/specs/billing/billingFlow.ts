@@ -235,3 +235,101 @@ export async function findBillingRoom(page: Page, roomCode: string): Promise<str
 export function invoiceCountKey(row: InvoiceRow): string {
   return `${row.roomId}|${row.kind}|${row.periodStart}|${row.tenancyId ?? ''}|${row.total.amount}`;
 }
+
+export interface TurnoverReviewRow {
+  id: string;
+  roomId: string;
+  calendarMonth: string;
+  cycleStart: string;
+  cycleTimezone: string;
+  managementModeAtCreation: string;
+  state: 'UNRESOLVED' | 'RESOLVED' | 'NO_CHARGE';
+  candidateTenancyIds: string[];
+  version: number;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionType: 'ISSUE_INVOICES' | 'NO_CHARGE' | null;
+  reason: string | null;
+  blocked: boolean;
+  invoiceIds: string[];
+  createdAt: string;
+}
+
+export interface TurnoverReviewListEnvelope {
+  data: TurnoverReviewRow[];
+  meta: { page: number; pageSize: number; total: number; unresolvedCount: number };
+}
+
+export interface TurnoverReviewEnvelope {
+  data: TurnoverReviewRow;
+}
+
+export interface ResolveInvoiceDto {
+  id: string;
+  tenancyId: string | null;
+  kind: 'PRIVATE_RENT' | 'PROJECT_MANAGED_RENT' | 'COMMON_FEE';
+  periodStart: string;
+  dueDate: string;
+  total: { amount: string; currency: string };
+  reviewerSnapshotSource: 'ISSUE_TIME' | 'TURNOVER_REVIEW' | null;
+  sourceTurnoverReviewId: string | null;
+  pastDueDateConfirmed: boolean;
+}
+
+export interface ResolveTurnoverEnvelope {
+  data: {
+    reviewId: string;
+    state: 'RESOLVED' | 'NO_CHARGE';
+    version: number;
+    decision: 'ISSUE_INVOICES' | 'NO_CHARGE';
+    decidedBy: string;
+    decidedAt: string;
+    reason: string | null;
+    invoices: ResolveInvoiceDto[];
+  };
+}
+
+export async function listTurnoverReviews(
+  request: APIRequestContext,
+  query: { state?: string; pageSize?: number } = {},
+): Promise<{ rows: TurnoverReviewRow[]; unresolvedCount: number; total: number }> {
+  const params = new URLSearchParams();
+  if (query.state !== undefined) params.set('state', query.state);
+  params.set('pageSize', String(query.pageSize ?? 100));
+  const listed = await apiJson<TurnoverReviewListEnvelope>(request, {
+    method: 'GET',
+    path: `/api/billing/turnover-reviews?${params.toString()}`,
+  });
+  expect(listed.status).toBe(200);
+  return {
+    rows: listed.json.data,
+    unresolvedCount: listed.json.meta.unresolvedCount,
+    total: listed.json.meta.total,
+  };
+}
+
+export async function getTurnoverReview(
+  request: APIRequestContext,
+  id: string,
+): Promise<TurnoverReviewRow> {
+  const detail = await apiJson<TurnoverReviewEnvelope>(request, {
+    method: 'GET',
+    path: `/api/billing/turnover-reviews/${id}`,
+  });
+  expect(detail.status).toBe(200);
+  return detail.json.data;
+}
+
+export async function postTurnoverResolve(
+  request: APIRequestContext,
+  id: string,
+  body: unknown,
+  idempotencyKey?: string,
+): Promise<{ status: number; json: unknown }> {
+  return apiJson<unknown>(request, {
+    method: 'POST',
+    path: `/api/billing/turnover-reviews/${id}/resolve`,
+    body,
+    ...(idempotencyKey !== undefined ? { headers: { 'Idempotency-Key': idempotencyKey } } : {}),
+  });
+}

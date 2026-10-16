@@ -22,6 +22,8 @@ export interface InvoiceRecord {
   issuerId: string | null;
   issuedAt: Date | null;
   version: number;
+  pastDueDateConfirmed: boolean | null;
+  pastDueDateConfirmedAt: Date | null;
   createdAt: Date;
 }
 
@@ -45,6 +47,8 @@ function toRecord(row: typeof invoice.$inferSelect): InvoiceRecord {
     issuerId: row.issuerId,
     issuedAt: row.issuedAt,
     version: row.version,
+    pastDueDateConfirmed: row.pastDueDateConfirmed,
+    pastDueDateConfirmedAt: row.pastDueDateConfirmedAt,
     createdAt: row.createdAt,
   };
 }

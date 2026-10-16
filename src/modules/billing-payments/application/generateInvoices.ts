@@ -44,6 +44,7 @@ import {
   type BillingRuleRecord,
   type ChargeEventRecord,
 } from '../infrastructure/billingRepository';
+import { findReviewByRoomMonth } from '../infrastructure/turnoverReviewRepository';
 import type { FeeFrequency } from '../infrastructure/schema';
 import type { BillingCtx } from './ctx';
 
@@ -105,11 +106,19 @@ async function generateRentForRoom(
   },
 ): Promise<void> {
   const cycle = cycleForMonth('MONTHLY', input.year, input.month, PROJECT_TIMEZONE);
+  const calendarMonth = `${input.cycleYm}-01`;
+  const existingReview = await findReviewByRoomMonth(tx, {
+    roomId: input.room.id,
+    calendarMonth,
+  });
+  if (existingReview !== null) {
+    input.counts.skipped += 1;
+    return;
+  }
   const tenancies = await input.getTenancies(input.room.id, input.cycleYm);
   const decision = decideRentCycle(tenancies, cycle.cycleStart, cycle.cycleEndExclusive);
   if (decision.outcome === 'VACANT') return;
   if (decision.outcome === 'TURNOVER_REVIEW') {
-    const calendarMonth = `${input.cycleYm}-01`;
     const owners = await input.getOwners(input.room.id, cycle.cycleStart);
     const inserted = await insertTurnoverReviewIdempotent(tx, {
       roomId: input.room.id,

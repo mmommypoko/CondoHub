@@ -74,7 +74,7 @@ test.describe('billing generation: auth, idempotency, backfill, ms-bill-03, pd-0
     expect(bare.json.data.created).toBeGreaterThanOrEqual(0);
   });
 
-  test('generation is idempotent: created 8 then 0 with skipped 8 and zero dupes', async ({
+  test('generation is idempotent: created 10 then 0 with skipped 10 and zero dupes', async ({
     page,
   }) => {
     const { runId } = await readRunContext();
@@ -84,12 +84,14 @@ test.describe('billing generation: auth, idempotency, backfill, ms-bill-03, pd-0
     const room203 = await findBillingRoom(page, `E2E-${runId}-203`);
     const room204 = await findBillingRoom(page, `E2E-${runId}-204`);
     const room205 = await findBillingRoom(page, `E2E-${runId}-205`);
+    const room208 = await findBillingRoom(page, `E2E-${runId}-208`);
+    const room209 = await findBillingRoom(page, `E2E-${runId}-209`);
 
     const first = await triggerGenerate(page.request, {
       triggerSource: 'MANUAL',
       fromCycle: '2026-07',
     });
-    expect(first.json.data.created).toBe(8);
+    expect(first.json.data.created).toBe(10);
     expect(first.json.data.skipped).toBe(0);
     expect(first.json.data.reviewRequired).toBe(0);
     expect(first.json.data.caughtUp).toBe(true);
@@ -100,7 +102,7 @@ test.describe('billing generation: auth, idempotency, backfill, ms-bill-03, pd-0
       fromCycle: '2026-07',
     });
     expect(second.json.data.created).toBe(0);
-    expect(second.json.data.skipped).toBe(8);
+    expect(second.json.data.skipped).toBe(10);
     expect(second.json.data.reviewRequired).toBe(0);
 
     const rows201 = (await listInvoices(page.request, { roomId: room201 })).filter(
@@ -146,6 +148,16 @@ test.describe('billing generation: auth, idempotency, backfill, ms-bill-03, pd-0
     expect(rows205).toHaveLength(1);
     expect(rows205[0]?.kind).toBe('COMMON_FEE');
     expect(rows205[0]?.total.amount).toBe('1500.00');
+
+    for (const roomId of [room208, room209]) {
+      const rows = (await listInvoices(page.request, { roomId })).filter(
+        (row) => row.periodStart === '2026-07-01',
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.kind).toBe('PROJECT_MANAGED_RENT');
+      expect(rows[0]?.total.amount).toBe('8000.00');
+      expect(rows[0]?.dueDate).toBe('2026-07-05');
+    }
   });
 
   test('Q-DM-007: ownerless project-managed room gets a room-based invoice with no owner snapshot', async ({
@@ -266,13 +278,15 @@ test.describe('billing generation: auth, idempotency, backfill, ms-bill-03, pd-0
       await findBillingRoom(page, `E2E-${runId}-203`),
       await findBillingRoom(page, `E2E-${runId}-204`),
       await findBillingRoom(page, `E2E-${runId}-205`),
+      await findBillingRoom(page, `E2E-${runId}-208`),
+      await findBillingRoom(page, `E2E-${runId}-209`),
     ];
 
     const round1 = await triggerGenerate(page.request, {
       triggerSource: 'MANUAL',
       fromCycle: '2026-09',
     });
-    expect(round1.json.data.created).toBe(7);
+    expect(round1.json.data.created).toBe(9);
     const snapshotAfterRound1: string[] = [];
     for (const roomId of rooms) {
       const rows = (await listInvoices(page.request, { roomId })).filter(
@@ -281,21 +295,21 @@ test.describe('billing generation: auth, idempotency, backfill, ms-bill-03, pd-0
       for (const row of rows) snapshotAfterRound1.push(invoiceCountKey(row));
     }
     snapshotAfterRound1.sort();
-    expect(snapshotAfterRound1).toHaveLength(7);
+    expect(snapshotAfterRound1).toHaveLength(9);
 
     const round2 = await triggerGenerate(page.request, {
       triggerSource: 'MANUAL',
       fromCycle: '2026-09',
     });
     expect(round2.json.data.created).toBe(0);
-    expect(round2.json.data.skipped).toBe(7);
+    expect(round2.json.data.skipped).toBe(9);
 
     const round3 = await triggerGenerate(page.request, {
       triggerSource: 'MANUAL',
       fromCycle: '2026-09',
     });
     expect(round3.json.data.created).toBe(0);
-    expect(round3.json.data.skipped).toBe(7);
+    expect(round3.json.data.skipped).toBe(9);
 
     const snapshotAfterRound3: string[] = [];
     for (const roomId of rooms) {

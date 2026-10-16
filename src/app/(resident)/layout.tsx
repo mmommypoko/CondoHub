@@ -1,6 +1,7 @@
 import 'server-only';
 import type { ReactNode } from 'react';
 import { cookies } from 'next/headers';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
@@ -9,6 +10,7 @@ import {
   getActiveResidentRooms,
   getCurrentOwners,
 } from '@/modules/property-membership/application/index';
+import { countUnresolvedTurnoverReviews } from '@/modules/billing-payments/application/index';
 import { findRoomById } from '@/modules/property-membership/infrastructure/structureRepository';
 import { findBuildingById } from '@/modules/property-membership/infrastructure/structureRepository';
 import { db } from '@/shared/db/client';
@@ -42,6 +44,12 @@ export default async function ResidentLayout({ children }: { children: ReactNode
     const owners = await getCurrentOwners(currentRoomId, now);
     roleLabel = owners.some((owner) => owner.userId === actor.userId) ? 'Owner' : 'Resident';
   }
+  let turnoverUnresolved = 0;
+  try {
+    turnoverUnresolved = await countUnresolvedTurnoverReviews(actor);
+  } catch {
+    turnoverUnresolved = 0;
+  }
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="flex items-center justify-between gap-2 border-b border-border bg-surface px-4 py-3 sm:gap-4 sm:px-6">
@@ -53,6 +61,19 @@ export default async function ResidentLayout({ children }: { children: ReactNode
         </div>
         <RoomSwitcher rooms={rooms} currentRoomId={currentRoomId} />
       </header>
+      {turnoverUnresolved > 0 ? (
+        <nav aria-label="Billing attention" className="border-b border-border bg-surface px-4 py-2 sm:px-6">
+          <Link
+            data-testid="nav-turnover-reviews-badge"
+            href="/invoices/turnover-reviews?state=UNRESOLVED"
+            className="inline-flex min-w-0 items-center gap-2 text-sm font-medium text-link hover:underline"
+          >
+            <Badge data-testid="turnover-unresolved-badge" variant="warning">
+              {turnoverUnresolved} unresolved turnover {turnoverUnresolved === 1 ? 'review' : 'reviews'}
+            </Badge>
+          </Link>
+        </nav>
+      ) : null}
       <div className="flex flex-1 flex-col">{children}</div>
     </div>
   );

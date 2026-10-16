@@ -11,6 +11,10 @@ import {
   type BillingRuleRecord,
   type ChargeEventRecord,
 } from '../infrastructure/billingRepository';
+import {
+  insertPayeeInstruction,
+  type PaymentInstructionRecord,
+} from '../infrastructure/payeeRepository';
 import type { FeeConfigMode, FeeFrequency, InvoiceKind } from '../infrastructure/schema';
 import type { BillingCtx } from './ctx';
 
@@ -52,6 +56,46 @@ export async function seedBillingRule(
         resourceId: created.id,
         requestId: ctx.requestId,
         after: { kind: created.kind, frequency: created.frequency, roomId: created.roomId },
+      });
+      return created;
+    });
+  } catch (error) {
+    throw mapPgError(error);
+  }
+}
+
+export interface SeedPayeeInstructionInput {
+  payeeType: string;
+  payeeId: string;
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  effectiveFrom: Date;
+}
+
+export async function seedPayeeInstruction(
+  actor: Actor,
+  input: SeedPayeeInstructionInput,
+  ctx: BillingCtx,
+): Promise<PaymentInstructionRecord> {
+  requireSeedAdmin(actor, ctx);
+  try {
+    return await db.transaction(async (tx) => {
+      const created = await insertPayeeInstruction(tx, {
+        payeeType: input.payeeType,
+        payeeId: input.payeeId,
+        bankName: input.bankName,
+        accountName: input.accountName,
+        accountNumber: input.accountNumber,
+        effectiveFrom: input.effectiveFrom,
+      });
+      await writeAudit(tx, {
+        actorId: actor.userId,
+        action: 'payee_instruction.seed.created',
+        resourceType: 'payment_instruction',
+        resourceId: created.id,
+        requestId: ctx.requestId,
+        after: { payeeType: created.payeeType, payeeId: created.payeeId },
       });
       return created;
     });

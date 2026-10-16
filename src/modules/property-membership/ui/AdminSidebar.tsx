@@ -17,6 +17,7 @@ const ADMIN_LINKS = [
   { href: '/admin/users', label: 'Users', icon: Users, testId: 'nav-users' },
   { href: '/admin/announcements', label: 'Announcements', icon: Megaphone, testId: 'nav-announcements' },
   { href: '/admin/billing/events', label: 'Billing Events', icon: Zap, testId: 'nav-billing-events' },
+  { href: '/admin/billing/turnover-reviews', label: 'Turnover Reviews', icon: ReceiptText, testId: 'nav-billing-turnover-reviews' },
   { href: '/admin/billing/job-runs', label: 'Job Runs', icon: CalendarDays, testId: 'nav-billing-job-runs' },
   { href: '/admin/billing/invoices', label: 'Invoices', icon: ReceiptText, testId: 'nav-billing-invoices' },
 ];

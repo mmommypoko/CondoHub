@@ -21,6 +21,10 @@ const BILLING_JOB_KEYS = [
   '2024-02',
   '2026-08',
   '2026-05',
+  '2026-03',
+  '2026-06',
+  '2026-10',
+  '2026-11',
 ];
 
 function bangkokYearMonth(at: Date): string {
@@ -47,6 +51,16 @@ function resetTargets(): ResetTarget[] {
     {
       label: 'common_fee_invoice_responsible_owner',
       sql: `DELETE FROM "common_fee_invoice_responsible_owner" WHERE "invoice_id" IN (SELECT "id" FROM "invoice" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\'))`,
+      pattern: 'raw',
+    },
+    {
+      label: 'payment_instruction',
+      sql: `DELETE FROM "payment_instruction" WHERE "payee_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\')`,
+      pattern: 'raw',
+    },
+    {
+      label: 'idempotency_key',
+      sql: `DELETE FROM "idempotency_key" WHERE "scope" = 'TURNOVER_RESOLVE' AND "result_ref_id" IN (SELECT "id" FROM "turnover_billing_review" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\'))`,
       pattern: 'raw',
     },
     {

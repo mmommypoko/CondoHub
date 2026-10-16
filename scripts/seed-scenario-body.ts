@@ -39,6 +39,7 @@ import {
   createBillingCtx,
   seedBillingRule,
   seedChargeEvent,
+  seedPayeeInstruction,
 } from '@/modules/billing-payments/application/index';
 
 const LONG_TEXT =
@@ -634,6 +635,10 @@ async function runBillingScenario(
     { code: '203', areaSqm: '35.50', owner: ownerNewB },
     { code: '204', areaSqm: '120.50', owner: ownerC },
     { code: '205', areaSqm: '50.00', owner: null },
+    { code: '206', areaSqm: '40.00', owner: ownerA },
+    { code: '207', areaSqm: '40.00', owner: ownerA },
+    { code: '208', areaSqm: '60.00', owner: ownerC },
+    { code: '209', areaSqm: '45.00', owner: null },
   ] as const;
   const rooms = new Map<string, string>();
   for (const spec of roomSpecs) {
@@ -661,6 +666,20 @@ async function runBillingScenario(
   const room202 = rooms.get('202') ?? '';
   const room204 = rooms.get('204') ?? '';
   const room205 = rooms.get('205') ?? '';
+  const room206 = rooms.get('206') ?? '';
+  const room207 = rooms.get('207') ?? '';
+  const room208 = rooms.get('208') ?? '';
+  const room209 = rooms.get('209') ?? '';
+  await seedOwnership(
+    admin,
+    { roomId: room206, userId: ownerC, startAt: new Date('2023-01-01T00:00:00.000Z') },
+    propertyCtx,
+  );
+  await seedOwnership(
+    admin,
+    { roomId: room207, userId: ownerC, startAt: new Date('2023-01-01T00:00:00.000Z') },
+    propertyCtx,
+  );
   await createTenancy(
     admin,
     {
@@ -691,6 +710,114 @@ async function runBillingScenario(
       endsAt: null,
       managementMode: 'PRIVATE_OWNER_MANAGED',
       effectiveAt: new Date('2023-01-01T00:00:00.000Z'),
+    },
+    propertyCtx,
+  );
+  const turnover206First = await createTenancy(
+    admin,
+    {
+      roomId: room206,
+      startsAt: new Date(),
+      endsAt: null,
+      managementMode: 'PRIVATE_OWNER_MANAGED',
+      effectiveAt: new Date('2026-06-01T00:00:00.000Z'),
+    },
+    propertyCtx,
+  );
+  await endTenancyAt(
+    admin,
+    { tenancyId: turnover206First.id, endsAt: new Date('2026-06-16T00:00:00.000Z') },
+    propertyCtx,
+  );
+  await createTenancy(
+    admin,
+    {
+      roomId: room206,
+      startsAt: new Date(),
+      endsAt: null,
+      managementMode: 'PRIVATE_OWNER_MANAGED',
+      effectiveAt: new Date('2026-06-16T00:00:00.000Z'),
+    },
+    propertyCtx,
+  );
+  const turnover207First = await createTenancy(
+    admin,
+    {
+      roomId: room207,
+      startsAt: new Date(),
+      endsAt: null,
+      managementMode: 'PRIVATE_OWNER_MANAGED',
+      effectiveAt: new Date('2026-06-01T00:00:00.000Z'),
+    },
+    propertyCtx,
+  );
+  await endTenancyAt(
+    admin,
+    { tenancyId: turnover207First.id, endsAt: new Date('2026-06-16T00:00:00.000Z') },
+    propertyCtx,
+  );
+  await createTenancy(
+    admin,
+    {
+      roomId: room207,
+      startsAt: new Date(),
+      endsAt: null,
+      managementMode: 'PRIVATE_OWNER_MANAGED',
+      effectiveAt: new Date('2026-06-16T00:00:00.000Z'),
+    },
+    propertyCtx,
+  );
+  const turnover208First = await createTenancy(
+    admin,
+    {
+      roomId: room208,
+      startsAt: new Date(),
+      endsAt: null,
+      managementMode: 'PROJECT_MANAGED',
+      effectiveAt: new Date('2026-06-01T00:00:00.000Z'),
+    },
+    propertyCtx,
+  );
+  await endTenancyAt(
+    admin,
+    { tenancyId: turnover208First.id, endsAt: new Date('2026-06-16T00:00:00.000Z') },
+    propertyCtx,
+  );
+  await createTenancy(
+    admin,
+    {
+      roomId: room208,
+      startsAt: new Date(),
+      endsAt: null,
+      managementMode: 'PROJECT_MANAGED',
+      effectiveAt: new Date('2026-06-16T00:00:00.000Z'),
+    },
+    propertyCtx,
+  );
+  const turnover209First = await createTenancy(
+    admin,
+    {
+      roomId: room209,
+      startsAt: new Date(),
+      endsAt: null,
+      managementMode: 'PROJECT_MANAGED',
+      effectiveAt: new Date('2026-06-01T00:00:00.000Z'),
+    },
+    propertyCtx,
+  );
+  await endTenancyAt(
+    admin,
+    { tenancyId: turnover209First.id, endsAt: new Date('2026-06-16T00:00:00.000Z') },
+    propertyCtx,
+  );
+  await createTenancy(
+    admin,
+    {
+      roomId: room209,
+      startsAt: new Date(),
+      endsAt: null,
+      managementMode: 'PROJECT_MANAGED',
+      effectiveAt: new Date('2026-06-16T00:00:00.000Z'),
     },
     propertyCtx,
   );
@@ -827,6 +954,103 @@ async function runBillingScenario(
       rate: '1500.00',
       frequency: 'MONTHLY',
       effectiveAt: ruleEffectiveAt,
+    },
+    billingCtx,
+  );
+  await seedBillingRule(
+    admin,
+    {
+      kind: 'PRIVATE_RENT',
+      roomId: room206,
+      configMode: 'FIXED_PROJECT',
+      rate: '12000.00',
+      frequency: 'MONTHLY',
+      effectiveAt: ruleEffectiveAt,
+    },
+    billingCtx,
+  );
+  await seedBillingRule(
+    admin,
+    {
+      kind: 'PRIVATE_RENT',
+      roomId: room207,
+      configMode: 'FIXED_PROJECT',
+      rate: '12000.00',
+      frequency: 'MONTHLY',
+      effectiveAt: ruleEffectiveAt,
+    },
+    billingCtx,
+  );
+  await seedBillingRule(
+    admin,
+    {
+      kind: 'PROJECT_MANAGED_RENT',
+      roomId: room208,
+      configMode: 'FIXED_PROJECT',
+      rate: '8000.00',
+      frequency: 'MONTHLY',
+      effectiveAt: ruleEffectiveAt,
+    },
+    billingCtx,
+  );
+  await seedBillingRule(
+    admin,
+    {
+      kind: 'PROJECT_MANAGED_RENT',
+      roomId: room209,
+      configMode: 'FIXED_PROJECT',
+      rate: '8000.00',
+      frequency: 'MONTHLY',
+      effectiveAt: ruleEffectiveAt,
+    },
+    billingCtx,
+  );
+  const payeeEffectiveAt = new Date('2023-01-01T00:00:00.000Z');
+  await seedPayeeInstruction(
+    admin,
+    {
+      payeeType: 'OWNER',
+      payeeId: room206,
+      bankName: 'E2E Test Bank',
+      accountName: 'Amara Original Owner',
+      accountNumber: '206-0-00001-9',
+      effectiveFrom: payeeEffectiveAt,
+    },
+    billingCtx,
+  );
+  await seedPayeeInstruction(
+    admin,
+    {
+      payeeType: 'OWNER',
+      payeeId: room207,
+      bankName: 'E2E Test Bank',
+      accountName: 'Amara Original Owner',
+      accountNumber: '207-0-00001-9',
+      effectiveFrom: payeeEffectiveAt,
+    },
+    billingCtx,
+  );
+  await seedPayeeInstruction(
+    admin,
+    {
+      payeeType: 'PROJECT',
+      payeeId: room208,
+      bankName: 'E2E Test Bank',
+      accountName: 'CondoHub Project Account',
+      accountNumber: '208-0-00001-9',
+      effectiveFrom: payeeEffectiveAt,
+    },
+    billingCtx,
+  );
+  await seedPayeeInstruction(
+    admin,
+    {
+      payeeType: 'PROJECT',
+      payeeId: room209,
+      bankName: 'E2E Test Bank',
+      accountName: 'CondoHub Project Account',
+      accountNumber: '209-0-00001-9',
+      effectiveFrom: payeeEffectiveAt,
     },
     billingCtx,
   );

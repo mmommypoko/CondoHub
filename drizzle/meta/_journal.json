@@ -43,6 +43,13 @@
       "when": 1792080620509,
       "tag": "0005_hot_metal_master",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792138459919,
+      "tag": "0006_icy_union_jack",
+      "breakpoints": true
     }
   ]
 }

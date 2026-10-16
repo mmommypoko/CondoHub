@@ -52,6 +52,10 @@ test.describe('billing one-time common fee events: issuance, per-room invoices, 
       await findBillingRoom(page, `E2E-${runId}-203`),
       await findBillingRoom(page, `E2E-${runId}-204`),
       await findBillingRoom(page, `E2E-${runId}-205`),
+      await findBillingRoom(page, `E2E-${runId}-206`),
+      await findBillingRoom(page, `E2E-${runId}-207`),
+      await findBillingRoom(page, `E2E-${runId}-208`),
+      await findBillingRoom(page, `E2E-${runId}-209`),
     ];
 
     const created = await postChargeEvent(page.request, {
@@ -64,7 +68,7 @@ test.describe('billing one-time common fee events: issuance, per-room invoices, 
 
     const issued = await driveIssuance(created.json.data.id);
     expect(issued.eventId).toBe(created.json.data.id);
-    expect(issued.created).toBeGreaterThanOrEqual(5);
+    expect(issued.created).toBeGreaterThanOrEqual(9);
 
     for (const roomId of rooms) {
       const matches = (await listInvoices(page.request, { roomId })).filter(

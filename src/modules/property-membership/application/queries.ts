@@ -73,6 +73,15 @@ export interface MembershipInterval {
   memberRole: 'MAIN' | 'SUB';
 }
 
+export interface RoomDetail {
+  id: string;
+  floorId: string;
+  buildingId: string;
+  roomCode: string;
+  areaSqm: string;
+  status: 'ACTIVE' | 'INACTIVE';
+}
+
 export type MaintenanceRouting = MaintenanceRoutingKind;
 
 function toOwnershipIntervals(rows: OwnershipRow[]): OwnershipInterval[] {
@@ -367,4 +376,16 @@ export async function resolveActorRooms(actor: Actor, at: Date): Promise<RoomRow
   if (actor.isSystemAdmin) return listAllRooms(db);
   const roomIds = await getActiveResidentRooms(actor.userId, at);
   return listRoomsByIds(db, roomIds);
+}
+
+export async function getRoomDetail(roomId: string): Promise<RoomDetail> {
+  const room = await requireKnownRoom(roomId);
+  return {
+    id: room.id,
+    floorId: room.floorId,
+    buildingId: room.buildingId,
+    roomCode: room.roomCode,
+    areaSqm: room.areaSqm,
+    status: room.status,
+  };
 }

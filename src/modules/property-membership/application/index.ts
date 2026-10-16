@@ -11,6 +11,7 @@ export {
   getOwnersAt,
   getRentalPeriods,
   getResidentIntervals,
+  getRoomDetail,
   isOwnerAt,
   resolveActorRooms,
 } from './queries';
@@ -22,6 +23,7 @@ export type {
   RentalPeriodDto,
   ResidentInterval,
   RoomActVerdict,
+  RoomDetail,
 } from './queries';
 export {
   createBuilding,

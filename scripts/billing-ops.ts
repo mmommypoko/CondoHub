@@ -93,6 +93,84 @@ async function probeReview(roomCode: string, calendarMonth: string): Promise<voi
   }));
 }
 
+async function probeTurnoverResolution(reviewId: string): Promise<void> {
+  const { db } = await import('@/shared/db/client');
+  const {
+    invoice,
+    privateRentInvoiceReviewer,
+    turnoverBillingReview,
+  } = await import('@/modules/billing-payments/infrastructure/schema');
+  const { eq } = await import('drizzle-orm');
+  const reviews = await db
+    .select()
+    .from(turnoverBillingReview)
+    .where(eq(turnoverBillingReview.id, reviewId))
+    .limit(1);
+  const review = reviews[0];
+  if (review === undefined) {
+    console.log(JSON.stringify({ reviewId, review: null }));
+    return;
+  }
+  const invoices = await db
+    .select()
+    .from(invoice)
+    .where(eq(invoice.sourceTurnoverReviewId, reviewId));
+  const reviewers: Array<{ invoiceId: string; userId: string }> = [];
+  for (const row of invoices) {
+    const rows = await db
+      .select({
+        invoiceId: privateRentInvoiceReviewer.invoiceId,
+        userId: privateRentInvoiceReviewer.userId,
+      })
+      .from(privateRentInvoiceReviewer)
+      .where(eq(privateRentInvoiceReviewer.invoiceId, row.id));
+    for (const entry of rows) reviewers.push(entry);
+  }
+  console.log(JSON.stringify({
+    reviewId,
+    review: {
+      state: review.state,
+      version: review.version,
+      decisionType: review.decisionType,
+      reason: review.reason,
+    },
+    invoices: invoices.map((row) => ({
+      id: row.id,
+      tenancyId: row.tenancyId,
+      kind: row.kind,
+      periodStart: row.periodStart,
+      dueDate: row.dueDate,
+      totalAmount: row.total.toString(),
+      reviewerSnapshotSource: row.reviewerSnapshotSource,
+      pastDueDateConfirmed: row.pastDueDateConfirmed,
+      payee: row.paymentInstructionSnapshot,
+    })),
+    reviewers,
+  }));
+}
+
+async function probeTurnoverAudit(resourceId: string): Promise<void> {
+  const { db } = await import('@/shared/db/client');
+  const { auditLog } = await import('@/shared/db/schema/audit');
+  const { eq } = await import('drizzle-orm');
+  const rows = await db
+    .select({
+      action: auditLog.action,
+      resourceType: auditLog.resourceType,
+      afterJson: auditLog.afterJson,
+    })
+    .from(auditLog)
+    .where(eq(auditLog.resourceId, resourceId));
+  console.log(JSON.stringify({
+    resourceId,
+    entries: rows.map((row) => ({
+      action: row.action,
+      resourceType: row.resourceType,
+      after: row.afterJson,
+    })),
+  }));
+}
+
 async function probeFeeOwners(invoiceId: string): Promise<void> {
   const { db } = await import('@/shared/db/client');
   const { commonFeeInvoiceResponsibleOwner } = await import(
@@ -136,6 +214,18 @@ async function main(): Promise<void> {
     const invoiceId = flagValue(argv, '--invoice');
     if (invoiceId === undefined || invoiceId === '') throw new Error('Missing required --invoice <id>.');
     await probeFeeOwners(invoiceId);
+    return;
+  }
+  if (command === 'probe-turnover') {
+    const reviewId = flagValue(argv, '--review');
+    if (reviewId === undefined || reviewId === '') throw new Error('Missing required --review <id>.');
+    await probeTurnoverResolution(reviewId);
+    return;
+  }
+  if (command === 'probe-audit') {
+    const resourceId = flagValue(argv, '--resource');
+    if (resourceId === undefined || resourceId === '') throw new Error('Missing required --resource <id>.');
+    await probeTurnoverAudit(resourceId);
     return;
   }
   throw new Error(`Unknown billing-ops command: ${command ?? '(none)'}.`);
