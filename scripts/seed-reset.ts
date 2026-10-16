@@ -8,11 +8,77 @@ loadDotenv('.env.local');
 interface ResetTarget {
   label: string;
   sql: string;
-  pattern: 'raw' | 'normalized';
+  pattern: 'raw' | 'normalized' | 'keys';
+}
+
+const BILLING_JOB_KEYS = [
+  '2026-07',
+  '2025-10:2025-12',
+  '2026-01:2026-03',
+  '2026-04',
+  '2026-09',
+  '2026-02',
+  '2024-02',
+  '2026-08',
+  '2026-05',
+];
+
+function bangkokYearMonth(at: Date): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+  }).format(at);
+}
+
+function billingJobKeys(now: Date): string[] {
+  const current = bangkokYearMonth(now);
+  const previous = bangkokYearMonth(new Date(now.getTime() - 32 * 86_400_000));
+  return [...BILLING_JOB_KEYS, current, previous];
 }
 
 function resetTargets(): ResetTarget[] {
   return [
+    {
+      label: 'private_rent_invoice_reviewer',
+      sql: `DELETE FROM "private_rent_invoice_reviewer" WHERE "invoice_id" IN (SELECT "id" FROM "invoice" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\'))`,
+      pattern: 'raw',
+    },
+    {
+      label: 'common_fee_invoice_responsible_owner',
+      sql: `DELETE FROM "common_fee_invoice_responsible_owner" WHERE "invoice_id" IN (SELECT "id" FROM "invoice" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\'))`,
+      pattern: 'raw',
+    },
+    {
+      label: 'turnover_review_responsible_owner',
+      sql: `DELETE FROM "turnover_review_responsible_owner" WHERE "review_id" IN (SELECT "id" FROM "turnover_billing_review" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\'))`,
+      pattern: 'raw',
+    },
+    {
+      label: 'invoice',
+      sql: `DELETE FROM "invoice" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\')`,
+      pattern: 'raw',
+    },
+    {
+      label: 'turnover_billing_review',
+      sql: `DELETE FROM "turnover_billing_review" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\')`,
+      pattern: 'raw',
+    },
+    {
+      label: 'common_fee_charge_event',
+      sql: `DELETE FROM "common_fee_charge_event" WHERE "charge_context"->>'runId' = $1 OR "charge_context"->>'note' LIKE '%' || $1 || '%' ESCAPE '\\'`,
+      pattern: 'raw',
+    },
+    {
+      label: 'billing_rule',
+      sql: `DELETE FROM "billing_rule" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\')`,
+      pattern: 'raw',
+    },
+    {
+      label: 'job_run',
+      sql: `DELETE FROM "job_run" WHERE "job_name" = 'generate-invoices' AND "business_key" = ANY($1)`,
+      pattern: 'keys',
+    },
     {
       label: 'quota_adjustment',
       sql: `DELETE FROM "quota_adjustment" WHERE "facility_id" IN (SELECT "id" FROM "facility" WHERE "code" LIKE '%' || $1 || '%' ESCAPE '\\')`,
@@ -143,9 +209,11 @@ async function main(): Promise<void> {
   try {
     const raw = escapeLike(runId);
     const normalized = escapeLike(normalizedRun(runId));
+    const keys = billingJobKeys(new Date());
     for (const target of resetTargets()) {
       try {
-        const result = await pool.query(target.sql, [target.pattern === 'raw' ? raw : normalized]);
+        const param = target.pattern === 'normalized' ? normalized : target.pattern === 'keys' ? keys : raw;
+        const result = await pool.query(target.sql, [param]);
         console.log(`reset ${target.label}: deleted ${result.rowCount ?? 0} rows for run ${runId}.`);
       } catch (error) {
         console.log(`reset ${target.label}: skipped (${error instanceof Error ? error.message : 'unknown error'}).`);

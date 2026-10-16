@@ -9,6 +9,7 @@ import {
 } from '@/modules/identity-access/infrastructure/revokeFanOut';
 import { wireRoomProvisioningPorts } from '@/modules/property-membership/application/index';
 import { wireAnnouncementScopeAcl } from '@/modules/announcements/application/index';
+import { checkBillingCursorAtStartup } from '@/modules/billing-payments/application/index';
 
 const app = next({ dev: env.NODE_ENV !== 'production' });
 const handler = app.getRequestHandler();
@@ -22,6 +23,7 @@ async function main(): Promise<void> {
   setRevokeFanOut(createSocketRevokeFanOut(io));
   wireRoomProvisioningPorts();
   wireAnnouncementScopeAcl();
+  void checkBillingCursorAtStartup();
   httpServer.listen(env.PORT, '0.0.0.0', () => {
     logger.info({ port: env.PORT }, 'server listening');
   });

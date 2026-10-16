@@ -8,6 +8,7 @@ export default defineConfig({
     "./src/modules/announcements/infrastructure/schema.ts",
     "./src/modules/facility-booking/infrastructure/schema.ts",
     "./src/modules/media-attachments/infrastructure/schema.ts",
+    "./src/modules/billing-payments/infrastructure/schema.ts",
     "./src/shared/db/schema/audit.ts",
     "./src/shared/db/schema/jobs.ts",
     "./src/shared/db/schema/idempotency.ts",

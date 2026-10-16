@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, CalendarDays, Home, KeyRound, Megaphone, Users } from 'lucide-react';
+import { Building2, CalendarDays, Home, KeyRound, Megaphone, ReceiptText, Users, Zap } from 'lucide-react';
 import { cx } from '@/shared/ui/cx';
 
 const WORKSPACE_LINKS = [
@@ -16,6 +16,9 @@ const ADMIN_LINKS = [
   { href: '/admin/ownership', label: 'Ownership', icon: KeyRound, testId: 'nav-ownership' },
   { href: '/admin/users', label: 'Users', icon: Users, testId: 'nav-users' },
   { href: '/admin/announcements', label: 'Announcements', icon: Megaphone, testId: 'nav-announcements' },
+  { href: '/admin/billing/events', label: 'Billing Events', icon: Zap, testId: 'nav-billing-events' },
+  { href: '/admin/billing/job-runs', label: 'Job Runs', icon: CalendarDays, testId: 'nav-billing-job-runs' },
+  { href: '/admin/billing/invoices', label: 'Invoices', icon: ReceiptText, testId: 'nav-billing-invoices' },
 ];
 
 export function AdminSidebar() {

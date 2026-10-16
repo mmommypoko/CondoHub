@@ -35,6 +35,11 @@ import {
   seedDirectBooking,
   seedFacility,
 } from '@/modules/facility-booking/application/index';
+import {
+  createBillingCtx,
+  seedBillingRule,
+  seedChargeEvent,
+} from '@/modules/billing-payments/application/index';
 
 const LONG_TEXT =
   'Maple Residences Tower of Enduring Harmony and Perpetual Serenity by the Riverside Gardens Extension Block C Wing D Unit Corridor North';
@@ -218,6 +223,17 @@ export async function runPropertyScenario(runId: string): Promise<void> {
     building.projectId,
     rooms,
     userIds.get('privt') ?? '',
+  );
+  const billingUsers = new Map<string, string>();
+  for (const key of ['ownera', 'ownerc', 'ownernewb']) {
+    billingUsers.set(key, userIds.get(key) ?? '');
+  }
+  await runBillingScenario(
+    runId,
+    requestId,
+    admin,
+    { buildingId: building.id, floorId: floor.id },
+    billingUsers,
   );
   console.log(`Scenario seed complete for run ${runId}.`);
 }
@@ -598,4 +614,233 @@ async function runBookingScenario(
     bookingCtx,
   );
   console.log(`Booking seed complete for run ${runId}.`);
+}
+
+async function runBillingScenario(
+  runId: string,
+  requestId: string,
+  admin: Actor,
+  structures: { buildingId: string; floorId: string },
+  userIds: Map<string, string>,
+): Promise<void> {
+  const propertyCtx = createPropertyCtx({ requestId, isSeedActor: true });
+  const billingCtx = createBillingCtx({ requestId, isSeedActor: true });
+  const ownerA = userIds.get('ownera') ?? '';
+  const ownerC = userIds.get('ownerc') ?? '';
+  const ownerNewB = userIds.get('ownernewb') ?? '';
+  const roomSpecs = [
+    { code: '201', areaSqm: '35.50', owner: ownerC },
+    { code: '202', areaSqm: '42.00', owner: ownerA },
+    { code: '203', areaSqm: '35.50', owner: ownerNewB },
+    { code: '204', areaSqm: '120.50', owner: ownerC },
+    { code: '205', areaSqm: '50.00', owner: null },
+  ] as const;
+  const rooms = new Map<string, string>();
+  for (const spec of roomSpecs) {
+    const room = await createRoom(
+      admin,
+      {
+        floorId: structures.floorId,
+        buildingId: structures.buildingId,
+        roomCode: `E2E-${runId}-${spec.code}`,
+        areaSqm: spec.areaSqm,
+        status: 'ACTIVE',
+      },
+      propertyCtx,
+    );
+    rooms.set(spec.code, room.id);
+    if (spec.owner !== null) {
+      await seedOwnership(
+        admin,
+        { roomId: room.id, userId: spec.owner, startAt: new Date('2023-01-01T00:00:00.000Z') },
+        propertyCtx,
+      );
+    }
+  }
+  const room201 = rooms.get('201') ?? '';
+  const room202 = rooms.get('202') ?? '';
+  const room204 = rooms.get('204') ?? '';
+  const room205 = rooms.get('205') ?? '';
+  await createTenancy(
+    admin,
+    {
+      roomId: room205,
+      startsAt: new Date(),
+      endsAt: null,
+      managementMode: 'PROJECT_MANAGED',
+      effectiveAt: new Date('2023-01-01T00:00:00.000Z'),
+    },
+    propertyCtx,
+  );
+  await createTenancy(
+    admin,
+    {
+      roomId: room201,
+      startsAt: new Date(),
+      endsAt: null,
+      managementMode: 'PROJECT_MANAGED',
+      effectiveAt: new Date('2023-01-01T00:00:00.000Z'),
+    },
+    propertyCtx,
+  );
+  await createTenancy(
+    admin,
+    {
+      roomId: room202,
+      startsAt: new Date(),
+      endsAt: null,
+      managementMode: 'PRIVATE_OWNER_MANAGED',
+      effectiveAt: new Date('2023-01-01T00:00:00.000Z'),
+    },
+    propertyCtx,
+  );
+  const turnoverFirst = await createTenancy(
+    admin,
+    {
+      roomId: room204,
+      startsAt: new Date(),
+      endsAt: null,
+      managementMode: 'PROJECT_MANAGED',
+      effectiveAt: new Date('2023-01-01T00:00:00.000Z'),
+    },
+    propertyCtx,
+  );
+  await endTenancyAt(
+    admin,
+    { tenancyId: turnoverFirst.id, endsAt: new Date('2026-02-15T00:00:00.000Z') },
+    propertyCtx,
+  );
+  await createTenancy(
+    admin,
+    {
+      roomId: room204,
+      startsAt: new Date(),
+      endsAt: null,
+      managementMode: 'PROJECT_MANAGED',
+      effectiveAt: new Date('2026-02-15T00:00:00.000Z'),
+    },
+    propertyCtx,
+  );
+  const ruleEffectiveAt = new Date('2020-01-01T00:00:00.000Z');
+  await seedBillingRule(
+    admin,
+    {
+      kind: 'PROJECT_MANAGED_RENT',
+      roomId: room201,
+      configMode: 'FIXED_PROJECT',
+      rate: '8000.00',
+      frequency: 'MONTHLY',
+      effectiveAt: ruleEffectiveAt,
+    },
+    billingCtx,
+  );
+  await seedBillingRule(
+    admin,
+    {
+      kind: 'COMMON_FEE',
+      roomId: room201,
+      configMode: 'AREA',
+      rate: '70.00',
+      frequency: 'MONTHLY',
+      effectiveAt: ruleEffectiveAt,
+    },
+    billingCtx,
+  );
+  await seedBillingRule(
+    admin,
+    {
+      kind: 'COMMON_FEE',
+      roomId: room201,
+      configMode: 'FIXED_PROJECT',
+      rate: '9000.00',
+      frequency: 'QUARTERLY',
+      effectiveAt: ruleEffectiveAt,
+    },
+    billingCtx,
+  );
+  await seedBillingRule(
+    admin,
+    {
+      kind: 'PRIVATE_RENT',
+      roomId: room202,
+      configMode: 'FIXED_PROJECT',
+      rate: '12000.00',
+      frequency: 'MONTHLY',
+      effectiveAt: ruleEffectiveAt,
+    },
+    billingCtx,
+  );
+  await seedBillingRule(
+    admin,
+    {
+      kind: 'COMMON_FEE',
+      roomId: room202,
+      configMode: 'FIXED_PROJECT',
+      rate: '3000.00',
+      frequency: 'MONTHLY',
+      effectiveAt: ruleEffectiveAt,
+    },
+    billingCtx,
+  );
+  await seedBillingRule(
+    admin,
+    {
+      kind: 'COMMON_FEE',
+      roomId: rooms.get('203') ?? '',
+      configMode: 'FIXED_PROJECT',
+      rate: '3000.00',
+      frequency: 'MONTHLY',
+      effectiveAt: ruleEffectiveAt,
+    },
+    billingCtx,
+  );
+  await seedBillingRule(
+    admin,
+    {
+      kind: 'PROJECT_MANAGED_RENT',
+      roomId: room204,
+      configMode: 'FIXED_PROJECT',
+      rate: '8000.00',
+      frequency: 'MONTHLY',
+      effectiveAt: ruleEffectiveAt,
+    },
+    billingCtx,
+  );
+  await seedBillingRule(
+    admin,
+    {
+      kind: 'COMMON_FEE',
+      roomId: room204,
+      configMode: 'PER_ROOM',
+      rate: '2500.00',
+      frequency: 'MONTHLY',
+      effectiveAt: ruleEffectiveAt,
+    },
+    billingCtx,
+  );
+  await seedBillingRule(
+    admin,
+    {
+      kind: 'COMMON_FEE',
+      roomId: room205,
+      configMode: 'FIXED_PROJECT',
+      rate: '1500.00',
+      frequency: 'MONTHLY',
+      effectiveAt: ruleEffectiveAt,
+    },
+    billingCtx,
+  );
+  await seedChargeEvent(
+    admin,
+    {
+      eventEffectiveDate: '2026-06-15',
+      configuredAmountSatang: 150000n,
+      chargeContext: {
+        note: `E2E-${runId} lobby renovation sinking fund. ${LONG_TEXT}`,
+      },
+      runId,
+    },
+    billingCtx,
+  );
+  console.log(`Billing seed complete for run ${runId}.`);
 }
