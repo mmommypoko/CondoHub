@@ -70,6 +70,7 @@ export interface SeedPayeeInstructionInput {
   bankName: string;
   accountName: string;
   accountNumber: string;
+  qrImageId?: string | null | undefined;
   effectiveFrom: Date;
 }
 
@@ -87,6 +88,7 @@ export async function seedPayeeInstruction(
         bankName: input.bankName,
         accountName: input.accountName,
         accountNumber: input.accountNumber,
+        qrImageId: input.qrImageId ?? null,
         effectiveFrom: input.effectiveFrom,
       });
       await writeAudit(tx, {

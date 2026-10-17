@@ -13,11 +13,16 @@ export {
   getResidentIntervals,
   getRoomDetail,
   isOwnerAt,
+  listMembershipWindowsByUser,
+  membershipOverlapsServiceWindow,
   resolveActorRooms,
+  roomResidencyScope,
+  tenantOverlapScope,
 } from './queries';
 export type {
   MaintenanceRouting,
   MembershipInterval,
+  MembershipWindowRef,
   OwnerRef,
   PmAction,
   RentalPeriodDto,

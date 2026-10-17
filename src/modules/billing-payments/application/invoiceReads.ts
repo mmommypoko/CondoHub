@@ -4,20 +4,36 @@ import { db } from '@/shared/db/client';
 import type { Db } from '@/shared/db/transaction';
 import { AppError } from '@/shared/utils/errors';
 import { satangToDecimalString } from '@/shared/utils/money';
+import { formatProjectDate, projectDateParts } from '@/shared/utils/clock';
+import {
+  listMembershipWindowsByUser,
+  type MembershipWindowRef,
+} from '@/modules/property-membership/application/index';
 import type { InvoiceKind } from '../infrastructure/schema';
 import {
+  allowedInvoiceKinds,
+  evaluateInvoiceAccess,
+  membershipOverlapsServicePeriod,
+  type InvoiceAccessContext,
+  type InvoiceQueueAction,
+} from '../domain/invoicePolicy';
+import {
+  deriveInvoiceState,
+  isOverdue,
+  outstandingSatang,
+  type DerivedInvoiceState,
+} from '../domain/paymentState';
+import {
   findInvoiceById,
+  isFeeResponsibleOwner,
+  isInvoiceMemberVisible,
+  isRentReviewer,
+  listInvoicesForMember,
   listInvoicesScoped,
+  readInvoiceBalance,
+  tenantOverlapsInvoice,
+  type InvoiceRecord,
 } from '../infrastructure/invoiceRepository';
-import {
-  listFeeInvoiceResponsibleOwners,
-  listRentInvoiceReviewers,
-} from '../infrastructure/invoiceSnapshotRepository';
-import {
-  getActiveResidentRooms,
-  getMembershipIntervals,
-  getOwnersAt,
-} from '@/modules/property-membership/application/index';
 
 export interface InvoiceDto {
   id: string;
@@ -29,6 +45,12 @@ export interface InvoiceDto {
   total: { amount: string; currency: 'THB' };
   dueDate: string;
   issuedAt: string | null;
+  version: number;
+  state: DerivedInvoiceState;
+  approvedTotal: { amount: string; currency: 'THB' };
+  outstanding: { amount: string; currency: 'THB' };
+  overdue: boolean;
+  pendingOnPaid: boolean;
 }
 
 export interface InvoicePage {
@@ -36,21 +58,14 @@ export interface InvoicePage {
   total: number;
 }
 
-interface InvoiceRowShape {
-  id: string;
-  roomId: string;
-  tenancyId: string | null;
-  kind: InvoiceKind;
-  periodStart: string;
-  periodEnd: string;
-  serviceStart: Date;
-  serviceEndExclusive: Date;
-  total: bigint;
-  dueDate: string;
-  issuedAt: Date | null;
-}
-
-function toDto(row: InvoiceRowShape): InvoiceDto {
+function toDto(
+  row: InvoiceRecord,
+  balance: { approvedTotal: bigint; pendingCount: number },
+  at: Date,
+): InvoiceDto {
+  const outstanding = outstandingSatang(row.total, balance.approvedTotal);
+  const state = deriveInvoiceState(row.total, balance.approvedTotal);
+  const today = formatProjectDate(projectDateParts(at, row.snapshotTimezone));
   return {
     id: row.id,
     roomId: row.roomId,
@@ -61,6 +76,12 @@ function toDto(row: InvoiceRowShape): InvoiceDto {
     total: { amount: satangToDecimalString(row.total), currency: 'THB' },
     dueDate: row.dueDate,
     issuedAt: row.issuedAt === null ? null : row.issuedAt.toISOString(),
+    version: row.version,
+    state,
+    approvedTotal: { amount: satangToDecimalString(balance.approvedTotal), currency: 'THB' },
+    outstanding: { amount: satangToDecimalString(outstanding), currency: 'THB' },
+    overdue: isOverdue({ projectToday: today, dueDate: row.dueDate, outstandingSatang: outstanding }),
+    pendingOnPaid: state === 'PAID' && balance.pendingCount > 0,
   };
 }
 
@@ -69,43 +90,100 @@ function assertActive(actor: Actor): void {
   if (actor.mustChangePassword) throw new AppError('FIRST_LOGIN_PASSWORD_CHANGE_REQUIRED');
 }
 
-function intervalsOverlap(
-  aStart: Date,
-  aEnd: Date | null,
-  bStart: Date,
-  bEnd: Date,
-): boolean {
-  const aEndMs = aEnd === null ? Number.POSITIVE_INFINITY : aEnd.getTime();
-  return aStart.getTime() < bEnd.getTime() && aEndMs > bStart.getTime();
+async function windowsFor(
+  conn: Db,
+  userId: string,
+  cache: MembershipWindowRef[] | null,
+): Promise<MembershipWindowRef[]> {
+  void conn;
+  if (cache !== null) return cache;
+  return listMembershipWindowsByUser(userId);
 }
 
-async function canSeeInvoice(actor: Actor, row: InvoiceRowShape, at: Date, conn: Db): Promise<boolean> {
-  if (row.kind === 'PRIVATE_RENT') {
-    const reviewers = await listRentInvoiceReviewers(conn, row.id);
-    if (reviewers.some((member) => member.userId === actor.userId)) return true;
+function windowTenantOverlap(
+  windows: MembershipWindowRef[],
+  row: InvoiceRecord,
+): boolean {
+  if (row.tenancyId === null) return false;
+  return windows.some(
+    (window) =>
+      window.tenancyId === row.tenancyId &&
+      membershipOverlapsServicePeriod({
+        membershipStart: window.start,
+        membershipEnd: window.end,
+        serviceStart: row.serviceStart,
+        serviceEndExclusive: row.serviceEndExclusive,
+      }),
+  );
+}
+
+function windowResidentOfRoom(windows: MembershipWindowRef[], row: InvoiceRecord, at: Date): boolean {
+  return windows.some(
+    (window) =>
+      window.roomId === row.roomId &&
+      window.start.getTime() <= at.getTime() &&
+      (window.end === null || window.end.getTime() > at.getTime()),
+  );
+}
+
+export interface InvoiceAccessProbe {
+  context: InvoiceAccessContext;
+  windows: MembershipWindowRef[];
+}
+
+export async function probeInvoiceAccess(
+  actor: Actor,
+  row: InvoiceRecord,
+  at: Date,
+  conn: Db = db,
+  cached: MembershipWindowRef[] | null = null,
+): Promise<InvoiceAccessProbe> {
+  const windows = await windowsFor(conn, actor.userId, cached);
+  const [rentReviewer, feeResponsible] = await Promise.all([
+    row.kind === 'PRIVATE_RENT'
+      ? isRentReviewer(conn, { invoiceId: row.id, userId: actor.userId })
+      : Promise.resolve(false),
+    row.kind === 'COMMON_FEE'
+      ? isFeeResponsibleOwner(conn, { invoiceId: row.id, userId: actor.userId })
+      : Promise.resolve(false),
+  ]);
+  const tenantOverlap =
+    row.tenancyId === null
+      ? false
+      : windowTenantOverlap(windows, row) ||
+        (await tenantOverlapsInvoice(conn, {
+          userId: actor.userId,
+          tenancyId: row.tenancyId,
+          serviceStart: row.serviceStart,
+          serviceEndExclusive: row.serviceEndExclusive,
+        }));
+  return {
+    windows,
+    context: {
+      kind: row.kind,
+      actorIsSystemAdmin: actor.isSystemAdmin,
+      actorSuspended: actor.accountStatus !== 'ACTIVE',
+      actorMustChangePassword: actor.mustChangePassword,
+      inRentReviewerSnapshot: rentReviewer,
+      inFeeResponsibleSnapshot: feeResponsible,
+      tenantOverlap,
+      activeResidentOfRoom: windowResidentOfRoom(windows, row, at),
+      currentOwnerOfRoom: false,
+      invoicePaid: false,
+      pendingOnInvoice: false,
+    },
+  };
+}
+
+export function decideInvoiceAction(
+  context: InvoiceAccessContext,
+  action: InvoiceQueueAction,
+): void {
+  const verdict = evaluateInvoiceAccess(context, action);
+  if (!verdict.allowed) {
+    if (verdict.httpStatus === 403) throw new AppError('ACCESS_DENIED');
+    throw new AppError('RESOURCE_NOT_FOUND');
   }
-  if (row.kind === 'COMMON_FEE') {
-    const owners = await listFeeInvoiceResponsibleOwners(conn, row.id);
-    if (owners.some((member) => member.userId === actor.userId)) return true;
-  }
-  if (row.tenancyId !== null) {
-    const intervals = await getMembershipIntervals(actor.userId, row.tenancyId).catch(() => []);
-    for (const interval of intervals) {
-      if (intervalsOverlap(interval.start, interval.end, row.serviceStart, row.serviceEndExclusive)) {
-        return true;
-      }
-    }
-  }
-  if (row.kind === 'COMMON_FEE') {
-    const [rooms, owners] = await Promise.all([
-      getActiveResidentRooms(actor.userId, at).catch(() => [] as string[]),
-      getOwnersAt(row.roomId, at).catch(() => []),
-    ]);
-    if (rooms.includes(row.roomId)) return true;
-    if (owners.some((owner) => owner.userId === actor.userId)) return true;
-  }
-  if (row.kind === 'PROJECT_MANAGED_RENT' && actor.isSystemAdmin) return true;
-  return false;
 }
 
 export async function listInvoices(
@@ -120,30 +198,47 @@ export async function listInvoices(
   conn: Db = db,
 ): Promise<InvoicePage> {
   assertActive(actor);
-  const allowedKinds: InvoiceKind[] = actor.isSystemAdmin
-    ? ['PROJECT_MANAGED_RENT', 'COMMON_FEE']
-    : ['PRIVATE_RENT', 'PROJECT_MANAGED_RENT', 'COMMON_FEE'];
+  const allowedKinds = allowedInvoiceKinds(actor.isSystemAdmin);
   if (input.kind !== undefined && !allowedKinds.includes(input.kind)) {
     throw new AppError('RESOURCE_NOT_FOUND');
   }
-  const page = await listInvoicesScoped(conn, {
-    allowedKinds,
-    limit: 500,
-    offset: 0,
+  const limit = Math.min(Math.max(input.pageSize, 1), 100);
+  const offset = (Math.max(input.page, 1) - 1) * limit;
+  if (actor.isSystemAdmin) {
+    const page = await listInvoicesScoped(conn, {
+      allowedKinds,
+      limit,
+      offset,
+      ...(input.roomId !== undefined ? { roomId: input.roomId } : {}),
+      ...(input.kind !== undefined ? { kind: input.kind } : {}),
+    });
+    return {
+      rows: await Promise.all(
+        page.rows.map(async (row) => {
+          const balance = await conn.transaction((tx) => readInvoiceBalance(tx, row.id));
+          return toDto(row, balance, input.at);
+        }),
+      ),
+      total: page.total,
+    };
+  }
+  const page = await listInvoicesForMember(conn, {
+    userId: actor.userId,
+    at: input.at,
+    limit,
+    offset,
     ...(input.roomId !== undefined ? { roomId: input.roomId } : {}),
     ...(input.kind !== undefined ? { kind: input.kind } : {}),
   });
-  const visible: InvoiceRowShape[] = [];
-  for (const row of page.rows) {
-    if (actor.isSystemAdmin && row.kind === 'COMMON_FEE') {
-      visible.push(row);
-      continue;
-    }
-    if (await canSeeInvoice(actor, row, input.at, conn)) visible.push(row);
-  }
-  const limit = Math.min(Math.max(input.pageSize, 1), 100);
-  const offset = (Math.max(input.page, 1) - 1) * limit;
-  return { rows: visible.slice(offset, offset + limit).map(toDto), total: visible.length };
+  return {
+    rows: await Promise.all(
+      page.rows.map(async (row) => {
+        const balance = await conn.transaction((tx) => readInvoiceBalance(tx, row.id));
+        return toDto(row, balance, input.at);
+      }),
+    ),
+    total: page.total,
+  };
 }
 
 export async function getInvoice(
@@ -155,8 +250,67 @@ export async function getInvoice(
   assertActive(actor);
   const row = await findInvoiceById(conn, id);
   if (row === null) return null;
-  if (actor.isSystemAdmin && row.kind === 'PRIVATE_RENT') return null;
-  if (actor.isSystemAdmin && row.kind !== 'PRIVATE_RENT') return toDto(row);
-  if (!(await canSeeInvoice(actor, row, at, conn))) return null;
-  return toDto(row);
+  if (actor.isSystemAdmin) {
+    if (row.kind === 'PRIVATE_RENT') return null;
+    const balance = await conn.transaction((tx) => readInvoiceBalance(tx, row.id));
+    return toDto(row, balance, at);
+  }
+  const visible = await isInvoiceMemberVisible(conn, {
+    invoiceId: row.id,
+    userId: actor.userId,
+    at,
+  });
+  if (!visible) return null;
+  const balance = await conn.transaction((tx) => readInvoiceBalance(tx, row.id));
+  return toDto(row, balance, at);
+}
+
+export async function requireInvoiceForAction(
+  actor: Actor,
+  id: string,
+  action: InvoiceQueueAction,
+  at: Date,
+  conn: Db = db,
+): Promise<InvoiceRecord> {
+  assertActive(actor);
+  const row = await findInvoiceById(conn, id);
+  if (row === null) throw new AppError('RESOURCE_NOT_FOUND');
+  if (actor.isSystemAdmin) {
+    if (row.kind === 'PRIVATE_RENT') throw new AppError('RESOURCE_NOT_FOUND');
+    const balance = await conn.transaction((tx) => readInvoiceBalance(tx, row.id));
+    decideInvoiceAction(
+      {
+        kind: row.kind,
+        actorIsSystemAdmin: true,
+        actorSuspended: false,
+        actorMustChangePassword: false,
+        inRentReviewerSnapshot: false,
+        inFeeResponsibleSnapshot: false,
+        tenantOverlap: false,
+        activeResidentOfRoom: false,
+        currentOwnerOfRoom: false,
+        invoicePaid: deriveInvoiceState(row.total, balance.approvedTotal) === 'PAID',
+        pendingOnInvoice: balance.pendingCount > 0,
+      },
+      action,
+    );
+    return row;
+  }
+  const visible = await isInvoiceMemberVisible(conn, {
+    invoiceId: row.id,
+    userId: actor.userId,
+    at,
+  });
+  if (!visible) throw new AppError('RESOURCE_NOT_FOUND');
+  const balance = await conn.transaction((tx) => readInvoiceBalance(tx, row.id));
+  const probe = await probeInvoiceAccess(actor, row, at, conn);
+  decideInvoiceAction(
+    {
+      ...probe.context,
+      invoicePaid: deriveInvoiceState(row.total, balance.approvedTotal) === 'PAID',
+      pendingOnInvoice: balance.pendingCount > 0,
+    },
+    action,
+  );
+  return row;
 }

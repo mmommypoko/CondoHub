@@ -1,7 +1,18 @@
 import 'server-only';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
-import type { Db } from '@/shared/db/transaction';
-import { invoice, type InvoiceKind } from './schema';
+import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
+import type { Db, Tx } from '@/shared/db/transaction';
+import {
+  membershipOverlapsServiceWindow,
+  roomResidencyScope,
+  tenantOverlapScope,
+} from '@/modules/property-membership/application/index';
+import {
+  commonFeeInvoiceResponsibleOwner,
+  invoice,
+  paymentSubmission,
+  privateRentInvoiceReviewer,
+  type InvoiceKind,
+} from './schema';
 
 export interface InvoiceRecord {
   id: string;
@@ -57,6 +68,163 @@ export async function findInvoiceById(conn: Db, id: string): Promise<InvoiceReco
   const rows = await conn.select().from(invoice).where(eq(invoice.id, id)).limit(1);
   const row = rows[0];
   return row === undefined ? null : toRecord(row);
+}
+
+export async function lockInvoiceForUpdate(tx: Tx, id: string): Promise<InvoiceRecord | null> {
+  const rows = await tx
+    .select()
+    .from(invoice)
+    .where(eq(invoice.id, id))
+    .for('update')
+    .limit(1);
+  const row = rows[0];
+  return row === undefined ? null : toRecord(row);
+}
+
+export async function updateInvoiceTotal(
+  tx: Tx,
+  input: { id: string; fromVersion: number; newTotal: bigint },
+): Promise<InvoiceRecord | null> {
+  const rows = await tx
+    .update(invoice)
+    .set({ total: input.newTotal, version: input.fromVersion + 1, updatedAt: new Date() })
+    .where(and(eq(invoice.id, input.id), eq(invoice.version, input.fromVersion)))
+    .returning();
+  const row = rows[0];
+  return row === undefined ? null : toRecord(row);
+}
+
+export interface InvoiceBalanceRow {
+  approvedTotal: bigint;
+  pendingCount: number;
+}
+
+export async function readInvoiceBalance(tx: Tx, invoiceId: string): Promise<InvoiceBalanceRow> {
+  const rows = await tx
+    .select({
+      approvedTotal: sql<string | null>`sum("approved_amount") filter (where "state" = 'APPROVED')`,
+      pendingCount: sql<number>`count(*) filter (where "state" = 'PENDING')`,
+    })
+    .from(paymentSubmission)
+    .where(eq(paymentSubmission.invoiceId, invoiceId));
+  return {
+    approvedTotal: BigInt(rows[0]?.approvedTotal ?? '0'),
+    pendingCount: Number(rows[0]?.pendingCount ?? 0),
+  };
+}
+
+function tenantOverlapExists(userId: string, at: Date) {
+  void at;
+  return tenantOverlapScope({
+    userId,
+    tenancyRef: sql`"invoice"."tenancy_id"`,
+    serviceStartRef: sql`"invoice"."service_start"`,
+    serviceEndExclusiveRef: sql`"invoice"."service_end_exclusive"`,
+  });
+}
+
+function membershipRoomEntitled(userId: string, at: Date) {
+  return roomResidencyScope({ userId, roomRef: sql`"invoice"."room_id"`, at });
+}
+
+function memberScopeCondition(userId: string, at: Date): ReturnType<typeof or> {
+  return or(
+    sql<boolean>`exists (select 1 from "private_rent_invoice_reviewer" as "s1" where "s1"."invoice_id" = "invoice"."id" and "s1"."user_id" = ${userId})`,
+    sql<boolean>`exists (select 1 from "common_fee_invoice_responsible_owner" as "s3" where "s3"."invoice_id" = "invoice"."id" and "s3"."user_id" = ${userId})`,
+    tenantOverlapExists(userId, at),
+    and(eq(invoice.kind, 'COMMON_FEE'), membershipRoomEntitled(userId, at)),
+  );
+}
+
+export async function listInvoicesForMember(
+  conn: Db,
+  input: {
+    userId: string;
+    at: Date;
+    roomId?: string | undefined;
+    kind?: InvoiceKind | undefined;
+    limit: number;
+    offset: number;
+  },
+): Promise<{ rows: InvoiceRecord[]; total: number }> {
+  const conditions = [memberScopeCondition(input.userId, input.at)];
+  if (input.roomId !== undefined) conditions.push(eq(invoice.roomId, input.roomId));
+  if (input.kind !== undefined) conditions.push(eq(invoice.kind, input.kind));
+  const where = and(...conditions);
+  const rows = await conn
+    .select({ row: invoice })
+    .from(invoice)
+    .where(where)
+    .orderBy(desc(invoice.createdAt), desc(invoice.id))
+    .limit(input.limit)
+    .offset(input.offset);
+  const counted = await conn
+    .select({ count: sql<number>`count(*)` })
+    .from(invoice)
+    .where(where);
+  return { rows: rows.map((entry) => toRecord(entry.row)), total: Number(counted[0]?.count ?? 0) };
+}
+
+export async function isInvoiceMemberVisible(
+  conn: Db,
+  input: { invoiceId: string; userId: string; at: Date },
+): Promise<boolean> {
+  const rows = await conn
+    .select({ id: invoice.id })
+    .from(invoice)
+    .where(and(eq(invoice.id, input.invoiceId), memberScopeCondition(input.userId, input.at)))
+    .limit(1);
+  return rows.length > 0;
+}
+
+export async function tenantOverlapsInvoice(
+  conn: Db,
+  input: { userId: string; tenancyId: string; serviceStart: Date; serviceEndExclusive: Date },
+): Promise<boolean> {
+  return membershipOverlapsServiceWindow(conn, input);
+}
+
+export async function isRentReviewer(
+  conn: Db,
+  input: { invoiceId: string; userId: string },
+): Promise<boolean> {
+  const rows = await conn
+    .select({ userId: privateRentInvoiceReviewer.userId })
+    .from(privateRentInvoiceReviewer)
+    .where(
+      and(
+        eq(privateRentInvoiceReviewer.invoiceId, input.invoiceId),
+        eq(privateRentInvoiceReviewer.userId, input.userId),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
+export async function isFeeResponsibleOwner(
+  conn: Db,
+  input: { invoiceId: string; userId: string },
+): Promise<boolean> {
+  const rows = await conn
+    .select({ userId: commonFeeInvoiceResponsibleOwner.userId })
+    .from(commonFeeInvoiceResponsibleOwner)
+    .where(
+      and(
+        eq(commonFeeInvoiceResponsibleOwner.invoiceId, input.invoiceId),
+        eq(commonFeeInvoiceResponsibleOwner.userId, input.userId),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
+export async function readPayeeSnapshot(conn: Db, invoiceId: string): Promise<unknown> {
+  const rows = await conn
+    .select({ snapshot: invoice.paymentInstructionSnapshot })
+    .from(invoice)
+    .where(eq(invoice.id, invoiceId))
+    .limit(1);
+  return rows[0]?.snapshot ?? null;
 }
 
 export async function listInvoicesScoped(

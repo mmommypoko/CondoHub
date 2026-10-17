@@ -48,6 +48,11 @@ import {
   listMembershipsByUser,
   type MembershipRow,
 } from '../infrastructure/membershipRepository';
+import {
+  membershipOverlapsServiceWindow,
+  roomResidencyScope,
+  tenantOverlapScope,
+} from '../infrastructure/membershipScope';
 
 export type { PmAction, RoomActVerdict, ResidentInterval };
 export type { MaintenanceRoutingKind };
@@ -389,3 +394,25 @@ export async function getRoomDetail(roomId: string): Promise<RoomDetail> {
     status: room.status,
   };
 }
+
+export interface MembershipWindowRef {
+  roomId: string;
+  tenancyId: string | null;
+  start: Date;
+  end: Date | null;
+}
+
+export async function listMembershipWindowsByUser(
+  userId: string,
+): Promise<MembershipWindowRef[]> {
+  await requireKnownActor(userId);
+  const memberships = await listMembershipsByUser(db, userId);
+  return memberships.map((membership) => ({
+    roomId: membership.roomId,
+    tenancyId: membership.tenancyId,
+    start: membership.startAt,
+    end: membership.endAt,
+  }));
+}
+
+export { membershipOverlapsServiceWindow, roomResidencyScope, tenantOverlapScope };

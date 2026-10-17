@@ -32,6 +32,12 @@ export interface InvoiceRow {
   total: { amount: string; currency: string };
   dueDate: string;
   issuedAt: string | null;
+  version: number;
+  state: 'UNPAID' | 'PARTIALLY_PAID' | 'PAID';
+  approvedTotal: { amount: string; currency: string };
+  outstanding: { amount: string; currency: string };
+  overdue: boolean;
+  pendingOnPaid: boolean;
 }
 
 export interface InvoiceListEnvelope {
@@ -331,5 +337,137 @@ export async function postTurnoverResolve(
     path: `/api/billing/turnover-reviews/${id}/resolve`,
     body,
     ...(idempotencyKey !== undefined ? { headers: { 'Idempotency-Key': idempotencyKey } } : {}),
+  });
+}
+
+export interface PaymentSubmissionRow {
+  id: string;
+  invoiceId: string;
+  state: 'PENDING' | 'APPROVED' | 'REJECTED';
+  submittedBy: string;
+  imageId: string;
+  approvedAmount: { amount: string; currency: string } | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  rejectReason: string | null;
+}
+
+export interface InvoiceRevisionRow {
+  id: string;
+  invoiceId: string;
+  oldTotal: { amount: string; currency: string };
+  newTotal: { amount: string; currency: string };
+  reason: string | null;
+  actorId: string | null;
+  changedAt: string;
+}
+
+export interface PaymentInstructionRow {
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  qrImageId: string | null;
+}
+
+export interface PaymentSubmissionsEnvelope {
+  data: { submissions: PaymentSubmissionRow[] };
+}
+
+export interface InvoiceRevisionsEnvelope {
+  data: { revisions: InvoiceRevisionRow[] };
+}
+
+export interface PaymentInstructionEnvelope {
+  data: { instruction: PaymentInstructionRow };
+}
+
+export interface PaymentSubmitEnvelope {
+  data: PaymentSubmissionRow;
+}
+
+export interface PaymentReviewEnvelope {
+  data: PaymentSubmissionRow & {
+    invoiceState: 'UNPAID' | 'PARTIALLY_PAID' | 'PAID';
+    outstanding: { amount: string; currency: string };
+    overdue: boolean;
+    pendingOnPaid: boolean;
+  };
+}
+
+export interface InvoiceEditEnvelope {
+  data: {
+    id: string;
+    version: number;
+    total: { amount: string; currency: string };
+    approvedTotal: { amount: string; currency: string };
+    outstanding: { amount: string; currency: string };
+    state: 'UNPAID' | 'PARTIALLY_PAID' | 'PAID';
+    overdue: boolean;
+    pendingOnPaid: boolean;
+    reason: string | null;
+  };
+}
+
+export async function postSubmission(
+  request: APIRequestContext,
+  invoiceId: string,
+  body: unknown,
+): Promise<{ status: number; json: unknown }> {
+  return apiJson<unknown>(request, {
+    method: 'POST',
+    path: `/api/invoices/${invoiceId}/submissions`,
+    body,
+  });
+}
+
+export async function patchInvoice(
+  request: APIRequestContext,
+  invoiceId: string,
+  body: unknown,
+): Promise<{ status: number; json: unknown }> {
+  return apiJson<unknown>(request, {
+    method: 'PATCH',
+    path: `/api/invoices/${invoiceId}`,
+    body,
+  });
+}
+
+export async function postApprove(
+  request: APIRequestContext,
+  submissionId: string,
+  body: unknown,
+  idempotencyKey?: string,
+): Promise<{ status: number; json: unknown }> {
+  return apiJson<unknown>(request, {
+    method: 'POST',
+    path: `/api/payment-submissions/${submissionId}/approve`,
+    body,
+    ...(idempotencyKey !== undefined ? { headers: { 'Idempotency-Key': idempotencyKey } } : {}),
+  });
+}
+
+export async function postReject(
+  request: APIRequestContext,
+  submissionId: string,
+  body: unknown,
+  idempotencyKey?: string,
+): Promise<{ status: number; json: unknown }> {
+  return apiJson<unknown>(request, {
+    method: 'POST',
+    path: `/api/payment-submissions/${submissionId}/reject`,
+    body,
+    ...(idempotencyKey !== undefined ? { headers: { 'Idempotency-Key': idempotencyKey } } : {}),
+  });
+}
+
+export async function getPayments(
+  request: APIRequestContext,
+  invoiceId: string,
+  view?: 'revisions' | 'instruction',
+): Promise<{ status: number; json: unknown }> {
+  const suffix = view === undefined ? '' : `?view=${view}`;
+  return apiJson<unknown>(request, {
+    method: 'GET',
+    path: `/api/invoices/${invoiceId}/payments${suffix}`,
   });
 }

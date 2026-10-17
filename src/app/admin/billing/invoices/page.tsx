@@ -15,6 +15,18 @@ function kindLabel(kind: string): string {
   return 'Common fee';
 }
 
+function stateLabel(state: string): string {
+  if (state === 'PAID') return 'Paid';
+  if (state === 'PARTIALLY_PAID') return 'Partially paid';
+  return 'Unpaid';
+}
+
+function stateVariant(state: string): 'success' | 'info' | 'warning' {
+  if (state === 'PAID') return 'success';
+  if (state === 'PARTIALLY_PAID') return 'info';
+  return 'warning';
+}
+
 export default async function AdminBillingInvoicesPage({
   searchParams,
 }: {
@@ -48,7 +60,7 @@ export default async function AdminBillingInvoicesPage({
       <div className="flex min-w-0 flex-col gap-1">
         <h1 className="text-xl font-semibold text-foreground">Invoices</h1>
         <p className="text-sm text-muted-foreground">
-          Generation-proof view of issued invoices. Payments arrive with the next billing slice.
+          Issued invoices with payment state and outstanding balances. Open an invoice to review slips.
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter by kind">
@@ -98,13 +110,31 @@ export default async function AdminBillingInvoicesPage({
                 >
                   {kindLabel(row.kind)} · {row.periodStart}
                 </Link>
-                <Badge data-testid={`invoice-total-${row.id}`} variant="neutral">
-                  {row.total.amount} {row.total.currency}
-                </Badge>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge data-testid={`invoice-state-${row.id}`} variant={stateVariant(row.state)}>
+                    {stateLabel(row.state)}
+                  </Badge>
+                  <Badge data-testid={`invoice-total-${row.id}`} variant="neutral">
+                    {row.total.amount} {row.total.currency}
+                  </Badge>
+                </div>
               </div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 <span>Due {row.dueDate}</span>
                 <span>Period {row.periodStart} to {row.periodEnd}</span>
+                <span data-testid={`invoice-outstanding-${row.id}`}>
+                  Outstanding {row.outstanding.amount} {row.outstanding.currency}
+                </span>
+                {row.overdue ? (
+                  <Badge data-testid={`invoice-overdue-${row.id}`} variant="danger">
+                    Overdue
+                  </Badge>
+                ) : null}
+                {row.pendingOnPaid ? (
+                  <Badge data-testid={`invoice-pending-on-paid-${row.id}`} variant="warning">
+                    Paid, slips pending
+                  </Badge>
+                ) : null}
               </div>
             </li>
           ))}

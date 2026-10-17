@@ -650,7 +650,7 @@ test.describe('billing generation: auth, idempotency, backfill, ms-bill-03, pd-0
     expect(fee).toBeDefined();
     await page.goto('/admin/billing/invoices');
     await expect(page.getByTestId('invoice-list-page')).toBeVisible();
-    await expect(page.getByTestId('invoice-detail-payments-seam').first()).toHaveCount(0);
+    await expect(page.getByTestId('invoice-payment-state').first()).toHaveCount(0);
     const first = (await listInvoices(page.request, { pageSize: 20 }))[0];
     if (first === undefined) throw new Error('No invoice to render.');
     await page.goto(`/admin/billing/invoices/${first.id}`);
@@ -658,7 +658,7 @@ test.describe('billing generation: auth, idempotency, backfill, ms-bill-03, pd-0
     await expect(page.getByTestId('invoice-detail-total')).toContainText(
       `${first.total.amount} ${first.total.currency}`,
     );
-    await expect(page.getByTestId('invoice-detail-payments-seam')).toBeVisible();
+    await expect(page.getByTestId('invoice-payment-state')).toBeVisible();
     await page.getByTestId('invoice-detail-back').focus();
     await page.keyboard.press('Enter');
     await expect(page.getByTestId('invoice-list-page')).toBeVisible();

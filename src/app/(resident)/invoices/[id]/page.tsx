@@ -4,9 +4,15 @@ import { redirect } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
-import { getInvoice } from '@/modules/billing-payments/application/index';
+import {
+  getInvoice,
+  getPaymentInstruction,
+  listInvoiceRevisions,
+  listPaymentSubmissions,
+} from '@/modules/billing-payments/application/index';
 import { isUuid } from '@/shared/utils/idempotency';
 import { InvoiceDetailCard } from '@/modules/billing-payments/ui/InvoiceDetailCard';
+import { InvoicePaymentSections } from '@/modules/billing-payments/ui/InvoicePaymentSections';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,8 +27,14 @@ export default async function InvoiceDetailPage({
   if (actor.accountStatus !== 'ACTIVE') redirect('/login?returnUrl=/invoices');
   const { id } = await params;
   if (!isUuid(id)) redirect('/invoices');
-  const detail = await getInvoice(actor, id, systemClock.now());
+  const now = systemClock.now();
+  const detail = await getInvoice(actor, id, now);
   if (detail === null) redirect('/invoices');
+  const [submissions, revisions, instruction] = await Promise.all([
+    listPaymentSubmissions(actor, id, now),
+    listInvoiceRevisions(actor, id, now),
+    getPaymentInstruction(actor, id, now),
+  ]);
   return (
     <main
       data-testid="invoice-detail-page"
@@ -37,6 +49,13 @@ export default async function InvoiceDetailPage({
         Back to invoices
       </Link>
       <InvoiceDetailCard invoice={detail} />
+      <InvoicePaymentSections
+        invoice={detail}
+        submissions={submissions}
+        revisions={revisions}
+        instruction={instruction}
+        actorIsAdmin={actor.isSystemAdmin}
+      />
     </main>
   );
 }

@@ -25,6 +25,15 @@ const BILLING_JOB_KEYS = [
   '2026-06',
   '2026-10',
   '2026-11',
+  '2026-12',
+  '2027-01',
+  '2027-02',
+  '2027-03',
+  '2027-04',
+  '2027-05',
+  '2027-06',
+  '2027-07',
+  '2027-08',
 ];
 
 function bangkokYearMonth(at: Date): string {
@@ -43,6 +52,21 @@ function billingJobKeys(now: Date): string[] {
 
 function resetTargets(): ResetTarget[] {
   return [
+    {
+      label: 'payment_review_idempotency',
+      sql: `DELETE FROM "idempotency_key" WHERE "scope" = 'PAYMENT_REVIEW' AND "result_ref_id" IN (SELECT "id" FROM "payment_submission" WHERE "invoice_id" IN (SELECT "id" FROM "invoice" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\')))`,
+      pattern: 'raw',
+    },
+    {
+      label: 'payment_submission',
+      sql: `DELETE FROM "payment_submission" WHERE "invoice_id" IN (SELECT "id" FROM "invoice" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\'))`,
+      pattern: 'raw',
+    },
+    {
+      label: 'invoice_revision',
+      sql: `DELETE FROM "invoice_revision" WHERE "invoice_id" IN (SELECT "id" FROM "invoice" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\'))`,
+      pattern: 'raw',
+    },
     {
       label: 'private_rent_invoice_reviewer',
       sql: `DELETE FROM "private_rent_invoice_reviewer" WHERE "invoice_id" IN (SELECT "id" FROM "invoice" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\'))`,
@@ -132,6 +156,11 @@ function resetTargets(): ResetTarget[] {
       label: 'image_attachment',
       sql: `DELETE FROM "image_attachment" WHERE "object_key" LIKE 'e2e/%' || $1 || '%' ESCAPE '\\'`,
       pattern: 'raw',
+    },
+    {
+      label: 'image_attachment_by_run_user',
+      sql: `DELETE FROM "image_attachment" WHERE "uploaded_by" IN (SELECT "id" FROM "user" WHERE "username" LIKE '%' || $1 || '%' ESCAPE '\\')`,
+      pattern: 'normalized',
     },
     {
       label: 'announcement_revision',

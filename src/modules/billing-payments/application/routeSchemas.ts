@@ -48,6 +48,40 @@ export const jobRunListQuery = z.object({
 
 export type JobRunListQuery = z.infer<typeof jobRunListQuery>;
 
+export const invoiceEditBody = z
+  .object({
+    total: moneyWireSchema,
+    expectedVersion: z.number().int().min(1),
+    reason: z.string().trim().min(1).max(2000).optional(),
+  })
+  .strict();
+
+export type InvoiceEditBody = z.infer<typeof invoiceEditBody>;
+
+export const paymentSubmitBody = z
+  .object({
+    imageId: z.string().uuid(),
+  })
+  .strict();
+
+export type PaymentSubmitBody = z.infer<typeof paymentSubmitBody>;
+
+export const paymentApproveBody = z
+  .object({
+    amount: moneyWireSchema,
+  })
+  .strict();
+
+export type PaymentApproveBody = z.infer<typeof paymentApproveBody>;
+
+export const paymentRejectBody = z
+  .object({
+    reason: z.string().trim().min(1).max(2000),
+  })
+  .strict();
+
+export type PaymentRejectBody = z.infer<typeof paymentRejectBody>;
+
 export function parseWithFieldErrors<T>(schema: z.ZodType<T>, value: unknown): T {
   return sharedParseWithFieldErrors(schema, value);
 }

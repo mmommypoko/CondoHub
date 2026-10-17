@@ -77,9 +77,6 @@ export function InvoiceDetailCard({ invoice }: { invoice: InvoiceDto }) {
           </dd>
         </div>
       </dl>
-      <p data-testid="invoice-detail-payments-seam" className="text-sm text-muted-foreground">
-        Payments and balance history arrive with the next billing slice.
-      </p>
     </div>
   );
 }
