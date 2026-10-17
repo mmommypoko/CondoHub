@@ -26,6 +26,10 @@ async function ensureDefaultsWired(): Promise<void> {
     '@/modules/billing-payments/application/paymentScopeCallbacks'
   );
   wirePaymentScopeAcl();
+  const { wireMaintenanceScopeAcl } = await import(
+    '@/modules/maintenance/application/maintenanceScopeCallbacks'
+  );
+  wireMaintenanceScopeAcl();
 }
 
 export function registerScopeAcl(scope: ImageScope, callback: ScopeAclCallback): void {

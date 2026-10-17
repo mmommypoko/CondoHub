@@ -8,6 +8,8 @@ export { seedStaleImage } from './seedStaleImage';
 export type { SeedStaleImageInput } from './seedStaleImage';
 export { commitAttachments } from './commitAttachments';
 export type { CommitAttachmentsOptions } from './commitAttachments';
+export { listAttachedImagesForEntity } from './attachedImages';
+export type { AttachedImageDto } from './attachedImages';
 export {
   evaluateScopeAcl,
   registerScopeAcl,

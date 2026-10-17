@@ -236,6 +236,13 @@ export async function runPropertyScenario(runId: string): Promise<void> {
     { buildingId: building.id, floorId: floor.id },
     billingUsers,
   );
+  await runMaintenanceScenario(
+    runId,
+    requestId,
+    admin,
+    { buildingId: building.id, floorId: floor.id },
+    userIds,
+  );
   console.log(`Scenario seed complete for run ${runId}.`);
 }
 
@@ -1290,4 +1297,144 @@ async function runBillingScenario(
     billingCtx,
   );
   console.log(`Billing seed complete for run ${runId}.`);
+}
+
+async function runMaintenanceScenario(
+  runId: string,
+  requestId: string,
+  admin: Actor,
+  structures: { buildingId: string; floorId: string },
+  userIds: Map<string, string>,
+): Promise<void> {
+  const propertyCtx = createPropertyCtx({ requestId, isSeedActor: true });
+  const ownerA = userIds.get('ownera') ?? '';
+  const ownerB = userIds.get('ownernewb') ?? '';
+  const rooms = new Map<string, string>();
+  for (const code of ['301', '302', '303', '304', '305', '306']) {
+    const room = await createRoom(
+      admin,
+      {
+        floorId: structures.floorId,
+        buildingId: structures.buildingId,
+        roomCode: `E2E-${runId}-${code}`,
+        areaSqm: '40.00',
+        status: 'ACTIVE',
+      },
+      propertyCtx,
+    );
+    rooms.set(code, room.id);
+  }
+  const room301 = rooms.get('301') ?? '';
+  const room302 = rooms.get('302') ?? '';
+  const room303 = rooms.get('303') ?? '';
+  const room304 = rooms.get('304') ?? '';
+  const room305 = rooms.get('305') ?? '';
+  const room306 = rooms.get('306') ?? '';
+  await seedOwnership(
+    admin,
+    { roomId: room301, userId: ownerA, startAt: new Date('2023-01-01T00:00:00.000Z') },
+    propertyCtx,
+  );
+  await seedOwnership(
+    admin,
+    { roomId: room301, userId: ownerB, startAt: new Date('2023-01-01T00:00:00.000Z') },
+    propertyCtx,
+  );
+  await createTenancy(
+    admin,
+    {
+      roomId: room301,
+      startsAt: new Date(),
+      endsAt: null,
+      managementMode: 'PRIVATE_OWNER_MANAGED',
+      effectiveAt: new Date('2023-01-01T00:00:00.000Z'),
+    },
+    propertyCtx,
+  );
+  await seedOwnership(
+    admin,
+    { roomId: room302, userId: ownerA, startAt: new Date('2023-01-01T00:00:00.000Z') },
+    propertyCtx,
+  );
+  await createTenancy(
+    admin,
+    {
+      roomId: room302,
+      startsAt: new Date(),
+      endsAt: null,
+      managementMode: 'PRIVATE_OWNER_MANAGED',
+      effectiveAt: new Date('2023-01-01T00:00:00.000Z'),
+    },
+    propertyCtx,
+  );
+  await seedOwnership(
+    admin,
+    { roomId: room303, userId: ownerA, startAt: new Date('2023-01-01T00:00:00.000Z') },
+    propertyCtx,
+  );
+  await createTenancy(
+    admin,
+    {
+      roomId: room303,
+      startsAt: new Date(),
+      endsAt: null,
+      managementMode: 'PROJECT_MANAGED',
+      effectiveAt: new Date('2023-01-01T00:00:00.000Z'),
+    },
+    propertyCtx,
+  );
+  await seedOwnership(
+    admin,
+    { roomId: room304, userId: ownerA, startAt: new Date('2023-01-01T00:00:00.000Z') },
+    propertyCtx,
+  );
+  await seedOwnership(
+    admin,
+    { roomId: room304, userId: ownerB, startAt: new Date('2023-01-01T00:00:00.000Z') },
+    propertyCtx,
+  );
+  await createTenancy(
+    admin,
+    {
+      roomId: room304,
+      startsAt: new Date(),
+      endsAt: null,
+      managementMode: 'PRIVATE_OWNER_MANAGED',
+      effectiveAt: new Date('2023-01-01T00:00:00.000Z'),
+    },
+    propertyCtx,
+  );
+  await seedOwnership(
+    admin,
+    { roomId: room305, userId: ownerA, startAt: new Date('2023-01-01T00:00:00.000Z') },
+    propertyCtx,
+  );
+  await createTenancy(
+    admin,
+    {
+      roomId: room305,
+      startsAt: new Date(),
+      endsAt: null,
+      managementMode: 'PRIVATE_OWNER_MANAGED',
+      effectiveAt: new Date('2023-01-01T00:00:00.000Z'),
+    },
+    propertyCtx,
+  );
+  await seedOwnership(
+    admin,
+    { roomId: room306, userId: ownerA, startAt: new Date('2023-01-01T00:00:00.000Z') },
+    propertyCtx,
+  );
+  await createTenancy(
+    admin,
+    {
+      roomId: room306,
+      startsAt: new Date(),
+      endsAt: null,
+      managementMode: 'PROJECT_MANAGED',
+      effectiveAt: new Date('2023-01-01T00:00:00.000Z'),
+    },
+    propertyCtx,
+  );
+  console.log(`Maintenance seed complete for run ${runId}.`);
 }

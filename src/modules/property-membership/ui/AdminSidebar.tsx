@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, CalendarDays, Home, KeyRound, Megaphone, ReceiptText, Users, Zap } from 'lucide-react';
+import { Building2, CalendarDays, Home, KeyRound, Megaphone, ReceiptText, Users, Wrench, Zap } from 'lucide-react';
 import { cx } from '@/shared/ui/cx';
 
 const WORKSPACE_LINKS = [
   { href: '/rooms', label: 'My Rooms', icon: Home, testId: 'nav-my-rooms' },
   { href: '/facilities', label: 'Facilities', icon: CalendarDays, testId: 'nav-facilities' },
+  { href: '/maintenance', label: 'My Requests', icon: Wrench, testId: 'nav-maintenance' },
 ];
 
 const ADMIN_LINKS = [
@@ -20,6 +21,7 @@ const ADMIN_LINKS = [
   { href: '/admin/billing/turnover-reviews', label: 'Turnover Reviews', icon: ReceiptText, testId: 'nav-billing-turnover-reviews' },
   { href: '/admin/billing/job-runs', label: 'Job Runs', icon: CalendarDays, testId: 'nav-billing-job-runs' },
   { href: '/admin/billing/invoices', label: 'Invoices', icon: ReceiptText, testId: 'nav-billing-invoices' },
+  { href: '/admin/maintenance', label: 'Maintenance', icon: Wrench, testId: 'nav-maintenance-inbox' },
 ];
 
 export function AdminSidebar() {

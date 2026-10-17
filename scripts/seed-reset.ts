@@ -53,6 +53,61 @@ function billingJobKeys(now: Date): string[] {
 function resetTargets(): ResetTarget[] {
   return [
     {
+      label: 'ticket_comment_idempotency',
+      sql: `DELETE FROM "idempotency_key" WHERE "scope" = 'TICKET_COMMENT' AND "result_ref_id" IN (SELECT "id" FROM "maintenance_comment" WHERE "request_id" IN (SELECT "id" FROM "maintenance_request" WHERE "reporter_id" IN (SELECT "id" FROM "user" WHERE "username" LIKE '%' || $1 || '%' ESCAPE '\\')))`,
+      pattern: 'normalized',
+    },
+    {
+      label: 'ticket_create_idempotency_room',
+      sql: `DELETE FROM "idempotency_key" WHERE "scope" = 'TICKET_CREATE' AND "result_ref_id" IN (SELECT "id" FROM "maintenance_request" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\'))`,
+      pattern: 'raw',
+    },
+    {
+      label: 'ticket_create_idempotency_reporter',
+      sql: `DELETE FROM "idempotency_key" WHERE "scope" = 'TICKET_CREATE' AND "result_ref_id" IN (SELECT "id" FROM "maintenance_request" WHERE "reporter_id" IN (SELECT "id" FROM "user" WHERE "username" LIKE '%' || $1 || '%' ESCAPE '\\'))`,
+      pattern: 'normalized',
+    },
+    {
+      label: 'maintenance_comment',
+      sql: `DELETE FROM "maintenance_comment" WHERE "request_id" IN (SELECT "id" FROM "maintenance_request" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\') OR "reporter_id" IN (SELECT "id" FROM "user" WHERE "username" LIKE '%' || $1 || '%' ESCAPE '\\'))`,
+      pattern: 'raw',
+    },
+    {
+      label: 'maintenance_comment_by_run_user',
+      sql: `DELETE FROM "maintenance_comment" WHERE "request_id" IN (SELECT "id" FROM "maintenance_request" WHERE "reporter_id" IN (SELECT "id" FROM "user" WHERE "username" LIKE '%' || $1 || '%' ESCAPE '\\'))`,
+      pattern: 'normalized',
+    },
+    {
+      label: 'maintenance_status_history',
+      sql: `DELETE FROM "maintenance_status_history" WHERE "request_id" IN (SELECT "id" FROM "maintenance_request" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\'))`,
+      pattern: 'raw',
+    },
+    {
+      label: 'maintenance_status_history_by_run_user',
+      sql: `DELETE FROM "maintenance_status_history" WHERE "request_id" IN (SELECT "id" FROM "maintenance_request" WHERE "reporter_id" IN (SELECT "id" FROM "user" WHERE "username" LIKE '%' || $1 || '%' ESCAPE '\\'))`,
+      pattern: 'normalized',
+    },
+    {
+      label: 'maintenance_recipient',
+      sql: `DELETE FROM "maintenance_recipient" WHERE "request_id" IN (SELECT "id" FROM "maintenance_request" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\'))`,
+      pattern: 'raw',
+    },
+    {
+      label: 'maintenance_recipient_by_run_user',
+      sql: `DELETE FROM "maintenance_recipient" WHERE "request_id" IN (SELECT "id" FROM "maintenance_request" WHERE "reporter_id" IN (SELECT "id" FROM "user" WHERE "username" LIKE '%' || $1 || '%' ESCAPE '\\'))`,
+      pattern: 'normalized',
+    },
+    {
+      label: 'maintenance_request_room',
+      sql: `DELETE FROM "maintenance_request" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\')`,
+      pattern: 'raw',
+    },
+    {
+      label: 'maintenance_request_reporter',
+      sql: `DELETE FROM "maintenance_request" WHERE "reporter_id" IN (SELECT "id" FROM "user" WHERE "username" LIKE '%' || $1 || '%' ESCAPE '\\')`,
+      pattern: 'normalized',
+    },
+    {
       label: 'payment_review_idempotency',
       sql: `DELETE FROM "idempotency_key" WHERE "scope" = 'PAYMENT_REVIEW' AND "result_ref_id" IN (SELECT "id" FROM "payment_submission" WHERE "invoice_id" IN (SELECT "id" FROM "invoice" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\')))`,
       pattern: 'raw',

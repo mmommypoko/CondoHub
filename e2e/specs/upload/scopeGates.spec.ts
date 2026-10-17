@@ -5,7 +5,7 @@ import { loginAsPoolAdmin } from '../../helpers/owner';
 import { provisionResidentWithRetry } from '../../helpers/resident';
 import { mintIntent } from './uploadFlow';
 
-const FAKE_SCOPES = ['MAINTENANCE', 'CHAT'] as const;
+const FAKE_SCOPES = ['CHAT'] as const;
 
 test.describe('upload scope gates: fake callbacks deny until owner slices land', () => {
   test.setTimeout(180000);
@@ -27,6 +27,41 @@ test.describe('upload scope gates: fake callbacks deny until owner slices land',
       expect(intent.status).toBe(403);
     });
   }
+
+  test('maintenance scope uses the real callback: unattached intent mints for active actors', async ({
+    page,
+    browser,
+  }, testInfo) => {
+    const { runId } = await readRunContext();
+    const ns = workerNamespace(runId, testInfo.workerIndex);
+    const baseURL = process.env.TEST_BASE_URL ?? 'http://localhost:3000';
+    await loginAsPoolAdmin(page, 'scopeGates');
+    const resident = await provisionResidentWithRetry(page, browser, {
+      runId,
+      workerIndex: testInfo.workerIndex,
+      stem: 'scopemnt',
+      baseURL,
+    });
+    try {
+      const adminIntent = await mintIntent(page.request, {
+        scope: 'MAINTENANCE',
+        entityRef: { type: 'owner', id: null },
+        contentType: 'image/png',
+        fileName: `e2e-${ns}-mnt-admin.png`,
+      });
+      expect(adminIntent.status).toBe(200);
+
+      const residentIntent = await mintIntent(resident.page.request, {
+        scope: 'MAINTENANCE',
+        entityRef: { type: 'owner', id: null },
+        contentType: 'image/png',
+        fileName: `e2e-${ns}-mnt-resident.png`,
+      });
+      expect(residentIntent.status).toBe(200);
+    } finally {
+      await resident.close();
+    }
+  });
 
   test('payment scopes use real callbacks: slip mints for residents, QR mints for admins only', async ({
     page,
