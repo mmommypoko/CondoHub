@@ -1,5 +1,7 @@
 import 'server-only';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { MessageCircle } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
 import { Badge } from '@/shared/ui/Badge';
@@ -48,11 +50,21 @@ export default async function RoomDetailPage({
   ]);
   return (
     <main data-testid="room-detail-page" className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 data-testid="room-detail-title" className="text-xl font-semibold text-foreground">
-          {building?.name ?? 'Building'} · {room.roomCode}
-        </h1>
-        <p className="text-sm text-muted-foreground">Area {room.areaSqm} sqm</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h1 data-testid="room-detail-title" className="text-xl font-semibold text-foreground">
+            {building?.name ?? 'Building'} · {room.roomCode}
+          </h1>
+          <p className="text-sm text-muted-foreground">Area {room.areaSqm} sqm</p>
+        </div>
+        <Link
+          data-testid="room-detail-chat-link"
+          href={`/rooms/${room.id}/chat`}
+          className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+        >
+          <MessageCircle aria-hidden="true" className="size-4" />
+          Open room chat
+        </Link>
       </div>
       <section className="flex flex-col gap-2" aria-label="Owners">
         <h2 className="text-sm font-semibold text-foreground">Current owners</h2>

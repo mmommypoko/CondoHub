@@ -10,6 +10,7 @@ export default defineConfig({
     "./src/modules/media-attachments/infrastructure/schema.ts",
     "./src/modules/billing-payments/infrastructure/schema.ts",
     "./src/modules/maintenance/infrastructure/schema.ts",
+    "./src/modules/room-chat/infrastructure/schema.ts",
     "./src/shared/db/schema/audit.ts",
     "./src/shared/db/schema/jobs.ts",
     "./src/shared/db/schema/idempotency.ts",

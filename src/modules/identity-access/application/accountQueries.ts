@@ -32,6 +32,18 @@ export async function isSystemAdmin(actorId: string): Promise<boolean> {
   return target.isSystemAdmin;
 }
 
+export interface SenderProfile {
+  userId: string;
+  name: string;
+  isSystemAdmin: boolean;
+}
+
+export async function getSenderProfile(userId: string): Promise<SenderProfile> {
+  const target = await findUserById(db, userId);
+  if (target === null) throw new AppError('AUTH_REQUIRED');
+  return { userId: target.id, name: target.name, isSystemAdmin: target.isSystemAdmin };
+}
+
 export async function revokeAllSessions(userId: string): Promise<{ revoked: number }> {
   const target = await findUserById(db, userId);
   if (target === null) throw new AppError('AUTH_REQUIRED');

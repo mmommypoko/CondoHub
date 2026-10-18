@@ -14,6 +14,7 @@ import {
   endMembershipAt,
   endTenancyAt,
   grantCoOwner,
+  listRoomActiveTenancies,
   seedOwnership,
   transferOwnership,
   wireRoomProvisioningPorts,
@@ -41,6 +42,11 @@ import {
   seedChargeEvent,
   seedPayeeInstruction,
 } from '@/modules/billing-payments/application/index';
+import {
+  createChatCtx,
+  sendMessage,
+  type ChatCtx,
+} from '@/modules/room-chat/application/index';
 
 const LONG_TEXT =
   'Maple Residences Tower of Enduring Harmony and Perpetual Serenity by the Riverside Gardens Extension Block C Wing D Unit Corridor North';
@@ -237,6 +243,13 @@ export async function runPropertyScenario(runId: string): Promise<void> {
     billingUsers,
   );
   await runMaintenanceScenario(
+    runId,
+    requestId,
+    admin,
+    { buildingId: building.id, floorId: floor.id },
+    userIds,
+  );
+  await runChatScenario(
     runId,
     requestId,
     admin,
@@ -1437,4 +1450,333 @@ async function runMaintenanceScenario(
     propertyCtx,
   );
   console.log(`Maintenance seed complete for run ${runId}.`);
+}
+
+interface ChatRoomSpec {
+  code: string;
+  ownerKey: string;
+  secondOwnerKey: string | null;
+  managementMode: 'PRIVATE_OWNER_MANAGED' | 'PROJECT_MANAGED';
+}
+
+const CHAT_ROOM_SPECS: ChatRoomSpec[] = [
+  { code: '401', ownerKey: 'ownera', secondOwnerKey: null, managementMode: 'PRIVATE_OWNER_MANAGED' },
+  { code: '402', ownerKey: 'ownera', secondOwnerKey: null, managementMode: 'PRIVATE_OWNER_MANAGED' },
+  { code: '403', ownerKey: 'ownera', secondOwnerKey: null, managementMode: 'PRIVATE_OWNER_MANAGED' },
+  { code: '404', ownerKey: 'ownera', secondOwnerKey: null, managementMode: 'PRIVATE_OWNER_MANAGED' },
+  { code: '405', ownerKey: 'ownera', secondOwnerKey: null, managementMode: 'PRIVATE_OWNER_MANAGED' },
+  { code: '406', ownerKey: 'ownera', secondOwnerKey: null, managementMode: 'PRIVATE_OWNER_MANAGED' },
+  { code: '407', ownerKey: 'ownera', secondOwnerKey: null, managementMode: 'PRIVATE_OWNER_MANAGED' },
+  { code: '408', ownerKey: 'ownera', secondOwnerKey: null, managementMode: 'PRIVATE_OWNER_MANAGED' },
+  { code: '409', ownerKey: 'ownera', secondOwnerKey: null, managementMode: 'PRIVATE_OWNER_MANAGED' },
+  { code: '410', ownerKey: 'ownera', secondOwnerKey: null, managementMode: 'PRIVATE_OWNER_MANAGED' },
+  { code: '411', ownerKey: 'ownera', secondOwnerKey: null, managementMode: 'PRIVATE_OWNER_MANAGED' },
+  { code: '412', ownerKey: 'ownera', secondOwnerKey: null, managementMode: 'PRIVATE_OWNER_MANAGED' },
+  { code: '413', ownerKey: 'ownera', secondOwnerKey: null, managementMode: 'PRIVATE_OWNER_MANAGED' },
+  { code: '414', ownerKey: 'ownera', secondOwnerKey: null, managementMode: 'PRIVATE_OWNER_MANAGED' },
+  { code: '415', ownerKey: 'ownera', secondOwnerKey: null, managementMode: 'PRIVATE_OWNER_MANAGED' },
+  { code: '416', ownerKey: 'ownera', secondOwnerKey: null, managementMode: 'PRIVATE_OWNER_MANAGED' },
+];
+
+async function runChatScenario(
+  runId: string,
+  requestId: string,
+  admin: Actor,
+  structures: { buildingId: string; floorId: string },
+  userIds: Map<string, string>,
+): Promise<void> {
+  const propertyCtx = createPropertyCtx({ requestId, isSeedActor: true });
+  const chatCtx = createChatCtx({ requestId, isSeedActor: true });
+  const mediaCtx = createMediaCtx({ requestId, isSeedActor: true });
+  const identityCtx = createIdentityCtx({ requestId, isSeedActor: true });
+  const bootstrap = seedActor('seed-bootstrap', true);
+  const safeRun = runId.replace(/[^a-z0-9]/gi, '').toLowerCase();
+  const rooms = new Map<string, string>();
+  for (const spec of CHAT_ROOM_SPECS) {
+    const room = await createRoom(
+      admin,
+      {
+        floorId: structures.floorId,
+        buildingId: structures.buildingId,
+        roomCode: `E2E-${runId}-${spec.code}`,
+        areaSqm: '40.00',
+        status: 'ACTIVE',
+      },
+      propertyCtx,
+    );
+    rooms.set(spec.code, room.id);
+    await seedOwnership(
+      admin,
+      { roomId: room.id, userId: userIds.get(spec.ownerKey) ?? '', startAt: new Date('2023-01-01T00:00:00.000Z') },
+      propertyCtx,
+    );
+    if (spec.secondOwnerKey !== null) {
+      await seedOwnership(
+        admin,
+        { roomId: room.id, userId: userIds.get(spec.secondOwnerKey) ?? '', startAt: new Date('2023-01-01T00:00:00.000Z') },
+        propertyCtx,
+      );
+    }
+    if (spec.code === '402' || spec.code === '412') continue;
+    await createTenancy(
+      admin,
+      {
+        roomId: room.id,
+        startsAt: new Date(),
+        endsAt: null,
+        managementMode: spec.managementMode,
+        effectiveAt: new Date('2023-01-01T00:00:00.000Z'),
+      },
+      propertyCtx,
+    );
+  }
+  const chatUsers = new Map<string, string>();
+  const chatAccounts = [
+    { key: 'chattna', name: 'Araya Chattna' },
+    { key: 'chattnb', name: 'Boriboon Chattnb' },
+    { key: 'chatgap', name: 'Gaploy Chatgap' },
+    { key: 'chatrev', name: 'Rerai Chatrev' },
+    { key: 'chatexr', name: 'Exra Chatres' },
+    { key: 'chatout', name: 'Outra Chatout' },
+    { key: 'chatsnd', name: 'Sender Chatsnd' },
+    { key: 'chatrcv', name: 'Receiver Chatrcv' },
+    { key: 'chatobv', name: 'Observer Chatobv' },
+  ] as const;
+  for (const [index, account] of chatAccounts.entries()) {
+    const username = `e2e${safeRun}${account.key}`.slice(0, 30);
+    const result = await provisionSeedUser(
+      bootstrap,
+      {
+        username,
+        email: `${username}@example.invalid`,
+        name: account.name,
+        phone: `+6601000${String(2000 + index)}`,
+        isSystemAdmin: false,
+        initialFlags: { mustChangePassword: false, accountStatus: 'ACTIVE' },
+      },
+      identityCtx,
+    );
+    chatUsers.set(account.key, result.userId);
+    console.log(`seed ${runId} ${account.key} tempPassword=${result.tempPassword}`);
+  }
+  const tenantA = chatUsers.get('chattna') ?? '';
+  const tenantB = chatUsers.get('chattnb') ?? '';
+  const gapActor = chatUsers.get('chatgap') ?? '';
+  const rejoiner = chatUsers.get('chatrev') ?? '';
+  const exResident = chatUsers.get('chatexr') ?? '';
+  const sender = chatUsers.get('chatsnd') ?? '';
+  const receiver = chatUsers.get('chatrcv') ?? '';
+  const observer = chatUsers.get('chatobv') ?? '';
+  const room402 = rooms.get('402') ?? '';
+  const room403 = rooms.get('403') ?? '';
+  const room405 = rooms.get('405') ?? '';
+  const room407 = rooms.get('407') ?? '';
+  const room408 = rooms.get('408') ?? '';
+  const room409 = rooms.get('409') ?? '';
+  const room411 = rooms.get('411') ?? '';
+  const room412 = rooms.get('412') ?? '';
+  const room413 = rooms.get('413') ?? '';
+  const room414 = rooms.get('414') ?? '';
+  const room415 = rooms.get('415') ?? '';
+  const room416 = rooms.get('416') ?? '';
+  const dayMs = 86_400_000;
+  const seedNow = Date.now();
+  const gapEarlyStart = new Date(seedNow - 40 * dayMs);
+  const gapEarlyEnd = new Date(seedNow - 30 * dayMs);
+  const gapDay = new Date(seedNow - 25 * dayMs);
+  const gapLateStart = new Date(seedNow - 20 * dayMs);
+  const adminActor = seedActor(admin.userId, true);
+  const clockAt = (at: Date): ChatCtx => ({ ...chatCtx, clock: { now: () => at } });
+  const blackoutTenancy = await createTenancy(
+    admin,
+    {
+      roomId: room412,
+      startsAt: new Date('2023-01-01T00:00:00.000Z'),
+      endsAt: null,
+      managementMode: 'PRIVATE_OWNER_MANAGED',
+      effectiveAt: new Date('2023-01-01T00:00:00.000Z'),
+    },
+    propertyCtx,
+  );
+  await sendMessage(
+    adminActor,
+    { roomId: room412, clientMessageId: randomUUID(), text: `Tenancy window control for run ${runId}.` },
+    clockAt(new Date(seedNow - 20 * dayMs)),
+  );
+  await endTenancyAt(
+    admin,
+    { tenancyId: blackoutTenancy.id, endsAt: new Date(seedNow - 10 * dayMs) },
+    propertyCtx,
+  );
+  const gapTenancy = await createTenancy(
+    admin,
+    {
+      roomId: room402,
+      startsAt: new Date('2023-01-01T00:00:00.000Z'),
+      endsAt: null,
+      managementMode: 'PRIVATE_OWNER_MANAGED',
+      effectiveAt: new Date('2023-01-01T00:00:00.000Z'),
+    },
+    propertyCtx,
+  );
+  const gapFirst = await addMembership(
+    admin,
+    { roomId: room402, userId: gapActor, memberRole: 'SUB', tenancyId: gapTenancy.id, effectiveAt: gapEarlyStart },
+    propertyCtx,
+  );
+  await endMembershipAt(
+    admin,
+    { roomId: room402, membershipId: gapFirst.id, endsAt: gapEarlyEnd },
+    propertyCtx,
+  );
+  await addMembership(
+    admin,
+    { roomId: room402, userId: gapActor, memberRole: 'SUB', tenancyId: gapTenancy.id, effectiveAt: gapLateStart },
+    propertyCtx,
+  );
+  const tenancyByRoom = new Map<string, string>();
+  for (const roomId of [room403, room405, room407, room408, room409, room411, room413, room414, room415, room416]) {
+    const active = await listRoomActiveTenancies(roomId);
+    const current = active[0];
+    if (current === undefined) throw new Error('Chat seed room has no active tenancy.');
+    tenancyByRoom.set(roomId, current.id);
+  }
+  const tenancyFor = (roomId: string): string => {
+    const found = tenancyByRoom.get(roomId);
+    if (found === undefined) throw new Error('Chat seed tenancy lookup failed.');
+    return found;
+  };
+  await addMembership(
+    admin,
+    { roomId: room403, userId: tenantB, memberRole: 'MAIN', tenancyId: tenancyFor(room403) },
+    propertyCtx,
+  );
+  await addMembership(
+    admin,
+    { roomId: room405, userId: sender, memberRole: 'MAIN', tenancyId: tenancyFor(room405) },
+    propertyCtx,
+  );
+  await addMembership(
+    admin,
+    { roomId: room405, userId: receiver, memberRole: 'SUB', tenancyId: tenancyFor(room405) },
+    propertyCtx,
+  );
+  await addMembership(
+    admin,
+    { roomId: room407, userId: tenantA, memberRole: 'MAIN', tenancyId: tenancyFor(room407) },
+    propertyCtx,
+  );
+  const revokeFirst = await addMembership(
+    admin,
+    { roomId: room408, userId: rejoiner, memberRole: 'MAIN', tenancyId: tenancyFor(room408) },
+    propertyCtx,
+  );
+  await endMembershipAt(
+    admin,
+    { roomId: room408, membershipId: revokeFirst.id },
+    propertyCtx,
+  );
+  await addMembership(
+    admin,
+    { roomId: room409, userId: exResident, memberRole: 'MAIN', tenancyId: tenancyFor(room409) },
+    propertyCtx,
+  );
+  const exMembership = await addMembership(
+    admin,
+    { roomId: room411, userId: exResident, memberRole: 'MAIN', tenancyId: tenancyFor(room411) },
+    propertyCtx,
+  );
+  await endMembershipAt(
+    admin,
+    { roomId: room411, membershipId: exMembership.id },
+    propertyCtx,
+  );
+  await addMembership(
+    admin,
+    {
+      roomId: room413,
+      userId: observer,
+      memberRole: 'MAIN',
+      tenancyId: tenancyFor(room413),
+      effectiveAt: new Date(seedNow - 6 * dayMs),
+    },
+    propertyCtx,
+  );
+  await addMembership(
+    admin,
+    { roomId: room414, userId: gapActor, memberRole: 'SUB', tenancyId: tenancyFor(room414) },
+    propertyCtx,
+  );
+  await addMembership(
+    admin,
+    { roomId: room415, userId: sender, memberRole: 'MAIN', tenancyId: tenancyFor(room415) },
+    propertyCtx,
+  );
+  await addMembership(
+    admin,
+    { roomId: room416, userId: receiver, memberRole: 'SUB', tenancyId: tenancyFor(room416) },
+    propertyCtx,
+  );
+  const senderActor = seedActor(sender, false);
+  const observerActor = seedActor(observer, false);
+  const gapActorSession = seedActor(gapActor, false);
+  await sendMessage(
+    gapActorSession,
+    { roomId: room402, clientMessageId: randomUUID(), text: `Early segment note for run ${runId}.` },
+    clockAt(new Date(seedNow - 35 * dayMs)),
+  );
+  await sendMessage(
+    adminActor,
+    { roomId: room402, clientMessageId: randomUUID(), text: `Gap-day control for run ${runId}.` },
+    clockAt(gapDay),
+  );
+  await sendMessage(
+    gapActorSession,
+    { roomId: room402, clientMessageId: randomUUID(), text: `Late segment note for run ${runId}.` },
+    clockAt(new Date(seedNow - 10 * dayMs)),
+  );
+  await sendMessage(
+    senderActor,
+    { roomId: room405, clientMessageId: randomUUID(), text: `Hello from sender for run ${runId}.` },
+    chatCtx,
+  );
+  const validationClock = clockAt(new Date(seedNow - 5 * dayMs));
+  for (let page = 0; page < 65; page += 1) {
+    await sendMessage(
+      observerActor,
+      {
+        roomId: room413,
+        clientMessageId: randomUUID(),
+        text: `History page message ${String(page + 1).padStart(2, '0')} for run ${runId}.`,
+      },
+      { ...validationClock, clock: { now: () => new Date(seedNow - 5 * dayMs + page * 1000) } },
+    );
+  }
+  await sendMessage(
+    adminActor,
+    { roomId: room402, clientMessageId: randomUUID(), text: `Blackout window control for run ${runId}.` },
+    clockAt(new Date(seedNow - 35 * dayMs)),
+  );
+  const { default: sharp } = await import('sharp');
+  const tinyPng = await sharp({
+    create: { width: 8, height: 8, channels: 3, background: '#4f7fbf' },
+  })
+    .png()
+    .toBuffer();
+  for (const [index, fileName] of ['chat-seed-attach.png', 'chat-seed-foreign-scope.png', 'chat-seed-extra.png'].entries()) {
+    await seedReadyImage(
+      admin,
+      {
+        runId,
+        fileName: `chat${fileName}`,
+        scope: index === 1 ? 'MAINTENANCE' : 'CHAT',
+        mime: 'image/png',
+        bytes: tinyPng,
+        width: 8,
+        height: 8,
+      },
+      mediaCtx,
+    );
+  }
+  console.log(`Chat seed complete for run ${runId}.`);
 }

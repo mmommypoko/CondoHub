@@ -19,7 +19,7 @@ export { setAccountStatus, suspendUser, unsuspendUser } from './setAccountStatus
 export type { SetAccountStatusResult } from './setAccountStatus';
 export { changePassword } from './changePassword';
 export type { ChangePasswordInput, ChangePasswordResult } from './changePassword';
-export { isSystemAdmin, requireActiveAccount, revokeAllSessions } from './accountQueries';
-export type { ActiveActor } from './accountQueries';
+export { getSenderProfile, isSystemAdmin, requireActiveAccount, revokeAllSessions } from './accountQueries';
+export type { ActiveActor, SenderProfile } from './accountQueries';
 export { createIdentityCtx } from './ctx';
 export type { IdentityCtx } from './ctx';

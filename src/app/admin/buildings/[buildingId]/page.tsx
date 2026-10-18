@@ -1,5 +1,7 @@
 import 'server-only';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { MessageCircle } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { Badge } from '@/shared/ui/Badge';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -69,12 +71,22 @@ export default async function AdminBuildingDetailPage({
                 key={room.id}
                 className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface p-3 text-sm"
               >
-                <span className="text-foreground">
+                <span className="min-w-0 break-words text-foreground">
                   {room.roomCode} · {room.areaSqm} sqm
                 </span>
-                <Badge variant={room.status === 'ACTIVE' ? 'success' : 'neutral'}>
-                  {room.status === 'ACTIVE' ? 'Active' : 'Inactive'}
-                </Badge>
+                <span className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                  <Link
+                    data-testid={`admin-rooms-chat-${room.id}`}
+                    href={`/admin/rooms/${room.id}/chat`}
+                    className="inline-flex items-center gap-1 rounded-lg border border-input-border bg-surface px-2 py-1 text-xs font-medium text-secondary-foreground hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                  >
+                    <MessageCircle aria-hidden="true" className="size-3" />
+                    Chat
+                  </Link>
+                  <Badge variant={room.status === 'ACTIVE' ? 'success' : 'neutral'}>
+                    {room.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+                  </Badge>
+                </span>
               </li>
             ))}
           </ul>

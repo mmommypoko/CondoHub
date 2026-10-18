@@ -30,6 +30,8 @@ async function ensureDefaultsWired(): Promise<void> {
     '@/modules/maintenance/application/maintenanceScopeCallbacks'
   );
   wireMaintenanceScopeAcl();
+  const { wireChatScopeAcl } = await import('@/modules/room-chat/application/chatScopeCallbacks');
+  wireChatScopeAcl();
 }
 
 export function registerScopeAcl(scope: ImageScope, callback: ScopeAclCallback): void {

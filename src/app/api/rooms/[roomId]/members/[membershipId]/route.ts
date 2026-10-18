@@ -9,6 +9,7 @@ import {
   parseWithFieldErrors,
 } from '@/modules/property-membership/application/index';
 import { memberPatchBody } from '@/modules/property-membership/application/routeSchemas';
+import { emitRoomAccessRevoked } from '@/modules/room-chat/application/index';
 
 export const PATCH = withApi(
   async (request, ctx, route) => {
@@ -23,6 +24,7 @@ export const PATCH = withApi(
     if (body.action !== 'END') throw new AppError('VALIDATION_ERROR');
     const propertyCtx = createPropertyCtx({ requestId: ctx.requestId });
     const ended = await endMembershipAt(ctx.actor, { roomId, membershipId }, propertyCtx);
+    emitRoomAccessRevoked(roomId);
     return {
       id: ended.id,
       roomId: ended.roomId,

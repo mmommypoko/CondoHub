@@ -53,6 +53,21 @@ function billingJobKeys(now: Date): string[] {
 function resetTargets(): ResetTarget[] {
   return [
     {
+      label: 'chat_message',
+      sql: `DELETE FROM "chat_message" WHERE "conversation_id" IN (SELECT "id" FROM "room_conversation" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\'))`,
+      pattern: 'raw',
+    },
+    {
+      label: 'chat_message_by_run_user',
+      sql: `DELETE FROM "chat_message" WHERE "sender_user_id" IN (SELECT "id" FROM "user" WHERE "username" LIKE '%' || $1 || '%' ESCAPE '\\')`,
+      pattern: 'normalized',
+    },
+    {
+      label: 'room_conversation',
+      sql: `DELETE FROM "room_conversation" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\')`,
+      pattern: 'raw',
+    },
+    {
       label: 'ticket_comment_idempotency',
       sql: `DELETE FROM "idempotency_key" WHERE "scope" = 'TICKET_COMMENT' AND "result_ref_id" IN (SELECT "id" FROM "maintenance_comment" WHERE "request_id" IN (SELECT "id" FROM "maintenance_request" WHERE "reporter_id" IN (SELECT "id" FROM "user" WHERE "username" LIKE '%' || $1 || '%' ESCAPE '\\')))`,
       pattern: 'normalized',

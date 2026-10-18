@@ -5,7 +5,7 @@ import { loginAsPoolAdmin } from '../../helpers/owner';
 import { provisionResidentWithRetry } from '../../helpers/resident';
 import { mintIntent } from './uploadFlow';
 
-const FAKE_SCOPES = ['CHAT'] as const;
+const FAKE_SCOPES = [] as const;
 
 test.describe('upload scope gates: fake callbacks deny until owner slices land', () => {
   test.setTimeout(180000);
@@ -101,6 +101,41 @@ test.describe('upload scope gates: fake callbacks deny until owner slices land',
         fileName: `e2e-${ns}-qr-admin.png`,
       });
       expect(qrAllowed.status).toBe(200);
+    } finally {
+      await resident.close();
+    }
+  });
+
+  test('chat scope uses the real callback: unattached intent mints for active actors', async ({
+    page,
+    browser,
+  }, testInfo) => {
+    const { runId } = await readRunContext();
+    const ns = workerNamespace(runId, testInfo.workerIndex);
+    const baseURL = process.env.TEST_BASE_URL ?? 'http://localhost:3000';
+    await loginAsPoolAdmin(page, 'scopeGates');
+    const resident = await provisionResidentWithRetry(page, browser, {
+      runId,
+      workerIndex: testInfo.workerIndex,
+      stem: 'scopecht',
+      baseURL,
+    });
+    try {
+      const adminIntent = await mintIntent(page.request, {
+        scope: 'CHAT',
+        entityRef: { type: 'chat_message', id: null },
+        contentType: 'image/png',
+        fileName: `e2e-${ns}-cht-admin.png`,
+      });
+      expect(adminIntent.status).toBe(200);
+
+      const residentIntent = await mintIntent(resident.page.request, {
+        scope: 'CHAT',
+        entityRef: { type: 'chat_message', id: null },
+        contentType: 'image/png',
+        fileName: `e2e-${ns}-cht-resident.png`,
+      });
+      expect(residentIntent.status).toBe(200);
     } finally {
       await resident.close();
     }

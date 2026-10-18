@@ -57,6 +57,20 @@
       "when": 1792233874769,
       "tag": "0007_long_slyde",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792255367010,
+      "tag": "0008_spooky_virginia_dare",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792258054934,
+      "tag": "0009_fancy_black_knight",
+      "breakpoints": true
     }
   ]
 }
