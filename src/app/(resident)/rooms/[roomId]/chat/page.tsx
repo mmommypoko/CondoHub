@@ -43,10 +43,10 @@ export default async function RoomChatPage({ params }: { params: Promise<{ roomI
               <Link
                 data-testid="chat-back"
                 href="/rooms"
-                className="inline-flex items-center gap-1 rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                className="inline-flex items-center gap-1 text-body leading-body font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
               >
                 <ChevronLeft aria-hidden="true" className="size-4" />
-                Back to My Rooms
+                Back to Rooms
               </Link>
             }
           />
@@ -80,10 +80,10 @@ export default async function RoomChatPage({ params }: { params: Promise<{ roomI
               <Link
                 data-testid="chat-back"
                 href="/rooms"
-                className="inline-flex items-center gap-1 rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                className="inline-flex items-center gap-1 text-body leading-body font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
               >
                 <ChevronLeft aria-hidden="true" className="size-4" />
-                Back to My Rooms
+                Back to Rooms
               </Link>
             }
           />
@@ -101,16 +101,16 @@ export default async function RoomChatPage({ params }: { params: Promise<{ roomI
         <Link
           data-testid="chat-back"
           href={`/rooms/${roomId}`}
-          className="inline-flex w-fit items-center gap-1 rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          className="inline-flex w-fit items-center gap-1 rounded-md text-body leading-body font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
         >
           <ChevronLeft aria-hidden="true" className="size-4" />
           Back to room
         </Link>
         <div className="flex min-w-0 flex-col gap-1 border-b border-border pb-4">
-          <h1 data-testid="chat-title" className="min-w-0 break-words text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+          <h1 data-testid="chat-title" className="min-w-0 break-words text-title leading-title font-semibold tracking-tight text-foreground">
             Room chat
           </h1>
-          <p data-testid="chat-room-label" className="min-w-0 break-words text-sm text-muted-foreground">
+          <p data-testid="chat-room-label" className="min-w-0 break-words text-small leading-small text-muted-foreground">
             {roomLabel}
           </p>
         </div>
@@ -122,7 +122,7 @@ export default async function RoomChatPage({ params }: { params: Promise<{ roomI
         initialMessages={initialMessages}
         initialCursor={initialCursor}
         backHref="/rooms"
-        backLabel="Back to My Rooms"
+        backLabel="Back to Rooms"
         testIdPrefix="chat"
       />
     </main>

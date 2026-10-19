@@ -105,14 +105,14 @@ export function OwnershipAssignForm({ roomId }: { roomId: string }) {
       data-testid="ownership-assign-form"
       onSubmit={onSubmit}
       noValidate
-      className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4 sm:p-5"
+      className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:p-5"
     >
-      <h3 className="text-sm font-semibold text-foreground">Assign owner</h3>
+      <h3 className="text-heading leading-heading font-semibold text-foreground">Assign owner</h3>
       {serverError !== null ? (
         <p
           data-testid="ownership-assign-error"
           role="alert"
-          className="text-sm font-medium text-danger-foreground"
+          className="text-body leading-body font-medium text-danger-foreground"
         >
           {serverError}
         </p>
@@ -201,14 +201,14 @@ function TransferForm({ roomId, owners }: { roomId: string; owners: OwnerOption[
       data-testid="ownership-transfer-form"
       onSubmit={onSubmit}
       noValidate
-      className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4 sm:p-5"
+      className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:p-5"
     >
-      <h3 className="text-sm font-semibold text-foreground">Transfer ownership</h3>
+      <h3 className="text-heading leading-heading font-semibold text-foreground">Transfer ownership</h3>
       {serverError !== null ? (
         <p
           data-testid="ownership-transfer-error"
           role="alert"
-          className="text-sm font-medium text-danger-foreground"
+          className="text-body leading-body font-medium text-danger-foreground"
         >
           {serverError}
         </p>
@@ -301,14 +301,14 @@ function RemoveForm({ roomId, owners }: { roomId: string; owners: OwnerOption[] 
       data-testid="ownership-remove-form"
       onSubmit={onSubmit}
       noValidate
-      className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4 sm:p-5"
+      className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:p-5"
     >
-      <h3 className="text-sm font-semibold text-foreground">Remove owner</h3>
+      <h3 className="text-heading leading-heading font-semibold text-foreground">Remove owner</h3>
       {serverError !== null ? (
         <p
           data-testid="ownership-remove-error"
           role="alert"
-          className="text-sm font-medium text-danger-foreground"
+          className="text-body leading-body font-medium text-danger-foreground"
         >
           {serverError}
         </p>

@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
-import { Badge, EmptyState } from '@/shared/ui';
+import { ArrowRight } from 'lucide-react';
+import { ACTION_LINK_CLASS, Badge, EmptyState, cx } from '@/shared/ui';
 import type { ChargeEventDto } from '@/modules/billing-payments/application/index';
 import { chargeEventStatusVariant, formatInstant } from '@/modules/billing-payments/ui/billingLabels';
 
@@ -13,11 +13,11 @@ export function ChargeEventDetailCard({ event }: { event: ChargeEventDto }) {
         <div className="flex min-w-0 flex-col gap-1">
           <h1
             data-testid="charge-event-detail-title"
-            className="break-words text-xl font-semibold tracking-tight text-foreground sm:text-2xl"
+            className="break-words text-title font-semibold tracking-tight text-foreground"
           >
             Event {event.eventEffectiveDate}
           </h1>
-          <p className="break-all text-xs leading-6 text-muted-foreground">
+          <p className="break-all text-small leading-small text-muted-foreground">
             <span data-testid="charge-event-detail-id">{event.id}</span>
           </p>
         </div>
@@ -27,41 +27,41 @@ export function ChargeEventDetailCard({ event }: { event: ChargeEventDto }) {
       </div>
       {event.configuredAmount !== null ? (
         <div className="flex min-w-0 flex-col gap-1">
-          <p className="text-sm font-medium text-muted-foreground">Amount per room</p>
+          <p className="text-small font-medium text-muted-foreground">Amount per room</p>
           <p
             data-testid="charge-event-detail-amount"
-            className="break-words text-3xl font-semibold tracking-tight text-foreground tabular-nums"
+            className="ui-tabular break-words text-display font-semibold tracking-tight text-foreground"
           >
             {event.configuredAmount.amount} {event.configuredAmount.currency}
           </p>
         </div>
       ) : (
-        <p data-testid="charge-event-detail-amount" className="text-sm leading-6 text-muted-foreground">
+        <p data-testid="charge-event-detail-amount" className="text-small leading-small text-muted-foreground">
           Derived from the billing rule
         </p>
       )}
       <dl
         data-testid="charge-event-detail-facts"
-        className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-4 border-t border-border pt-5 text-sm sm:grid-cols-3"
+        className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-4 border-t border-border pt-5 text-body sm:grid-cols-3"
       >
         <div className="flex min-w-0 flex-col gap-0.5">
-          <dt className="text-sm font-medium text-muted-foreground">
+          <dt className="text-small font-medium text-muted-foreground">
             Effective date
           </dt>
-          <dd data-testid="charge-event-detail-date" className="break-words font-medium text-foreground tabular-nums">
+          <dd data-testid="charge-event-detail-date" className="break-words font-medium text-foreground ui-tabular">
             {event.eventEffectiveDate}
           </dd>
         </div>
         <div className="flex min-w-0 flex-col gap-0.5">
-          <dt className="text-sm font-medium text-muted-foreground">
+          <dt className="text-small font-medium text-muted-foreground">
             Created
           </dt>
-          <dd data-testid="charge-event-detail-created" className="break-words font-medium text-foreground tabular-nums">
+          <dd data-testid="charge-event-detail-created" className="break-words font-medium text-foreground ui-tabular">
             {formatInstant(event.createdAt)}
           </dd>
         </div>
         <div className="flex min-w-0 flex-col gap-0.5">
-          <dt className="text-sm font-medium text-muted-foreground">
+          <dt className="text-small font-medium text-muted-foreground">
             Timezone
           </dt>
           <dd data-testid="charge-event-detail-timezone" className="break-words font-medium text-foreground">
@@ -70,7 +70,7 @@ export function ChargeEventDetailCard({ event }: { event: ChargeEventDto }) {
         </div>
       </dl>
       <section aria-label="Issuance" className="flex min-w-0 flex-col gap-3">
-        <h2 className="text-base font-semibold tracking-tight text-foreground">Issuance</h2>
+        <h2 className="text-heading font-semibold tracking-tight text-foreground">Issuance</h2>
         {event.status === 'OPEN' ? (
           <EmptyState
             data-testid="charge-event-detail-pending"
@@ -86,10 +86,10 @@ export function ChargeEventDetailCard({ event }: { event: ChargeEventDto }) {
               <Link
                 data-testid="charge-event-detail-invoices"
                 href="/admin/billing/invoices"
-                className="inline-flex h-8 items-center gap-2 rounded-lg border border-input-border bg-surface px-3 text-sm font-medium text-body-secondary transition-[background-color,color,border-color] duration-150 ease-out hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring motion-reduce:transition-none"
+                className={cx(ACTION_LINK_CLASS, 'h-8')}
               >
-                <ArrowLeft aria-hidden="true" className="size-4" />
                 Review invoices
+                <ArrowRight aria-hidden="true" className="size-4" />
               </Link>
             }
           />

@@ -76,7 +76,7 @@ export function TicketCommentForm({
   return (
     <form data-testid={`${testIdPrefix}-comment-form`} onSubmit={onSubmit} noValidate className="flex min-w-0 flex-col gap-3">
       {serverError !== null ? (
-        <p data-testid={`${testIdPrefix}-comment-error`} role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
+        <p data-testid={`${testIdPrefix}-comment-error`} role="alert" className="text-body leading-body font-medium text-danger-foreground">
           {serverError}
         </p>
       ) : null}

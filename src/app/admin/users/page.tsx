@@ -19,7 +19,7 @@ export default async function AdminUsersPage({
   const page = Math.max(1, Number(params.page ?? '1') || 1);
   const result = await searchUsers(db, { query: params.query, page, pageSize: 20 });
   return (
-    <main data-testid="admin-users-page" className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
+    <main data-testid="admin-users-page" className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6">
       <PageHeader
         title="Users"
         description="Search accounts, provision new users, reset passwords, and suspend accounts."

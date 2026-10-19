@@ -148,12 +148,12 @@ export function AnnouncementEditForm({
         className="flex min-w-0 flex-col gap-4"
       >
         {serverError !== null ? (
-          <p data-testid="announcement-edit-error" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
+          <p data-testid="announcement-edit-error" role="alert" className="text-body leading-body font-medium text-danger-foreground">
             {serverError}
           </p>
         ) : null}
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface p-3">
-          <span className="text-sm text-muted-foreground">Visibility:</span>
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-3">
+          <span className="text-small leading-small text-muted-foreground">Visibility:</span>
           {hiddenAt === null ? (
             <Badge data-testid="announcement-edit-visible" variant="success">
               Visible
@@ -234,11 +234,11 @@ export function AnnouncementEditForm({
         </div>
       </form>
       <section className="flex min-w-0 flex-col gap-2 border-t border-border pt-6" aria-label="Revision history">
-        <h2 className="text-sm font-semibold text-foreground">
+        <h2 className="text-heading leading-heading font-semibold text-foreground">
           Revision history ({revisions.length})
         </h2>
         {revisions.length === 0 ? (
-          <p data-testid="announcement-edit-no-revisions" className="text-sm leading-6 text-muted-foreground">
+          <p data-testid="announcement-edit-no-revisions" className="text-small leading-small text-muted-foreground">
             No revisions yet. Editing after publish creates a revision snapshot.
           </p>
         ) : (
@@ -246,7 +246,7 @@ export function AnnouncementEditForm({
             {revisions.map((revision) => (
               <li
                 key={revision.version}
-                className="flex min-w-0 flex-col gap-0.5 border-b border-border py-3 text-sm last:border-b-0"
+                className="flex min-w-0 flex-col gap-0.5 border-b border-border py-3 text-body leading-body last:border-b-0"
               >
                 <span className="font-medium leading-6 text-foreground">
                   Version {revision.version} · {new Date(revision.createdAt).toLocaleString('en-US', { timeZone: 'Asia/Bangkok' })}

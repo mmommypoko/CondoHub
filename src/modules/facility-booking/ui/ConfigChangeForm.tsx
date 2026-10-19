@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import { Badge, Button, FormField, useToast } from '@/shared/ui';
-import { CHECKBOX_CLASS, INPUT_CLASS } from './formControls';
+import { CHECKBOX_CLASS, INPUT_CLASS } from '@/shared/ui';
 
 const DAYS = [
   { key: '1', label: 'Mon' },
@@ -205,13 +205,13 @@ export function ConfigChangeForm({
         data-testid="config-change-form"
         onSubmit={onPreview}
         noValidate
-        className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4 sm:p-5"
+        className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:p-5"
       >
         {serverError !== null ? (
           <p
             data-testid="config-change-error"
             role="alert"
-            className="text-sm font-medium text-danger-foreground"
+            className="text-body leading-body font-medium text-danger-foreground"
           >
             {serverError}
           </p>
@@ -271,10 +271,10 @@ export function ConfigChangeForm({
           </div>
         </div>
         <fieldset className="flex min-w-0 flex-col gap-2">
-          <legend className="text-sm font-medium text-foreground">Open days</legend>
+          <legend className="text-body font-medium text-foreground">Open days</legend>
           <div className="flex flex-wrap gap-x-4 gap-y-2">
             {DAYS.map((day) => (
-              <label key={day.key} className="flex items-center gap-2 text-sm text-foreground">
+              <label key={day.key} className="flex items-center gap-2 text-body text-foreground">
                 <input
                   data-testid={`config-change-day-${day.key}`}
                   type="checkbox"
@@ -287,7 +287,7 @@ export function ConfigChangeForm({
             ))}
           </div>
           {errors.openDays !== undefined ? (
-            <p role="alert" className="text-sm font-medium text-danger-foreground">
+            <p role="alert" className="text-body leading-body font-medium text-danger-foreground">
               {errors.openDays.message}
             </p>
           ) : null}
@@ -320,29 +320,29 @@ export function ConfigChangeForm({
         <section
           data-testid="config-change-preview-result"
           aria-label="Config impact preview"
-          className="flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-surface p-4 sm:p-5"
+          className="flex min-w-0 flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:p-5"
         >
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={preview.quotaOnlyReduction ? 'info' : 'neutral'}>
               {preview.quotaOnlyReduction ? 'Quota-only reduction' : 'Structural change'}
             </Badge>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-small text-muted-foreground">
               Based on config version {preview.configVersion}
             </span>
           </div>
-          <div className="flex flex-col gap-1 border-t border-border pt-4 text-sm">
+          <div className="flex flex-col gap-1 border-t border-border pt-4 text-body">
             <p className="font-medium text-foreground">
               {preview.structuralConflicts.length} conflicting future slot
               {preview.structuralConflicts.length === 1 ? '' : 's'}
             </p>
             {preview.structuralConflicts.length === 0 ? (
-              <p data-testid="config-change-no-conflicts" className="text-sm text-muted-foreground">
+              <p data-testid="config-change-no-conflicts" className="text-small text-muted-foreground">
                 No future bookings conflict with the proposed schedule, length, capacity, or closures.
               </p>
             ) : (
               <ul data-testid="config-change-conflicts" className="flex flex-col gap-1">
                 {preview.structuralConflicts.slice(0, 20).map((slot) => (
-                  <li key={slot.id} className="break-words text-sm text-foreground">
+                  <li key={slot.id} className="break-words text-body text-foreground">
                     {new Date(slot.startsAt).toLocaleString('en-US', { timeZone: 'Asia/Bangkok' })}
                     {' · '}
                     {slot.conflicts.join(', ')}
@@ -351,24 +351,24 @@ export function ConfigChangeForm({
               </ul>
             )}
           </div>
-          <div className="flex flex-col gap-1 border-t border-border pt-4 text-sm">
+          <div className="flex flex-col gap-1 border-t border-border pt-4 text-body">
             <p className="font-medium text-foreground">
               {preview.quotaImpacts.length} room-period{preview.quotaImpacts.length === 1 ? '' : 's'} over the new limit
             </p>
             {preview.quotaImpacts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-small text-muted-foreground">
                 No room currently exceeds the proposed quota limit.
               </p>
             ) : (
               <ul data-testid="config-change-quota-impacts" className="flex flex-col gap-1">
                 {preview.quotaImpacts.slice(0, 20).map((impact) => (
-                  <li key={`${impact.roomId}-${impact.periodKey}`} className="break-words text-sm text-foreground">
+                  <li key={`${impact.roomId}-${impact.periodKey}`} className="break-words text-body text-foreground">
                     {impact.periodKey}: used {impact.used}, new limit {impact.newLimit}
                   </li>
                 ))}
               </ul>
             )}
-            <p className="text-xs text-muted-foreground">
+            <p className="text-small text-muted-foreground">
               Quota-only reductions never cancel existing bookings; new requests are blocked until usage fits.
             </p>
           </div>

@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import { Button, FormField, useToast } from '@/shared/ui';
-import { INPUT_CLASS, TEXTAREA_CLASS } from './formControls';
+import { INPUT_CLASS, TEXTAREA_CLASS } from '@/shared/ui';
 
 const editSchema = z.object({
   name: z.string().trim().min(1, 'Name is required.').max(255),
@@ -79,13 +79,13 @@ export function FacilityEditForm({
       data-testid="facility-edit-form"
       onSubmit={onSubmit}
       noValidate
-      className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4 sm:p-5"
+      className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:p-5"
     >
       {serverError !== null ? (
         <p
           data-testid="facility-edit-error"
           role="alert"
-          className="text-sm font-medium text-danger-foreground"
+          className="text-body leading-body font-medium text-danger-foreground"
         >
           {serverError}
         </p>

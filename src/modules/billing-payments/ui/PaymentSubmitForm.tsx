@@ -70,12 +70,12 @@ export function PaymentSubmitForm({ invoiceId, onSubmitted }: { invoiceId: strin
   return (
     <form data-testid="payment-submit-form" onSubmit={onSubmit} noValidate className="flex min-w-0 flex-col gap-3">
       {serverError !== null ? (
-        <p data-testid="payment-submit-error" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
+        <p data-testid="payment-submit-error" role="alert" className="text-body leading-body font-medium text-danger-foreground">
           {serverError}
         </p>
       ) : null}
       {errors.imageId !== undefined ? (
-        <p data-testid="payment-submit-missing" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
+        <p data-testid="payment-submit-missing" role="alert" className="text-body leading-body font-medium text-danger-foreground">
           {errors.imageId.message}
         </p>
       ) : null}

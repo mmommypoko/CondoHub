@@ -39,7 +39,7 @@ export default async function AdminMaintenanceDetailPage({
             <Link
               data-testid="admin-maintenance-detail-back"
               href="/admin/maintenance"
-              className="inline-flex items-center gap-1 text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+              className="inline-flex items-center gap-1 text-body leading-body font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
             >
               <ArrowLeft aria-hidden="true" className="size-4" />
               Back to inbox
@@ -67,7 +67,7 @@ export default async function AdminMaintenanceDetailPage({
       <Link
         data-testid="admin-maintenance-detail-back"
         href="/admin/maintenance"
-        className="inline-flex w-fit items-center gap-1.5 rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+        className="inline-flex w-fit items-center gap-1.5 rounded-md text-body leading-body font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
       >
         <ArrowLeft aria-hidden="true" className="size-4" />
         Back to inbox

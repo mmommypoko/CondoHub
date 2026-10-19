@@ -7,6 +7,7 @@ import { db } from '@/shared/db/client';
 import { listOpenChargeEvents } from '@/modules/billing-payments/infrastructure/billingRepository';
 import { satangToDecimalString } from '@/shared/utils/money';
 import { ACTION_LINK_CLASS, Badge, DataTable, DataTableCell, DataTableRow, EmptyState, PageHeader } from '@/shared/ui';
+import { BillingSectionNav } from '@/modules/billing-payments/ui/BillingSectionNav';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,6 +41,7 @@ export default async function AdminBillingEventsPage() {
           </Link>
         }
       />
+      <BillingSectionNav current="events" counts={{ events: rows.length }} />
       {rows.length === 0 ? (
         <EmptyState
           data-testid="charge-event-list-empty"

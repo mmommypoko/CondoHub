@@ -115,7 +115,7 @@ export function UsersTable({ users, total, page, pageSize, query }: UsersTablePr
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-small leading-small text-muted-foreground">
           {total === 1 ? '1 account' : `${total} accounts`}
         </p>
         <Button data-testid="admin-users-provision-open" onClick={() => setProvisionOpen(true)}>
@@ -172,12 +172,12 @@ export function UsersTable({ users, total, page, pageSize, query }: UsersTablePr
         <div
           data-testid="admin-users-temp-password"
           role="alert"
-          className="flex flex-col gap-2 rounded-xl border border-warning-border bg-warning p-4"
+          className="flex flex-col gap-2 rounded-lg border border-warning-border bg-warning p-4"
         >
-          <p className="text-sm font-medium text-foreground">
+          <p className="text-body leading-body font-medium text-foreground">
             Temporary password — shown once. Copy it now; it cannot be shown again.
           </p>
-          <p className="font-mono text-sm break-all text-foreground">{oncePassword.password}</p>
+          <p className="font-mono text-body leading-body break-all text-foreground">{oncePassword.password}</p>
           <div>
             <Button variant="secondary" size="sm" onClick={() => setOncePassword(null)}>
               <X aria-hidden="true" className="size-4" />
@@ -280,7 +280,7 @@ export function UsersTable({ users, total, page, pageSize, query }: UsersTablePr
           </>
         }
       >
-        <p className="text-sm leading-6 text-muted-foreground">
+        <p data-testid="admin-users-confirm-hint" className="text-small leading-small text-muted-foreground">
           {pendingAction?.kind === 'reset'
             ? 'The user must change the temporary password at next login.'
             : pendingAction?.kind === 'suspend'

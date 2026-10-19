@@ -29,19 +29,19 @@ export function ChatPendingBubble({
           {failed ? 'Not sent' : 'Sending'}
         </span>
       </div>
-      <div className={`flex w-fit min-w-0 max-w-[85%] flex-col gap-2 rounded-xl rounded-tr-sm px-3.5 py-2.5 sm:max-w-[75%] ${failed ? 'border border-danger-border bg-danger text-foreground' : 'border border-dashed border-border-strong bg-surface text-foreground opacity-80'}`}>
+      <div className={`flex w-fit min-w-0 max-w-[85%] flex-col gap-2 rounded-lg rounded-tr-sm px-3.5 py-2.5 sm:max-w-[75%] ${failed ? 'border border-danger-border bg-danger text-foreground' : 'border border-dashed border-border-strong bg-surface text-foreground opacity-80'}`}>
         {entry.text !== null && entry.text !== '' ? (
-          <p data-testid={`${testId}-text`} className="min-w-0 whitespace-pre-wrap break-words text-sm leading-6">
+          <p data-testid={`${testId}-text`} className="min-w-0 whitespace-pre-wrap break-words text-body leading-body">
             {entry.text}
           </p>
         ) : null}
         {entry.imageId !== null ? (
-          <p data-testid={`${testId}-image`} className="min-w-0 break-words text-sm text-muted-foreground">
+          <p data-testid={`${testId}-image`} className="min-w-0 break-words text-small leading-small text-muted-foreground">
             Image attached{entry.imageLabel !== null ? `: ${entry.imageLabel}` : '.'}
           </p>
         ) : null}
         {failed && entry.error !== null ? (
-          <p data-testid={`${testId}-error`} role="alert" className="min-w-0 break-words text-sm font-medium text-danger-foreground">
+          <p data-testid={`${testId}-error`} role="alert" className="min-w-0 break-words text-body leading-body font-medium text-danger-foreground">
             {entry.error}
           </p>
         ) : null}

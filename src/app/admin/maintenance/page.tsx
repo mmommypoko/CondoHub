@@ -1,9 +1,9 @@
 import 'server-only';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Wrench } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
-import { EmptyState, FILTER_LINK_ACTIVE, FILTER_LINK_BASE, FILTER_LINK_IDLE, PageHeader, Pagination, cx } from '@/shared/ui';
+import { systemClock } from '@/shared/utils/clock';
+import { EmptyState, FilterBar, PageHeader, Pagination } from '@/shared/ui';
 import {
   listTickets,
   type TicketDto,
@@ -44,6 +44,10 @@ function statusFilterLabel(status: string): string {
   return 'Pending';
 }
 
+function statusSlug(status: string): string {
+  return status.toLowerCase().replaceAll('_', '-');
+}
+
 export default async function AdminMaintenancePage({
   searchParams,
 }: {
@@ -75,10 +79,26 @@ export default async function AdminMaintenancePage({
     }
   }
   const totalPages = Math.max(1, Math.ceil(feed.total / 20));
-  const query = new URLSearchParams();
-  if (status !== undefined) query.set('status', status);
-  if (kind !== undefined) query.set('kind', kind);
-  const suffix = query.toString() === '' ? '' : `&${query.toString()}`;
+  const statusQuery = status === undefined ? '' : `status=${status}`;
+  const kindQuery = (target: string | undefined): string => {
+    const query = new URLSearchParams();
+    if (target !== undefined) query.set('kind', target);
+    if (status !== undefined) query.set('status', status);
+    const text = query.toString();
+    return text === '' ? '/admin/maintenance' : `/admin/maintenance?${text}`;
+  };
+  const statusHref = (target: string | undefined): string => {
+    const query = new URLSearchParams();
+    if (kind !== undefined) query.set('kind', kind);
+    if (target !== undefined) query.set('status', target);
+    const text = query.toString();
+    return text === '' ? '/admin/maintenance' : `/admin/maintenance?${text}`;
+  };
+  const suffixParts = [statusQuery, kind === undefined ? '' : `kind=${kind}`].filter(
+    (part) => part !== '',
+  );
+  const suffix = suffixParts.length === 0 ? '' : `&${suffixParts.join('&')}`;
+  const nowIso = systemClock.now().toISOString();
   return (
     <main
       data-testid="admin-maintenance-page"
@@ -87,47 +107,35 @@ export default async function AdminMaintenancePage({
       <PageHeader
         title="Maintenance inbox"
         description="Common-area and project-managed requests routed to the management team. Owner-room requests stay with the room owners and never appear here."
+        actions={
+          <span className="inline-flex items-center gap-2 text-small leading-small text-muted-foreground">
+            {feed.total === 1 ? '1 request' : `${feed.total} requests`}
+          </span>
+        }
       />
-      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter by category">
-        <Link
-          data-testid="admin-maintenance-filter-all"
-          href="/admin/maintenance"
-          aria-current={kind === undefined && status === undefined ? 'page' : undefined}
-          className={cx(
-            FILTER_LINK_BASE,
-            kind === undefined && status === undefined
-              ? FILTER_LINK_ACTIVE
-              : FILTER_LINK_IDLE,
-          )}
-        >
-          All
-        </Link>
-        <Link
-          data-testid="admin-maintenance-filter-common"
-          href="/admin/maintenance?kind=COMMON_AREA"
-          aria-current={kind === 'COMMON_AREA' ? 'page' : undefined}
-          className={cx(
-            FILTER_LINK_BASE,
-            kind === 'COMMON_AREA'
-              ? FILTER_LINK_ACTIVE
-              : FILTER_LINK_IDLE,
-          )}
-        >
-          Common area
-        </Link>
-        <Link
-          data-testid="admin-maintenance-filter-managed"
-          href="/admin/maintenance?kind=PROJECT_MANAGED_PRIVATE"
-          aria-current={kind === 'PROJECT_MANAGED_PRIVATE' ? 'page' : undefined}
-          className={cx(
-            FILTER_LINK_BASE,
-            kind === 'PROJECT_MANAGED_PRIVATE'
-              ? FILTER_LINK_ACTIVE
-              : FILTER_LINK_IDLE,
-          )}
-        >
-          Managed room
-        </Link>
+      <div className="flex min-w-0 flex-col gap-3">
+        <FilterBar
+          label="Filter by category"
+          activeValue={kind ?? ''}
+          options={[
+            { value: '', label: 'All', href: kindQuery(undefined), testId: 'admin-maintenance-filter-all' },
+            { value: 'COMMON_AREA', label: 'Common area', href: kindQuery('COMMON_AREA'), testId: 'admin-maintenance-filter-common' },
+            { value: 'PROJECT_MANAGED_PRIVATE', label: 'Managed room', href: kindQuery('PROJECT_MANAGED_PRIVATE'), testId: 'admin-maintenance-filter-managed' },
+          ]}
+        />
+        <FilterBar
+          label="Filter by status"
+          activeValue={status ?? ''}
+          options={[
+            { value: '', label: 'Any status', href: statusHref(undefined), testId: 'admin-maintenance-filter-any-status' },
+            ...STATUS_FILTERS.map((entry) => ({
+              value: entry,
+              label: statusFilterLabel(entry),
+              href: statusHref(entry),
+              testId: `admin-maintenance-filter-${statusSlug(entry)}`,
+            })),
+          ]}
+        />
       </div>
       {feed.rows.length === 0 ? (
         <EmptyState
@@ -138,10 +146,10 @@ export default async function AdminMaintenancePage({
         />
       ) : (
         <div className="flex min-w-0 flex-col gap-8">
-          <section aria-label="Open requests" className="flex min-w-0 flex-col gap-1">
-            <h2 className="text-base font-semibold text-foreground">Open ({open.length})</h2>
+          <section aria-label="Open requests" className="flex min-w-0 flex-col gap-2">
+            <h2 className="text-heading leading-heading font-semibold text-foreground">Open ({open.length})</h2>
             {open.length === 0 ? (
-              <p data-testid="admin-maintenance-open-empty" className="text-sm leading-6 text-muted-foreground">
+              <p data-testid="admin-maintenance-open-empty" className="text-small leading-small text-muted-foreground">
                 No open requests in this view.
               </p>
             ) : (
@@ -153,15 +161,16 @@ export default async function AdminMaintenancePage({
                     roomLabel={row.roomId === null ? null : (labels.get(row.roomId) ?? null)}
                     detailHref={`/admin/maintenance/${row.id}`}
                     testIdPrefix="admin-maintenance"
+                    nowIso={nowIso}
                   />
                 ))}
               </ul>
             )}
           </section>
-          <section aria-label="Request history" className="flex min-w-0 flex-col gap-1">
-            <h2 className="text-base font-semibold text-foreground">History ({history.length})</h2>
+          <section aria-label="Request history" className="flex min-w-0 flex-col gap-2">
+            <h2 className="text-heading leading-heading font-semibold text-foreground">History ({history.length})</h2>
             {history.length === 0 ? (
-              <p data-testid="admin-maintenance-history-empty" className="text-sm leading-6 text-muted-foreground">
+              <p data-testid="admin-maintenance-history-empty" className="text-small leading-small text-muted-foreground">
                 Closed requests will appear here.
               </p>
             ) : (
@@ -173,6 +182,7 @@ export default async function AdminMaintenancePage({
                     roomLabel={row.roomId === null ? null : (labels.get(row.roomId) ?? null)}
                     detailHref={`/admin/maintenance/${row.id}`}
                     testIdPrefix="admin-maintenance"
+                    nowIso={nowIso}
                   />
                 ))}
               </ul>
@@ -191,11 +201,6 @@ export default async function AdminMaintenancePage({
         prevTestId="admin-maintenance-prev"
         hideDisabledEnds
       />
-      <div className="hidden" aria-hidden="true">
-        {STATUS_FILTERS.map((entry) => (
-          <span key={entry}>{statusFilterLabel(entry)}</span>
-        ))}
-      </div>
     </main>
   );
 }

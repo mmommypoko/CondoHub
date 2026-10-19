@@ -67,17 +67,17 @@ export default async function AdminAnnouncementsPage({
           description="Create the first announcement to inform residents."
         />
       ) : (
-        <ul data-testid="admin-announcements-list" className="flex min-w-0 flex-col border-t border-border">
+        <ul data-testid="admin-announcements-list" className="flex min-w-0 flex-col gap-3">
           {feed.rows.map((row) => (
             <li
               key={row.id}
-              className="flex min-w-0 flex-col gap-2 border-b border-border py-4"
+              className="flex min-w-0 flex-col gap-2 rounded-lg border border-border bg-surface p-4"
             >
               <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
                 <Link
                   data-testid={`admin-announcements-row-${row.id}`}
                   href={`/admin/announcements/${row.id}`}
-                  className="min-w-0 flex-1 basis-40 break-words text-sm font-semibold text-foreground underline-offset-2 hover:text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                  className="min-w-0 flex-1 basis-40 break-words text-body leading-body font-semibold text-foreground underline-offset-2 hover:text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
                 >
                   {row.title}
                 </Link>
@@ -85,7 +85,7 @@ export default async function AdminAnnouncementsPage({
                   {row.status}
                 </Badge>
               </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs tabular-nums text-muted-foreground">
                 <span>Publish: {formatDate(row.publishAt)}</span>
                 <span aria-hidden="true">·</span>
                 <span>Revision {row.revision}</span>

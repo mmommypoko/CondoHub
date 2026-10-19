@@ -85,7 +85,7 @@ export function UserProvisionForm({
         <p
           data-testid="admin-users-provision-error"
           role="alert"
-          className="text-sm font-medium text-danger-foreground"
+          className="text-body leading-body font-medium text-danger-foreground"
         >
           {serverError}
         </p>
@@ -135,7 +135,7 @@ export function UserProvisionForm({
           {...register('phone')}
         />
       </FormField>
-      <label className="flex items-center gap-2 text-sm text-foreground">
+      <label className="flex items-center gap-2 text-body leading-body text-foreground">
         <input
           data-testid="admin-users-provision-admin"
           type="checkbox"

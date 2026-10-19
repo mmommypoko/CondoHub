@@ -50,14 +50,14 @@ export function ChatMessageBubble({
         </time>
       </div>
       <div
-        className={`flex w-fit min-w-0 max-w-[85%] flex-col gap-2 rounded-xl px-3.5 py-2.5 sm:max-w-[75%] ${
+        className={`flex w-fit min-w-0 max-w-[85%] flex-col gap-2 rounded-lg px-3.5 py-2.5 sm:max-w-[75%] ${
           own
             ? 'rounded-tr-sm bg-primary text-primary-foreground'
-            : 'rounded-tl-sm border border-border bg-surface-raised text-foreground shadow-sm'
+            : 'rounded-tl-sm border border-border bg-surface-raised text-foreground shadow-raised'
         }`}
       >
         {message.text !== null && message.text !== '' ? (
-          <p data-testid={`${testId}-text`} className="min-w-0 whitespace-pre-wrap break-words text-sm leading-6">
+          <p data-testid={`${testId}-text`} className="min-w-0 whitespace-pre-wrap break-words text-body leading-body">
             {message.text}
           </p>
         ) : null}

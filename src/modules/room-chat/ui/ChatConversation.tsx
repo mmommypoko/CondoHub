@@ -104,7 +104,7 @@ export function ChatConversation({
     revokedRef.current = true;
     setRevoked(true);
     toast.warning('Chat access ended.', {
-      description: 'You no longer have access to this room. Returning to My Rooms.',
+      description: 'You no longer have access to this room. Returning to Rooms.',
     });
     window.setTimeout(() => {
       router.push('/rooms');
@@ -396,8 +396,8 @@ export function ChatConversation({
         <ChatConnectionBanner testIdPrefix={testIdPrefix} />
       ) : null}
       {revoked ? (
-        <p data-testid={`${testIdPrefix}-revoked`} role="alert" className="rounded-xl border border-danger-border bg-danger px-3 py-2 text-center text-sm font-medium text-danger-foreground">
-          Chat access for this room has ended. Returning to My Rooms.
+        <p data-testid={`${testIdPrefix}-revoked`} role="alert" className="rounded-lg border border-danger-border bg-danger px-3 py-2 text-center text-body leading-body font-medium text-danger-foreground">
+          Chat access for this room has ended. Returning to Rooms.
         </p>
       ) : null}
       <div className="relative flex min-h-80 w-full flex-1 flex-col">
@@ -408,7 +408,7 @@ export function ChatConversation({
               type="button"
               disabled={loadingOlder}
               onClick={() => void loadOlder()}
-              className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-body-secondary transition-[background-color,color,opacity] duration-150 ease-out hover:bg-secondary focus-visible:outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-focus-ring disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-md border border-input-border bg-surface px-3 py-1.5 text-body leading-body font-medium text-body-secondary transition-[background-color,color,opacity] duration-150 ease-out hover:bg-secondary focus-visible:outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-focus-ring disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loadingOlder ? 'Loading older messages.' : 'Load older messages'}
             </button>
@@ -418,11 +418,11 @@ export function ChatConversation({
           ref={scrollRef}
           data-testid={`${testIdPrefix}-scroll`}
           onScroll={handleScroll}
-          className="h-[55vh] min-h-0 w-full overflow-y-auto rounded-xl border border-border bg-background p-4 [overflow-anchor:none] sm:h-[60vh]"
+          className="h-[55vh] min-h-0 w-full overflow-y-auto rounded-lg border border-border bg-background p-4 [overflow-anchor:none] sm:h-[60vh]"
           aria-label={`Messages in ${roomLabel}`}
         >
           {olderError !== null ? (
-            <p data-testid={`${testIdPrefix}-older-error`} role="alert" className="mb-3 text-center text-sm font-medium text-danger-foreground">
+            <p data-testid={`${testIdPrefix}-older-error`} role="alert" className="mb-3 text-center text-body leading-body font-medium text-danger-foreground">
               {olderError}
             </p>
           ) : null}
@@ -448,7 +448,7 @@ export function ChatConversation({
         ) : null}
       </div>
       {revoked ? (
-        <p data-testid={`${testIdPrefix}-composer-disabled`} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm text-muted-foreground">
+        <p data-testid={`${testIdPrefix}-composer-disabled`} className="rounded-lg border border-border bg-surface px-3 py-2 text-small leading-small text-muted-foreground">
           Sending is disabled because chat access ended. <a href={backHref} className="rounded-lg font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring">{backLabel}</a>
         </p>
       ) : (

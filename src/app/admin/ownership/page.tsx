@@ -25,6 +25,11 @@ function formatDay(value: Date): string {
   return dayFormatter.format(value);
 }
 
+function tenancyPeriodLabel(startsAt: Date, endsAt: Date | null): string {
+  const end = endsAt === null ? 'present' : formatDay(endsAt);
+  return `${formatDay(startsAt)} to ${end}`;
+}
+
 export default async function AdminOwnershipPage({
   searchParams,
 }: {
@@ -61,7 +66,7 @@ export default async function AdminOwnershipPage({
   return (
     <main
       data-testid="admin-ownership-page"
-      className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6"
+      className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
     >
       <PageHeader
         title="Ownership and tenancy"
@@ -76,7 +81,7 @@ export default async function AdminOwnershipPage({
       ) : (
         <form data-testid="admin-ownership-picker" method="get" className="flex flex-wrap items-end gap-2">
           <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:max-w-xs">
-            <label htmlFor="admin-ownership-room" className="text-sm font-medium text-foreground">
+            <label htmlFor="admin-ownership-room" className="text-body leading-body font-medium text-foreground">
               Room
             </label>
             <select
@@ -100,95 +105,99 @@ export default async function AdminOwnershipPage({
       )}
       {selectedRoomId !== null ? (
         <div className="flex flex-col gap-6">
-          <p data-testid="admin-ownership-room" className="text-sm text-muted-foreground">
+          <p data-testid="admin-ownership-room" className="text-small leading-small text-muted-foreground">
             {selectedRoom === null ? 'Selected room' : selectedRoom.label}
           </p>
-          <section className="flex flex-col gap-2" aria-label="Current owners">
-            <h2 className="text-sm font-semibold text-foreground">Current owners</h2>
-            {owners.length === 0 ? (
-              <p data-testid="admin-owners-empty" className="text-sm text-muted-foreground">
-                No current owners recorded.
-              </p>
-            ) : (
-              <DataTable
-                testId="admin-owners-list"
-                caption="Current owners of the selected room"
-                columns={[
-                  { key: 'user', header: 'User' },
-                  { key: 'since', header: 'Since' },
-                ]}
-              >
-                {owners.map((owner) => (
-                  <DataTableRow key={owner.ownershipId} rowKey={owner.ownershipId}>
-                    <DataTableCell>{ownerNames.get(owner.userId) ?? owner.userId}</DataTableCell>
-                    <DataTableCell>
-                      <Badge variant="info">since {formatDay(owner.startAt)}</Badge>
-                    </DataTableCell>
-                  </DataTableRow>
-                ))}
-              </DataTable>
-            )}
+          <section className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:p-5" aria-label="Current state">
+            <h2 className="text-heading leading-heading font-semibold text-foreground">Current state</h2>
+            <div className="flex flex-col gap-2">
+              <h3 className="text-body leading-body font-semibold text-foreground">Current owners</h3>
+              {owners.length === 0 ? (
+                <p data-testid="admin-owners-empty" className="text-small leading-small text-muted-foreground">
+                  No current owners recorded.
+                </p>
+              ) : (
+                <DataTable
+                  testId="admin-owners-list"
+                  caption="Current owners of the selected room"
+                  columns={[
+                    { key: 'user', header: 'User' },
+                    { key: 'since', header: 'Since' },
+                  ]}
+                >
+                  {owners.map((owner) => (
+                    <DataTableRow key={owner.ownershipId} rowKey={owner.ownershipId}>
+                      <DataTableCell>{ownerNames.get(owner.userId) ?? owner.userId}</DataTableCell>
+                      <DataTableCell>
+                        <Badge variant="info">since {formatDay(owner.startAt)}</Badge>
+                      </DataTableCell>
+                    </DataTableRow>
+                  ))}
+                </DataTable>
+              )}
+            </div>
+            <div className="flex flex-col gap-2 border-t border-border pt-4">
+              <h3 className="text-body leading-body font-semibold text-foreground">Tenancies</h3>
+              {tenancies.length === 0 ? (
+                <p data-testid="admin-tenancies-empty" className="text-small leading-small text-muted-foreground">
+                  No tenancies recorded. Start the first rental period in Manage this room below.
+                </p>
+              ) : (
+                <DataTable
+                  testId="admin-tenancies-list"
+                  caption="Rental periods of the selected room"
+                  columns={[
+                    { key: 'mode', header: 'Management' },
+                    { key: 'period', header: 'Period' },
+                    { key: 'state', header: 'State' },
+                    { key: 'actions', header: 'Actions' },
+                  ]}
+                >
+                  {tenancies.map((tenancy) => (
+                    <DataTableRow key={tenancy.id} rowKey={tenancy.id}>
+                      <DataTableCell>
+                        {tenancy.managementMode === 'PROJECT_MANAGED' ? 'Project managed' : 'Owner managed'}
+                      </DataTableCell>
+                      <DataTableCell>
+                        {tenancyPeriodLabel(tenancy.startsAt, tenancy.endsAt)}
+                      </DataTableCell>
+                      <DataTableCell>
+                        <Badge variant={tenancy.state === 'ACTIVE' ? 'success' : 'neutral'}>
+                          {tenancy.state}
+                        </Badge>
+                      </DataTableCell>
+                      <DataTableCell>
+                        {tenancy.state === 'ACTIVE' ? (
+                          <TenancyEndButton roomId={selectedRoomId} tenancyId={tenancy.id} />
+                        ) : null}
+                      </DataTableCell>
+                    </DataTableRow>
+                  ))}
+                </DataTable>
+              )}
+            </div>
           </section>
-          <section className="flex flex-col gap-2" aria-label="Tenancies">
-            <h2 className="text-sm font-semibold text-foreground">Tenancies</h2>
-            {tenancies.length === 0 ? (
-              <p data-testid="admin-tenancies-empty" className="text-sm text-muted-foreground">
-                No tenancies recorded.
-              </p>
-            ) : (
-              <DataTable
-                testId="admin-tenancies-list"
-                caption="Rental periods of the selected room"
-                columns={[
-                  { key: 'mode', header: 'Management' },
-                  { key: 'period', header: 'Period' },
-                  { key: 'state', header: 'State' },
-                  { key: 'actions', header: 'Actions' },
-                ]}
-              >
-                {tenancies.map((tenancy) => (
-                  <DataTableRow key={tenancy.id} rowKey={tenancy.id}>
-                    <DataTableCell>
-                      {tenancy.managementMode === 'PROJECT_MANAGED' ? 'Project managed' : 'Owner managed'}
-                    </DataTableCell>
-                    <DataTableCell>
-                      {formatDay(tenancy.startsAt)} to {tenancy.endsAt === null ? 'present' : formatDay(tenancy.endsAt)}
-                    </DataTableCell>
-                    <DataTableCell>
-                      <Badge variant={tenancy.state === 'ACTIVE' ? 'success' : 'neutral'}>
-                        {tenancy.state}
-                      </Badge>
-                    </DataTableCell>
-                    <DataTableCell>
-                      {tenancy.state === 'ACTIVE' ? (
-                        <TenancyEndButton roomId={selectedRoomId} tenancyId={tenancy.id} />
-                      ) : null}
-                    </DataTableCell>
-                  </DataTableRow>
-                ))}
-              </DataTable>
-            )}
-          </section>
-          <section className="flex flex-col gap-2" aria-label="New tenancy">
-            <h2 className="text-sm font-semibold text-foreground">New tenancy</h2>
-            <TenancyCreateForm roomId={selectedRoomId} allowProjectManaged />
-          </section>
-          {owners.length > 0 ? (
-            <section className="flex flex-col gap-2" aria-label="Manage ownership">
-              <h2 className="text-sm font-semibold text-foreground">Manage ownership</h2>
-              <OwnershipManageForm
-                roomId={selectedRoomId}
-                owners={owners.map((owner) => ({
-                  ownershipId: owner.ownershipId,
-                  userId: owner.userId,
-                  name: ownerNames.get(owner.userId) ?? owner.userId,
-                }))}
-              />
-            </section>
-          ) : null}
-          <section className="flex flex-col gap-2" aria-label="Assign owner">
-            <h2 className="text-sm font-semibold text-foreground">Assign owner</h2>
-            <OwnershipAssignForm roomId={selectedRoomId} />
+          <section className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:p-5" aria-label="Manage this room">
+            <h2 className="text-heading leading-heading font-semibold text-foreground">Manage this room</h2>
+            <div className="flex flex-col gap-2">
+              <h3 className="text-body leading-body font-semibold text-foreground">New tenancy</h3>
+              <TenancyCreateForm roomId={selectedRoomId} allowProjectManaged />
+            </div>
+            {owners.length > 0 ? (
+              <div className="border-t border-border pt-4">
+                <OwnershipManageForm
+                  roomId={selectedRoomId}
+                  owners={owners.map((owner) => ({
+                    ownershipId: owner.ownershipId,
+                    userId: owner.userId,
+                    name: ownerNames.get(owner.userId) ?? owner.userId,
+                  }))}
+                />
+              </div>
+            ) : null}
+            <div className="border-t border-border pt-4">
+              <OwnershipAssignForm roomId={selectedRoomId} />
+            </div>
           </section>
         </div>
       ) : null}

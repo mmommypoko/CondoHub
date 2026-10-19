@@ -15,22 +15,24 @@ export function TicketDetailCard({
   ticket,
   roomLabel,
   testIdPrefix,
+  showRoutingKind = true,
 }: {
   ticket: TicketDto;
   roomLabel: string | null;
   testIdPrefix: string;
+  showRoutingKind?: boolean;
 }) {
   const terminal = isTerminalTicketStatus(ticket.status);
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
-          <p className="break-all text-xs leading-6 text-muted-foreground">
+          <p className={`max-w-full text-xs leading-6 text-muted-foreground ${showRoutingKind ? 'break-all' : 'truncate'}`} title={ticket.id}>
             <span data-testid={`${testIdPrefix}-id`}>{ticket.id}</span>
           </p>
           <h1
             data-testid={`${testIdPrefix}-title`}
-            className="break-words text-xl font-semibold tracking-tight text-foreground"
+            className="break-words text-title leading-title font-semibold tracking-tight text-foreground"
           >
             {ticket.subject}
           </h1>
@@ -39,16 +41,18 @@ export function TicketDetailCard({
           <Badge data-testid={`${testIdPrefix}-status`} variant={statusVariant(ticket.status)}>
             {statusLabel(ticket.status)}
           </Badge>
-          <Badge data-testid={`${testIdPrefix}-kind`} variant="info">
-            {routingKindLabel(ticket.routingKind)}
-          </Badge>
+          {showRoutingKind ? (
+            <Badge data-testid={`${testIdPrefix}-kind`} variant="info">
+              {routingKindLabel(ticket.routingKind)}
+            </Badge>
+          ) : null}
         </div>
       </div>
       {terminal ? (
         <p
           data-testid={`${testIdPrefix}-terminal-note`}
           role="status"
-          className="rounded-xl border border-border bg-neutral p-3 text-sm leading-6 text-neutral-foreground"
+          className="rounded-lg border border-border bg-neutral p-3 text-body leading-body text-neutral-foreground"
         >
           This request is {statusLabel(ticket.status).toLowerCase()} and read-only. Comments and
           status changes are closed.
@@ -56,7 +60,7 @@ export function TicketDetailCard({
       ) : null}
       <dl
         data-testid={`${testIdPrefix}-facts`}
-        className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-4 rounded-xl border border-border bg-surface p-4 text-sm sm:grid-cols-2 sm:p-5"
+        className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-4 rounded-lg border border-border bg-surface p-4 text-body leading-body sm:grid-cols-2 sm:p-5"
       >
         <div className="flex min-w-0 flex-col gap-1">
           <dt className="text-xs font-medium text-muted-foreground">
@@ -100,11 +104,11 @@ export function TicketDetailCard({
         </div>
       </dl>
       <section aria-label="Report photos" className="flex min-w-0 flex-col gap-2">
-        <h2 className="text-base font-semibold text-foreground">
+        <h2 className="text-heading leading-heading font-semibold text-foreground">
           Report photos ({ticket.images.length})
         </h2>
         {ticket.images.length === 0 ? (
-          <p data-testid={`${testIdPrefix}-images-empty`} className="text-sm leading-6 text-muted-foreground">
+          <p data-testid={`${testIdPrefix}-images-empty`} className="text-small leading-small text-muted-foreground">
             No photos were attached to this report.
           </p>
         ) : (

@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button, Dialog, FormField, useToast } from '@/shared/ui';
-import { CHECKBOX_CLASS, INPUT_CLASS } from './formControls';
+import { CHECKBOX_CLASS, INPUT_CLASS } from '@/shared/ui';
 
 const cancelSchema = z.object({
   reason: z.string().trim().min(1, 'A reason is required.').max(2000),
@@ -116,7 +116,7 @@ export function BookingCancelButton({
             <p
               data-testid={`${testId}-error`}
               role="alert"
-              className="text-sm font-medium text-danger-foreground"
+              className="text-body leading-body font-medium text-danger-foreground"
             >
               {serverError}
             </p>
@@ -130,7 +130,7 @@ export function BookingCancelButton({
             />
           </FormField>
           {admin === true ? (
-            <label className="flex items-center gap-2 text-sm text-foreground">
+            <label className="flex items-center gap-2 text-body text-foreground">
               <input
                 data-testid={`${testId}-refund`}
                 type="checkbox"

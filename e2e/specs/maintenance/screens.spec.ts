@@ -202,7 +202,7 @@ test.describe('maintenance screens: create, comment, transition, terminal, admin
     await reporter.getByTestId('maintenance-create-submit').click();
     await expect(reporter.getByTestId('maintenance-detail-page')).toBeVisible({ timeout: 15000 });
     await expect(reporter.getByTestId('maintenance-detail-title')).toHaveText(subject);
-    await expect(reporter.getByTestId('maintenance-detail-kind')).toHaveText('Common area');
+    await expect(reporter.getByTestId('maintenance-detail-kind')).toHaveCount(0);
     await expect(reporter.getByTestId('maintenance-detail-status')).toHaveText('Pending');
     const createdId = (await reporter.getByTestId('maintenance-detail-id').textContent()) ?? '';
     expect(createdId.trim()).not.toBe('');
@@ -231,7 +231,7 @@ test.describe('maintenance screens: create, comment, transition, terminal, admin
     await reporter.getByTestId('maintenance-create-submit').click();
     await expect(reporter.getByTestId('maintenance-detail-page')).toBeVisible({ timeout: 15000 });
     await expect(reporter.getByTestId('maintenance-detail-title')).toHaveText(subject);
-    await expect(reporter.getByTestId('maintenance-detail-kind')).toHaveText('Owner room');
+    await expect(reporter.getByTestId('maintenance-detail-kind')).toHaveCount(0);
     const createdId = ((await reporter.getByTestId('maintenance-detail-id').textContent()) ?? '').trim();
     expect(createdId).not.toBe('');
     const detail = await getTicket(reporter.request, createdId);
@@ -301,7 +301,7 @@ test.describe('maintenance screens: create, comment, transition, terminal, admin
     await reporter.getByTestId('maintenance-create-submit').focus();
     await reporter.keyboard.press('Enter');
     await expect(reporter.getByTestId('maintenance-detail-page')).toBeVisible({ timeout: 15000 });
-    await expect(reporter.getByTestId('maintenance-detail-kind')).toHaveText('Owner room');
+    await expect(reporter.getByTestId('maintenance-detail-kind')).toHaveCount(0);
   });
 
   test('ui: terminal request renders read-only with no comment or transition forms', async ({ page }) => {

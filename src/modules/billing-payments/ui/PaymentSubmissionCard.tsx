@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Badge, Button, Dialog, FormField, deniedCopy, firstOf, useToast } from '@/shared/ui';
 import type { PaymentSubmissionDto } from '@/modules/billing-payments/application/index';
 import { PaymentImage } from '@/modules/billing-payments/ui/PaymentImage';
-import { INPUT_CLASS } from '@/modules/billing-payments/ui/formControls';
+import { INPUT_CLASS } from '@/shared/ui';
 import { formatInstant, submissionStateLabel, submissionStateVariant } from '@/modules/billing-payments/ui/billingLabels';
 import {
   paymentApproveFormSchema,
@@ -81,7 +81,7 @@ function ApproveForm({
       className="flex min-w-0 flex-col gap-3"
     >
       {serverError !== null ? (
-        <p data-testid={`payment-approve-error-${submissionId}`} role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
+        <p data-testid={`payment-approve-error-${submissionId}`} role="alert" className="text-body leading-body font-medium text-danger-foreground">
           {serverError}
         </p>
       ) : null}
@@ -170,7 +170,7 @@ function RejectForm({
       className="flex min-w-0 flex-col gap-3"
     >
       {serverError !== null ? (
-        <p data-testid={`payment-reject-error-${submissionId}`} role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
+        <p data-testid={`payment-reject-error-${submissionId}`} role="alert" className="text-body leading-body font-medium text-danger-foreground">
           {serverError}
         </p>
       ) : null}
@@ -210,11 +210,13 @@ export function PaymentSubmissionCard({
   submission,
   outstanding,
   approveBlocked,
+  canReview,
   onReviewed,
 }: {
   submission: PaymentSubmissionDto;
   outstanding: string;
   approveBlocked: boolean;
+  canReview: boolean;
   onReviewed: () => void;
 }) {
   const [dialog, setDialog] = useState<'approve' | 'reject' | null>(null);
@@ -222,22 +224,22 @@ export function PaymentSubmissionCard({
   return (
     <li
       data-testid={`payment-submission-${submission.id}`}
-      className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-surface p-4"
+      className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-surface p-4"
     >
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-        <span className="min-w-0 break-all text-xs leading-6 text-muted-foreground">{submission.id}</span>
+        <span className="ui-tabular min-w-0 break-all text-small leading-small text-muted-foreground">{submission.id.slice(0, 8)}</span>
         <Badge data-testid={`payment-submission-state-${submission.id}`} variant={submissionStateVariant(submission.state)}>
           {submissionStateLabel(submission.state)}
         </Badge>
       </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-6 text-muted-foreground tabular-nums">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-small leading-small text-muted-foreground ui-tabular">
         {submission.approvedAmount !== null ? (
           <span>Approved {submission.approvedAmount.amount} {submission.approvedAmount.currency}</span>
         ) : null}
         <span>{submission.reviewedAt === null ? 'Not reviewed yet' : formatInstant(submission.reviewedAt)}</span>
       </div>
       {submission.rejectReason !== null ? (
-        <p data-testid={`payment-submission-reason-${submission.id}`} className="break-words text-sm leading-6 text-foreground">
+        <p data-testid={`payment-submission-reason-${submission.id}`} className="break-words text-body leading-body text-foreground">
           Reason: {submission.rejectReason}
         </p>
       ) : null}
@@ -246,10 +248,10 @@ export function PaymentSubmissionCard({
         alt="Payment slip attachment"
         testId={`payment-submission-slip-${submission.id}`}
       />
-      {submission.state === 'PENDING' ? (
+      {submission.state === 'PENDING' && canReview ? (
         <div className="flex min-w-0 flex-col gap-3">
           {approveBlocked ? (
-            <p data-testid={`payment-approve-blocked-${submission.id}`} role="alert" className="text-sm leading-6 text-warning-foreground">
+            <p data-testid={`payment-approve-blocked-${submission.id}`} role="alert" className="text-body leading-body text-warning-foreground">
               This invoice is already paid. Pending slips can only be rejected.
             </p>
           ) : null}

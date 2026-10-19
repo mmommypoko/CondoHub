@@ -70,7 +70,7 @@ export function RoomCreateForm({
 
   if (floors.length === 0) {
     return (
-      <p data-testid="room-create-no-floors" className="text-sm leading-6 text-muted-foreground">
+      <p data-testid="room-create-no-floors" className="text-small leading-small text-muted-foreground">
         Create a floor first, then add rooms to it.
       </p>
     );
@@ -81,13 +81,13 @@ export function RoomCreateForm({
       data-testid="room-create-form"
       onSubmit={onSubmit}
       noValidate
-      className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4 sm:p-5"
+      className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:p-5"
     >
       {serverError !== null ? (
         <p
           data-testid="room-create-error"
           role="alert"
-          className="text-sm font-medium text-danger-foreground"
+          className="text-body leading-body font-medium text-danger-foreground"
         >
           {serverError}
         </p>

@@ -29,14 +29,14 @@ export default async function AdminAnnouncementEditPage({
       <Link
         data-testid="admin-announcement-edit-back"
         href="/admin/announcements"
-        className="inline-flex w-fit items-center gap-1.5 rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+        className="inline-flex w-fit items-center gap-1.5 rounded-md text-body leading-body font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
       >
         <ArrowLeft aria-hidden="true" className="size-4" />
         Back to announcements
       </Link>
       <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="break-words text-xl font-semibold tracking-tight text-foreground sm:text-2xl">Edit announcement</h1>
-        <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+        <h1 className="break-words text-title leading-title font-semibold tracking-tight text-foreground">Edit announcement</h1>
+        <p className="mt-1 max-w-2xl text-small leading-small text-muted-foreground">
           Editing after publish bumps the revision and records a snapshot.
         </p>
       </div>
@@ -55,7 +55,7 @@ export default async function AdminAnnouncementEditPage({
       />
       {detail.images.length > 0 ? (
         <section className="flex min-w-0 flex-col gap-2 border-t border-border pt-6" aria-label="Current images">
-          <h2 className="text-sm font-semibold text-foreground">
+          <h2 className="text-heading leading-heading font-semibold text-foreground">
             Current images ({detail.images.length})
           </h2>
           <div className="flex min-w-0 flex-col gap-3">

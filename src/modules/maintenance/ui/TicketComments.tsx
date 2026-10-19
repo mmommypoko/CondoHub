@@ -16,11 +16,11 @@ export function TicketComments({
     <section aria-label="Comments" className="flex min-w-0 flex-col gap-3">
       <div className="flex min-w-0 items-center gap-2">
         <MessageSquareText aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-        <h2 className="text-base font-semibold text-foreground">Comments ({comments.length})</h2>
+        <h2 className="text-heading leading-heading font-semibold text-foreground">Comments ({comments.length})</h2>
       </div>
       {comments.length === 0 ? (
-        <p data-testid={`${testIdPrefix}-comments-empty`} className="text-sm leading-6 text-muted-foreground">
-          No comments yet.
+        <p data-testid={`${testIdPrefix}-comments-empty`} className="text-small leading-small text-muted-foreground">
+          No comments yet. Updates from the handler appear here.
         </p>
       ) : (
         <ul data-testid={`${testIdPrefix}-comments`} className="flex min-w-0 flex-col">
@@ -30,7 +30,7 @@ export function TicketComments({
               data-testid={`${testIdPrefix}-comment-${comment.id}`}
               className="flex min-w-0 flex-col gap-2 border-b border-border py-4 last:border-b-0"
             >
-              <p data-testid={`${testIdPrefix}-comment-body-${comment.id}`} className="whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
+              <p data-testid={`${testIdPrefix}-comment-body-${comment.id}`} className="whitespace-pre-wrap break-words text-body leading-body text-foreground">
                 {comment.body}
               </p>
               {comment.images.length > 0 ? (

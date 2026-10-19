@@ -83,7 +83,7 @@ export function AnnouncementCreateForm() {
       className="flex min-w-0 flex-col gap-4"
     >
       {serverError !== null ? (
-        <p data-testid="announcement-create-error" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
+        <p data-testid="announcement-create-error" role="alert" className="text-body leading-body font-medium text-danger-foreground">
           {serverError}
         </p>
       ) : null}
@@ -106,12 +106,12 @@ export function AnnouncementCreateForm() {
         />
       </FormField>
       <fieldset className="flex min-w-0 flex-col gap-2">
-        <legend className="text-sm font-medium text-foreground">Publishing</legend>
+        <legend className="text-body leading-body font-medium text-foreground">Publishing</legend>
         <div className="flex min-w-0 flex-col gap-1">
           {PUBLISH_MODES.map((mode) => (
             <label
               key={mode.value}
-              className="flex w-fit cursor-pointer items-center gap-2.5 rounded-lg px-1 py-1 text-sm text-foreground transition-[background-color] duration-150 ease-out hover:bg-secondary motion-reduce:transition-none"
+              className="flex w-fit cursor-pointer items-center gap-2.5 rounded-md px-1 py-1 text-body leading-body text-foreground transition-[background-color] duration-150 ease-out hover:bg-secondary motion-reduce:transition-none"
             >
               <input
                 data-testid={mode.testId}

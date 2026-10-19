@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, Wrench } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
+import { systemClock } from '@/shared/utils/clock';
 import { ACTION_LINK_CLASS, EmptyState, PageHeader } from '@/shared/ui';
 import {
   listTickets,
@@ -39,6 +40,7 @@ export default async function MaintenancePage() {
   if (actor === null) redirect('/login?returnUrl=/maintenance');
   if (actor.mustChangePassword) redirect('/change-password');
   if (actor.accountStatus !== 'ACTIVE') redirect('/login?returnUrl=/maintenance');
+  const now = systemClock.now();
   const feed = await listTickets(actor, { page: 1, pageSize: 100 });
   const open = openRows(feed.rows);
   const history = historyRows(feed.rows);
@@ -48,14 +50,15 @@ export default async function MaintenancePage() {
       labels.set(row.roomId, await roomLabel(row.roomId));
     }
   }
+  const nowIso = now.toISOString();
   return (
     <main
       data-testid="maintenance-page"
-      className="mx-auto flex w-full max-w-5xl flex-col gap-8 p-4 sm:p-6"
+      className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
     >
       <PageHeader
-        title="My requests"
-        description="Track the requests you reported and the rooms assigned to you. Closed requests move to history."
+        title="Maintenance"
+        description="Track the requests you reported. Closed requests move to history."
         actions={
           <Link
             data-testid="maintenance-new-link"
@@ -67,8 +70,8 @@ export default async function MaintenancePage() {
           </Link>
         }
       />
-      <section aria-label="Open requests" className="flex min-w-0 flex-col gap-1">
-        <h2 className="text-base font-semibold text-foreground">
+      <section aria-label="Open requests" className="flex min-w-0 flex-col gap-2">
+        <h2 className="text-heading leading-heading font-semibold text-foreground">
           Open requests ({open.length})
         </h2>
         {open.length === 0 ? (
@@ -76,7 +79,17 @@ export default async function MaintenancePage() {
             data-testid="maintenance-open-empty"
             icon={Wrench}
             title="No open requests"
-            description="Submit a new request when something needs fixing."
+            description="Nothing is waiting on you. Report a problem and it shows up here."
+            action={
+              <Link
+                data-testid="maintenance-open-new"
+                href="/maintenance/new"
+                className="inline-flex items-center gap-1 text-body leading-body font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+              >
+                <Plus aria-hidden="true" className="size-4" />
+                Report a request
+              </Link>
+            }
           />
         ) : (
           <ul data-testid="maintenance-open-list" className="flex min-w-0 flex-col border-t border-border">
@@ -87,17 +100,19 @@ export default async function MaintenancePage() {
                 roomLabel={row.roomId === null ? null : (labels.get(row.roomId) ?? null)}
                 detailHref={`/maintenance/${row.id}`}
                 testIdPrefix="maintenance"
+                showRoutingKind={false}
+                nowIso={nowIso}
               />
             ))}
           </ul>
         )}
       </section>
-      <section aria-label="Request history" className="flex min-w-0 flex-col gap-1">
-        <h2 className="text-base font-semibold text-foreground">
+      <section aria-label="Request history" className="flex min-w-0 flex-col gap-2">
+        <h2 className="text-heading leading-heading font-semibold text-foreground">
           History ({history.length})
         </h2>
         {history.length === 0 ? (
-          <p data-testid="maintenance-history-empty" className="text-sm leading-6 text-muted-foreground">
+          <p data-testid="maintenance-history-empty" className="text-small leading-small text-muted-foreground">
             Closed requests will appear here.
           </p>
         ) : (
@@ -109,6 +124,8 @@ export default async function MaintenancePage() {
                 roomLabel={row.roomId === null ? null : (labels.get(row.roomId) ?? null)}
                 detailHref={`/maintenance/${row.id}`}
                 testIdPrefix="maintenance"
+                showRoutingKind={false}
+                nowIso={nowIso}
               />
             ))}
           </ul>

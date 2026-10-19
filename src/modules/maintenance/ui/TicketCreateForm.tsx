@@ -143,12 +143,12 @@ export function TicketCreateForm({
   return (
     <form data-testid="maintenance-create-form" onSubmit={onSubmit} noValidate className="flex min-w-0 flex-col gap-5">
       {serverError !== null ? (
-        <p data-testid="maintenance-create-error" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
+        <p data-testid="maintenance-create-error" role="alert" className="text-body leading-body font-medium text-danger-foreground">
           {serverError}
         </p>
       ) : null}
       <fieldset className="flex min-w-0 flex-col gap-2">
-        <legend className="text-sm font-semibold text-foreground">Category</legend>
+        <legend className="text-body leading-body font-semibold text-foreground">Where is the problem?</legend>
         <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3">
           {maintenanceRoutingKindOptions.map((kind) => {
             const meta = KIND_META[kind] ?? { label: kind, hint: '' };
@@ -157,7 +157,7 @@ export function TicketCreateForm({
               <label
                 key={kind}
                 className={cx(
-                  'flex cursor-pointer items-start gap-3 rounded-xl border bg-surface p-4 text-sm transition-[border-color,background-color] duration-150 ease-out motion-reduce:transition-none',
+                  'flex cursor-pointer items-start gap-3 rounded-lg border bg-surface p-4 text-body leading-body transition-[border-color,background-color] duration-150 ease-out motion-reduce:transition-none',
                   selected
                     ? 'border-primary'
                     : 'border-border hover:border-border-strong',
@@ -191,7 +191,7 @@ export function TicketCreateForm({
           })}
         </div>
         {errors.routingKind !== undefined ? (
-          <p data-testid="maintenance-create-kind-error" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
+          <p data-testid="maintenance-create-kind-error" role="alert" className="text-body leading-body font-medium text-danger-foreground">
             {errors.routingKind.message}
           </p>
         ) : null}

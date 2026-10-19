@@ -1,7 +1,0 @@
-export {
-  CHECKBOX_CLASS,
-  FILTER_LINK_ACTIVE,
-  FILTER_LINK_BASE,
-  FILTER_LINK_IDLE,
-  INPUT_CLASS,
-} from '@/shared/ui';

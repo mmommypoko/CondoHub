@@ -78,30 +78,45 @@ export default async function RoomBookingsPage({
         <Link
           data-testid="room-bookings-back"
           href={`/rooms/${roomId}`}
-          className="inline-flex items-center gap-1.5 self-start rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          className="inline-flex items-center gap-1.5 self-start rounded-md text-body font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
           Back to room
         </Link>
         <div className="flex min-w-0 flex-col gap-1">
-          <h1 data-testid="room-bookings-title" className="break-words text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+          <h1 data-testid="room-bookings-title" className="break-words text-title font-semibold tracking-tight text-foreground">
             Bookings · {building?.name ?? 'Building'} {room.roomCode}
           </h1>
-          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+          <p className="max-w-2xl text-small leading-small text-muted-foreground">
             Quota is shared by the whole room. Resident cancellations release the seat but keep quota used.
           </p>
         </div>
       </div>
       {quotas.length > 0 ? (
-        <ul data-testid="room-bookings-quotas" className="flex flex-wrap gap-2">
+        <ul data-testid="room-bookings-quotas" className="flex flex-col gap-2">
           {quotas.map((quota) => (
-            <li key={`${quota.facilityId}-${quota.periodKey}`}>
-              <Badge
-                data-testid={`room-bookings-quota-${quota.facilityId}`}
-                variant={quota.quotaUsed >= quota.quotaLimit ? 'warning' : 'info'}
-              >
-                {facilityNames.get(quota.facilityId) ?? 'Facility'}: {quota.quotaUsed}/{quota.quotaLimit} {quota.quotaKind}
-              </Badge>
+            <li
+              key={`${quota.facilityId}-${quota.periodKey}`}
+              className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-4 py-3"
+            >
+              <span className="min-w-0 flex-1 basis-40 break-words text-body text-foreground">
+                {facilityNames.get(quota.facilityId) ?? 'Facility'}
+              </span>
+              <span className="flex shrink-0 flex-wrap items-center gap-2">
+                <Badge
+                  data-testid={`room-bookings-quota-${quota.facilityId}`}
+                  variant={quota.quotaUsed >= quota.quotaLimit ? 'warning' : 'info'}
+                >
+                  {quota.quotaUsed}/{quota.quotaLimit} {quota.quotaKind}
+                </Badge>
+                <Link
+                  data-testid={`room-bookings-book-${quota.facilityId}`}
+                  href={`/facilities/${quota.facilityId}?roomId=${roomId}`}
+                  className="shrink-0 rounded-md text-body font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                >
+                  Book slots
+                </Link>
+              </span>
             </li>
           ))}
         </ul>
@@ -116,7 +131,7 @@ export default async function RoomBookingsPage({
             <Link
               data-testid="room-bookings-browse"
               href="/facilities"
-              className="inline-flex items-center gap-1.5 rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+              className="inline-flex items-center gap-1.5 rounded-md text-body font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
             >
               Browse facilities
             </Link>
@@ -127,17 +142,17 @@ export default async function RoomBookingsPage({
           {bookings.map((booking) => (
             <li
               key={booking.id}
-              className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-surface p-4 sm:p-5"
+              className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-surface p-4 sm:p-5"
             >
               <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
                 <Link
                   data-testid={`room-bookings-facility-${booking.id}`}
                   href={`/facilities/${booking.facilityId}?roomId=${roomId}`}
-                  className="min-w-0 flex-1 basis-40 break-words rounded-lg text-sm font-semibold text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                  className="min-w-0 flex-1 basis-40 break-words rounded-md text-body font-semibold text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
                 >
                   {facilityNames.get(booking.facilityId) ?? 'Facility'}
                 </Link>
-                <span className="text-xs tabular-nums text-muted-foreground">
+                <span className="ui-tabular text-small text-muted-foreground">
                   Booked {formatInstant(booking.createdAt)}
                 </span>
               </div>
@@ -149,7 +164,7 @@ export default async function RoomBookingsPage({
                     className="flex min-w-0 flex-col gap-2 rounded-lg border border-border p-3"
                   >
                     <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                      <span className="min-w-0 break-words text-sm tabular-nums text-foreground">
+                      <span className="ui-tabular min-w-0 break-words text-body text-foreground">
                         {formatInstant(slot.startsAt)}
                       </span>
                       <Badge variant={slotVariant(slot.state)}>{slot.state}</Badge>

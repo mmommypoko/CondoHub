@@ -48,7 +48,7 @@ export default async function AnnouncementDetailPage({
             <Link
               data-testid="announcement-detail-back"
               href="/announcements"
-              className="inline-flex items-center gap-1 text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+              className="inline-flex items-center gap-1 text-body leading-body font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
             >
               <ArrowLeft aria-hidden="true" className="size-4" />
               Back to announcements
@@ -66,16 +66,16 @@ export default async function AnnouncementDetailPage({
       <Link
         data-testid="announcement-detail-back"
         href="/announcements"
-        className="inline-flex w-fit items-center gap-1.5 rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+        className="inline-flex w-fit items-center gap-1.5 rounded-md text-body leading-body font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
       >
         <ArrowLeft aria-hidden="true" className="size-4" />
         Back to announcements
       </Link>
-      <article className="flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-surface p-4 sm:p-6">
+      <article className="flex min-w-0 flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:p-6">
         <div className="flex min-w-0 flex-col gap-2">
           <h1
             data-testid="announcement-detail-title"
-            className="break-words text-xl font-semibold tracking-tight text-foreground"
+            className="break-words text-title leading-title font-semibold tracking-tight text-foreground"
           >
             {detail.title}
           </h1>
@@ -90,7 +90,7 @@ export default async function AnnouncementDetailPage({
         </div>
         <p
           data-testid="announcement-detail-body"
-          className="whitespace-pre-wrap break-words text-sm leading-6 text-foreground"
+          className="whitespace-pre-wrap break-words text-body leading-body text-foreground"
         >
           {detail.body}
         </p>

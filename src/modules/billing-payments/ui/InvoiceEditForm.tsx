@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, FormField } from '@/shared/ui';
 import { useToast } from '@/shared/ui';
-import { INPUT_CLASS } from '@/modules/billing-payments/ui/formControls';
+import { INPUT_CLASS } from '@/shared/ui';
 import {
   invoiceEditFormSchema,
   type InvoiceEditFormValues,
@@ -77,12 +77,12 @@ export function InvoiceEditForm({
   return (
     <form data-testid="invoice-edit-form" onSubmit={onSubmit} noValidate className="flex min-w-0 flex-col gap-4">
       {serverError !== null ? (
-        <p data-testid="invoice-edit-error" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
+        <p data-testid="invoice-edit-error" role="alert" className="text-body leading-body font-medium text-danger-foreground">
           {serverError}
         </p>
       ) : null}
       {conflict ? (
-        <p data-testid="invoice-edit-conflict" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
+        <p data-testid="invoice-edit-conflict" role="alert" className="text-body leading-body font-medium text-danger-foreground">
           Someone changed this invoice first. Reload the page to see the latest total.
         </p>
       ) : null}

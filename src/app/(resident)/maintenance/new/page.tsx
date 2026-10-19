@@ -47,9 +47,9 @@ export default async function MaintenanceNewPage() {
     >
       <PageHeader
         title="New request"
-        description="Describe the problem and attach up to 5 photos. Common-area requests skip the room picker."
+        description="Describe the problem and where it is, attach up to 5 photos. Common-area reports skip the room picker."
         backHref="/maintenance"
-        backLabel="Back to requests"
+        backLabel="Back to Maintenance"
         backTestId="maintenance-new-back"
       />
       <TicketCreateForm privateRooms={privateRooms} managedRooms={managedRooms} />

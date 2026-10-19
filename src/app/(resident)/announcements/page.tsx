@@ -49,26 +49,26 @@ export default async function AnnouncementsFeedPage({
           data-testid="announcements-empty"
           icon={Megaphone}
           title="No announcements yet"
-          description="When the management team publishes an update, it will appear here."
+          description="When the management team publishes an update, it appears here."
         />
       ) : (
-        <ul data-testid="announcements-list" className="flex min-w-0 flex-col border-t border-border">
+        <ul data-testid="announcements-list" className="flex min-w-0 flex-col gap-3">
           {feed.rows.map((row) => (
             <li
               key={row.id}
-              className="flex min-w-0 flex-col gap-2 border-b border-border py-4"
+              className="flex min-w-0 flex-col gap-2 rounded-lg border border-border bg-surface p-4"
             >
               <div className="flex min-w-0 flex-col gap-1.5">
                 <Link
                   data-testid={`announcements-row-${row.id}`}
                   href={`/announcements/${row.id}`}
-                  className="min-w-0 w-fit break-words text-sm font-semibold text-foreground underline-offset-2 hover:text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                  className="min-w-0 w-fit break-words text-body leading-body font-semibold text-foreground underline-offset-2 hover:text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
                 >
                   {row.title}
                 </Link>
-                <p className="line-clamp-3 break-words text-sm leading-6 text-muted-foreground">{row.body}</p>
+                <p className="line-clamp-3 break-words text-small leading-small text-muted-foreground">{row.body}</p>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-2 text-xs tabular-nums text-muted-foreground">
                 <span data-testid={`announcements-date-${row.id}`}>{formatDate(row.publishAt)}</span>
                 {row.editedAt !== null ? (
                   <Badge data-testid={`announcements-edited-${row.id}`} variant="neutral">

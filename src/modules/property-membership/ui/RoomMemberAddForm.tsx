@@ -90,13 +90,13 @@ export function RoomMemberAddForm({
       data-testid="room-member-add-form"
       onSubmit={onSubmit}
       noValidate
-      className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4 sm:p-5"
+      className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:p-5"
     >
       {serverError !== null ? (
         <p
           data-testid="room-member-add-error"
           role="alert"
-          className="text-sm font-medium text-danger-foreground"
+          className="text-body leading-body font-medium text-danger-foreground"
         >
           {serverError}
         </p>
@@ -145,7 +145,7 @@ export function RoomMemberAddForm({
             <option value="">Select a tenancy</option>
             {activeTenancies.map((tenancy) => (
               <option key={tenancy.id} value={tenancy.id}>
-                {tenancy.managementMode}
+                {tenancy.managementMode === 'PROJECT_MANAGED' ? 'Project managed' : 'Owner managed'}
               </option>
             ))}
           </select>

@@ -75,7 +75,7 @@ export default async function AdminTurnoverReviewDetailPage({
       <Link
         data-testid="turnover-review-detail-back"
         href={BASE_PATH}
-        className="inline-flex w-fit items-center gap-1.5 rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+        className="inline-flex w-fit items-center gap-1.5 rounded-md text-body font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
       >
         <ArrowLeft aria-hidden="true" className="size-4" />
         Back to turnover reviews

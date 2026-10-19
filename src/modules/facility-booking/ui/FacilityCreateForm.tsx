@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import { Button, FormField, useToast } from '@/shared/ui';
-import { CHECKBOX_CLASS, INPUT_CLASS, TEXTAREA_CLASS } from './formControls';
+import { CHECKBOX_CLASS, INPUT_CLASS, TEXTAREA_CLASS } from '@/shared/ui';
 
 const DAYS = [
   { key: '1', label: 'Mon' },
@@ -148,13 +148,13 @@ export function FacilityCreateForm({ projectId }: { projectId: string }) {
       data-testid="facility-create-form"
       onSubmit={onSubmit}
       noValidate
-      className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4 sm:p-5"
+      className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:p-5"
     >
       {serverError !== null ? (
         <p
           data-testid="facility-create-error"
           role="alert"
-          className="text-sm font-medium text-danger-foreground"
+          className="text-body leading-body font-medium text-danger-foreground"
         >
           {serverError}
         </p>
@@ -237,10 +237,10 @@ export function FacilityCreateForm({ projectId }: { projectId: string }) {
         </FormField>
       </div>
       <fieldset className="flex min-w-0 flex-col gap-2 border-t border-border pt-4">
-        <legend className="text-sm font-medium text-foreground">Open days</legend>
+        <legend className="text-body font-medium text-foreground">Open days</legend>
         <div className="flex flex-wrap gap-x-4 gap-y-2">
           {DAYS.map((day) => (
-            <label key={day.key} className="flex items-center gap-2 text-sm text-foreground">
+            <label key={day.key} className="flex items-center gap-2 text-body text-foreground">
               <input
                 data-testid={`facility-create-day-${day.key}`}
                 type="checkbox"
@@ -253,7 +253,7 @@ export function FacilityCreateForm({ projectId }: { projectId: string }) {
           ))}
         </div>
         {errors.openDays !== undefined ? (
-          <p role="alert" className="text-sm font-medium text-danger-foreground">
+          <p role="alert" className="text-body leading-body font-medium text-danger-foreground">
             {errors.openDays.message}
           </p>
         ) : null}

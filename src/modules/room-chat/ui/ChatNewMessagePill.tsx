@@ -20,7 +20,7 @@ export function ChatNewMessagePill({
         variant="primary"
         size="sm"
         onClick={onJump}
-        className="pointer-events-auto rounded-full shadow-lg"
+        className="pointer-events-auto rounded-full shadow-overlay"
       >
         <ArrowDown aria-hidden="true" className="size-4" />
         {count === 1 ? 'New message' : `${count} new messages`}

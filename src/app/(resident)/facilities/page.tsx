@@ -37,22 +37,22 @@ export default async function ResidentFacilitiesPage({
           {feed.rows.map((row) => (
             <li
               key={row.id}
-              className="flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-surface p-4 sm:p-5"
+              className="flex min-w-0 flex-col gap-2 rounded-lg border border-border bg-surface p-4 sm:p-5"
             >
               <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
                 <Link
                   data-testid={`facilities-row-${row.id}`}
                   href={`/facilities/${row.id}`}
-                  className="min-w-0 flex-1 basis-40 break-words rounded-lg text-sm font-semibold text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                  className="min-w-0 flex-1 basis-40 break-words rounded-md text-body font-semibold text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
                 >
                   {row.name}
                 </Link>
                 <Badge variant="neutral">{row.capacity} {row.capacity === 1 ? 'seat' : 'seats'}</Badge>
               </div>
               {row.description !== null && row.description !== '' ? (
-                <p className="line-clamp-3 break-words text-sm leading-6 text-muted-foreground">{row.description}</p>
+                <p className="line-clamp-3 break-words text-small leading-small text-muted-foreground">{row.description}</p>
               ) : null}
-              <p className="text-xs text-muted-foreground">Code {row.code}</p>
+              <p className="text-small ui-tabular text-muted-foreground">Code {row.code}</p>
             </li>
           ))}
         </ul>

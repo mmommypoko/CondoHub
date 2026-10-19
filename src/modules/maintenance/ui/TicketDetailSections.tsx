@@ -17,23 +17,25 @@ export function TicketDetailSections({
   roomLabel,
   testIdPrefix,
   transitionMode,
+  showRoutingKind = true,
 }: {
   ticket: TicketDto;
   roomLabel: string | null;
   testIdPrefix: string;
   transitionMode: TicketTransitionAction | 'none';
+  showRoutingKind?: boolean;
 }) {
   const router = useRouter();
   const refresh = (): void => router.refresh();
   const terminal = isTerminalTicketStatus(ticket.status);
   return (
     <div className="flex min-w-0 flex-col gap-8">
-      <TicketDetailCard ticket={ticket} roomLabel={roomLabel} testIdPrefix={testIdPrefix} />
+      <TicketDetailCard ticket={ticket} roomLabel={roomLabel} testIdPrefix={testIdPrefix} showRoutingKind={showRoutingKind} />
       {!terminal ? (
         <section aria-label="Status update" className="flex min-w-0 flex-col gap-3 border-t border-border pt-6">
-          <h2 className="text-base font-semibold text-foreground">Status update</h2>
+          <h2 className="text-heading leading-heading font-semibold text-foreground">Status update</h2>
           {transitionMode === 'none' ? (
-            <p data-testid={`${testIdPrefix}-transition-unavailable`} className="text-sm leading-6 text-muted-foreground">
+            <p data-testid={`${testIdPrefix}-transition-unavailable`} className="text-small leading-small text-muted-foreground">
               Status changes are handled by the room owners or the management team.
             </p>
           ) : (
@@ -50,7 +52,7 @@ export function TicketDetailSections({
       ) : null}
       {!terminal ? (
         <section aria-label="Add a comment" className="flex min-w-0 flex-col gap-3 border-t border-border pt-6">
-          <h2 className="text-base font-semibold text-foreground">Add a comment</h2>
+          <h2 className="text-heading leading-heading font-semibold text-foreground">Add a comment</h2>
           <TicketCommentForm ticketId={ticket.id} testIdPrefix={testIdPrefix} onCommented={refresh} />
         </section>
       ) : null}

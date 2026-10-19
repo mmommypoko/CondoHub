@@ -42,7 +42,7 @@ export function PaymentImage({
 
   if (failed) {
     return (
-      <p data-testid={`${testId}-unavailable`} className="text-sm leading-6 text-muted-foreground">
+      <p data-testid={`${testId}-unavailable`} className="text-small leading-small text-muted-foreground">
         Image unavailable.
       </p>
     );
@@ -62,7 +62,7 @@ export function PaymentImage({
       src={url}
       alt={alt}
       loading="lazy"
-      className="h-auto w-full max-w-sm rounded-xl border border-border object-contain"
+      className="h-auto w-full max-w-sm rounded-lg border border-border object-contain"
     />
   );
 }

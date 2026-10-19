@@ -46,51 +46,45 @@ export default async function AdminBuildingDetailPage({
         }
       />
       <section className="flex flex-col gap-2" aria-label="Floors">
-        <h2 className="text-sm font-semibold text-foreground">Floors</h2>
+        <h2 className="text-heading leading-heading font-semibold text-foreground">Floors</h2>
         {structures.floors.length === 0 ? (
-          <p data-testid="admin-floors-empty" className="text-sm text-muted-foreground">
-            No floors recorded.
+          <p data-testid="admin-floors-empty" className="text-small leading-small text-muted-foreground">
+            No floors recorded. Add the first floor below.
           </p>
         ) : (
-          <DataTable
-            testId="admin-floors-list"
-            caption="Floors in this building"
-            columns={[
-              { key: 'floor', header: 'Floor' },
-              { key: 'actions', header: 'Actions' },
-            ]}
-          >
+          <ul data-testid="admin-floors-list" aria-label="Floors in this building" className="flex min-w-0 flex-col gap-2">
             {structures.floors.map((floor) => (
-              <DataTableRow key={floor.id} rowKey={floor.id}>
-                <DataTableCell>
+              <li
+                key={floor.id}
+                className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-3 py-2"
+              >
+                <span className="min-w-0 break-words text-body leading-body font-medium text-foreground">
                   {floor.label} · {floor.code}
-                </DataTableCell>
-                <DataTableCell>
-                  <FloorRowActions
-                    floorId={floor.id}
-                    code={floor.code}
-                    label={floor.label}
-                    roomCount={
-                      structures.rooms.filter((room) => room.floorId === floor.id).length
-                    }
-                  />
-                </DataTableCell>
-              </DataTableRow>
+                </span>
+                <FloorRowActions
+                  floorId={floor.id}
+                  code={floor.code}
+                  label={floor.label}
+                  roomCount={
+                    structures.rooms.filter((room) => room.floorId === floor.id).length
+                  }
+                />
+              </li>
             ))}
-          </DataTable>
+          </ul>
         )}
         <div className="flex flex-col gap-2">
-          <h3 className="text-sm font-semibold text-foreground">New floor</h3>
+          <h3 className="text-body leading-body font-semibold text-foreground">New floor</h3>
           <FloorCreateForm buildingId={structures.building.id} />
         </div>
       </section>
       <section className="flex flex-col gap-2" aria-label="Rooms">
-        <h2 className="text-sm font-semibold text-foreground">Rooms</h2>
+        <h2 className="text-heading leading-heading font-semibold text-foreground">Rooms</h2>
         {structures.rooms.length === 0 ? (
           <EmptyState
             data-testid="admin-rooms-empty"
             title="No rooms yet"
-            description="Rooms in this building will appear here."
+            description="Add the first room with the form below."
           />
         ) : (
           <DataTable
@@ -112,7 +106,7 @@ export default async function AdminBuildingDetailPage({
                   <Link
                     data-testid={`admin-rooms-chat-${room.id}`}
                     href={`/admin/rooms/${room.id}/chat`}
-                    className="inline-flex items-center gap-1 rounded-lg border border-input-border bg-surface px-2 py-1 text-xs font-medium text-body-secondary transition-[background-color,color] duration-150 ease-out hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring motion-reduce:transition-none"
+                    className="inline-flex items-center gap-1 rounded-md border border-input-border bg-surface px-2 py-1 text-xs font-medium text-body-secondary transition-[background-color,color] duration-150 ease-out hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring motion-reduce:transition-none"
                   >
                     <MessageCircle aria-hidden="true" className="size-3" />
                     Chat
@@ -131,7 +125,7 @@ export default async function AdminBuildingDetailPage({
           </DataTable>
         )}
         <div className="flex flex-col gap-2">
-          <h3 className="text-sm font-semibold text-foreground">New room</h3>
+          <h3 className="text-body leading-body font-semibold text-foreground">New room</h3>
           <RoomCreateForm
             buildingId={structures.building.id}
             floors={structures.floors.map((floor) => ({

@@ -115,7 +115,7 @@ export function TicketImageUploader({
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm font-medium text-foreground">
+        <span className="text-body leading-body font-medium text-foreground">
           Images ({images.length}/{maxImages})
         </span>
         <Button
@@ -148,21 +148,21 @@ export function TicketImageUploader({
         JPEG, PNG, or WebP. Up to 5 MB per image, up to {maxImages} images.
       </p>
       {busy ? (
-        <p data-testid={`${testIdPrefix}-upload-progress`} role="status" className="text-sm leading-6 text-muted-foreground">
+        <p data-testid={`${testIdPrefix}-upload-progress`} role="status" className="text-small leading-small text-muted-foreground">
           Uploading the image.
         </p>
       ) : null}
       {error !== null ? (
-        <p data-testid={`${testIdPrefix}-upload-error`} role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
+        <p data-testid={`${testIdPrefix}-upload-error`} role="alert" className="text-body leading-body font-medium text-danger-foreground">
           {error}
         </p>
       ) : null}
       {images.length > 0 ? (
-        <ul data-testid={`${testIdPrefix}-image-list`} className="flex min-w-0 flex-col rounded-xl border border-border bg-surface">
+        <ul data-testid={`${testIdPrefix}-image-list`} className="flex min-w-0 flex-col rounded-lg border border-border bg-surface">
           {images.map((image) => (
             <li
               key={image.imageId}
-              className="flex min-w-0 items-center justify-between gap-2 border-b border-border p-2 pl-3 text-sm last:border-b-0"
+              className="flex min-w-0 items-center justify-between gap-2 border-b border-border p-2 pl-3 text-body leading-body last:border-b-0"
             >
               <span className="min-w-0 truncate text-foreground">{image.fileName}</span>
               <Button

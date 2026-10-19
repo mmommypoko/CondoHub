@@ -165,7 +165,7 @@ test.describe('billing payment screens: balance, submit, review, edit', () => {
     const rent = pickInvoice(rows, 'PROJECT_MANAGED_RENT', '2027-08-01');
     await loginAsAdmin(page);
     await page.goto('/admin/billing/invoices');
-    await expect(page.getByTestId('invoice-list-page')).toBeVisible();
+    await expect(page.getByTestId('admin-invoice-list-page')).toBeVisible();
     await payer.goto('/invoices');
     await expect(payer.getByTestId('invoice-list-page')).toBeVisible();
     for (let sheet = 1; sheet <= 10; sheet += 1) {

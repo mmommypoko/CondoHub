@@ -45,20 +45,20 @@ export default async function AdminFacilitiesPage({
           description="Create the first facility to open booking for residents."
         />
       ) : (
-        <ul data-testid="admin-facilities-list" className="flex flex-col divide-y divide-border rounded-xl border border-border bg-surface">
+        <ul data-testid="admin-facilities-list" className="flex flex-col divide-y divide-border rounded-lg border border-border bg-surface">
           {feed.rows.map((row) => (
             <li key={row.id} className="flex min-w-0 flex-col gap-1 px-4 py-3 sm:px-5">
               <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
                 <Link
                   data-testid={`admin-facilities-row-${row.id}`}
                   href={`/admin/facilities/${row.id}`}
-                  className="min-w-0 flex-1 basis-40 break-words rounded-lg text-sm font-semibold text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                  className="min-w-0 flex-1 basis-40 break-words rounded-md text-body font-semibold text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
                 >
                   {row.name}
                 </Link>
                 <Badge variant={row.status === 'ACTIVE' ? 'success' : 'neutral'}>{row.status}</Badge>
               </div>
-              <p className="text-xs tabular-nums text-muted-foreground">
+              <p className="ui-tabular text-small text-muted-foreground">
                 Code {row.code} · {row.capacity} {row.capacity === 1 ? 'seat' : 'seats'}
               </p>
             </li>

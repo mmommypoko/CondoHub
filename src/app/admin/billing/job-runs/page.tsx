@@ -1,12 +1,12 @@
 import 'server-only';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getActorFromSession } from '@/shared/auth/actor';
-import { Badge, DataTable, DataTableCell, DataTableRow, EmptyState, PageHeader, Pagination, cx } from '@/shared/ui';
+import { Badge, DataTable, DataTableCell, DataTableRow, EmptyState, PageHeader, Pagination } from '@/shared/ui';
 import { listAdminJobRuns } from '@/modules/billing-payments/application/index';
 import type { AdminJobResult } from '@/modules/billing-payments/domain/jobRedaction';
 import { formatInstant, jobRunStateVariant } from '@/modules/billing-payments/ui/billingLabels';
-import { FILTER_LINK_ACTIVE, FILTER_LINK_BASE, FILTER_LINK_IDLE } from '@/modules/billing-payments/ui/formControls';
+import { BillingSectionNav } from '@/modules/billing-payments/ui/BillingSectionNav';
+import { FilterBar } from '@/shared/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,40 +54,17 @@ export default async function AdminBillingJobRunsPage({
         title="Billing job runs"
         description="Aggregate invoice counts only. Per-room and per-owner detail never appears here."
       />
-      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter by state">
-        <Link
-          data-testid="job-run-filter-all"
-          href={BASE_PATH}
-          aria-current={state === undefined ? 'page' : undefined}
-          className={cx(FILTER_LINK_BASE, state === undefined ? FILTER_LINK_ACTIVE : FILTER_LINK_IDLE)}
-        >
-          All
-        </Link>
-        <Link
-          data-testid="job-run-filter-done"
-          href={`${BASE_PATH}?state=DONE`}
-          aria-current={state === 'DONE' ? 'page' : undefined}
-          className={cx(FILTER_LINK_BASE, state === 'DONE' ? FILTER_LINK_ACTIVE : FILTER_LINK_IDLE)}
-        >
-          Done
-        </Link>
-        <Link
-          data-testid="job-run-filter-error"
-          href={`${BASE_PATH}?state=ERROR`}
-          aria-current={state === 'ERROR' ? 'page' : undefined}
-          className={cx(FILTER_LINK_BASE, state === 'ERROR' ? FILTER_LINK_ACTIVE : FILTER_LINK_IDLE)}
-        >
-          Errors
-        </Link>
-        <Link
-          data-testid="job-run-filter-running"
-          href={`${BASE_PATH}?state=RUNNING`}
-          aria-current={state === 'RUNNING' ? 'page' : undefined}
-          className={cx(FILTER_LINK_BASE, state === 'RUNNING' ? FILTER_LINK_ACTIVE : FILTER_LINK_IDLE)}
-        >
-          Running
-        </Link>
-      </div>
+      <BillingSectionNav current="jobs" counts={{}} />
+      <FilterBar
+        label="Filter by state"
+        activeValue={state ?? 'ALL'}
+        options={[
+          { value: 'ALL', testId: 'job-run-filter-all', href: BASE_PATH, label: 'All' },
+          { value: 'DONE', testId: 'job-run-filter-done', href: `${BASE_PATH}?state=DONE`, label: 'Done' },
+          { value: 'ERROR', testId: 'job-run-filter-error', href: `${BASE_PATH}?state=ERROR`, label: 'Errors' },
+          { value: 'RUNNING', testId: 'job-run-filter-running', href: `${BASE_PATH}?state=RUNNING`, label: 'Running' },
+        ]}
+      />
       {feed.rows.length === 0 ? (
         <EmptyState
           data-testid="job-run-list-empty"
@@ -120,10 +97,10 @@ export default async function AdminBillingJobRunsPage({
                 <span data-testid={`job-run-summary-${row.id}`}>{summaryOf(row.result)}</span>
               </DataTableCell>
               <DataTableCell numeric>
-                <span>Attempt {row.attempt}</span>
+                <span className="ui-tabular">Attempt {row.attempt}</span>
               </DataTableCell>
               <DataTableCell numeric>
-                <span>{formatInstant(row.startedAt)}</span>
+                <span className="ui-tabular">{formatInstant(row.startedAt)}</span>
               </DataTableCell>
             </DataTableRow>
           ))}

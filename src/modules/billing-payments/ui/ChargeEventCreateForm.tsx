@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { Button, FormField, useToast } from '@/shared/ui';
-import { INPUT_CLASS } from '@/modules/billing-payments/ui/formControls';
+import { INPUT_CLASS } from '@/shared/ui';
 import {
   chargeEventCreateSchema,
   type ChargeEventCreateValues,
@@ -89,12 +89,12 @@ export function ChargeEventCreateForm() {
   return (
     <form data-testid="charge-event-create-form" onSubmit={onSubmit} noValidate className="flex min-w-0 flex-col gap-4">
       {serverError !== null ? (
-        <p data-testid="charge-event-create-error" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
+        <p data-testid="charge-event-create-error" role="alert" className="text-body leading-body font-medium text-danger-foreground">
           {serverError}
         </p>
       ) : null}
       {conflict ? (
-        <p data-testid="charge-event-create-conflict" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
+        <p data-testid="charge-event-create-conflict" role="alert" className="text-body leading-body font-medium text-danger-foreground">
           The event conflicts with an existing record.
         </p>
       ) : null}

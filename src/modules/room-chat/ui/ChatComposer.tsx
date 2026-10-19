@@ -136,7 +136,7 @@ export function ChatComposer({
       data-testid={`${testIdPrefix}-composer`}
       onSubmit={onSubmit}
       noValidate
-      className="flex min-w-0 flex-col gap-2.5 rounded-xl border border-border bg-surface p-3 shadow-sm sm:p-4"
+      className="flex min-w-0 flex-col gap-2.5 rounded-lg border border-border bg-surface p-3 shadow-raised sm:p-4"
     >
       <FormField
         label="Message"
@@ -189,12 +189,12 @@ export function ChatComposer({
         </div>
       ) : null}
       {uploading ? (
-        <p data-testid={`${testIdPrefix}-composer-upload-progress`} role="status" className="text-sm text-muted-foreground">
+        <p data-testid={`${testIdPrefix}-composer-upload-progress`} role="status" className="text-small leading-small text-muted-foreground">
           Uploading the image.
         </p>
       ) : null}
       {uploadError !== null ? (
-        <p data-testid={`${testIdPrefix}-composer-upload-error`} role="alert" className="text-sm font-medium text-danger-foreground">
+        <p data-testid={`${testIdPrefix}-composer-upload-error`} role="alert" className="text-body leading-body font-medium text-danger-foreground">
           {uploadError}
         </p>
       ) : null}

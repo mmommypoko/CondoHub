@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CalendarDays } from 'lucide-react';
 import { Badge, Button, cx, EmptyState, FormField, Skeleton, useToast } from '@/shared/ui';
-import { INPUT_CLASS } from './formControls';
+import { INPUT_CLASS } from '@/shared/ui';
 
 interface SlotRow {
   startsAt: string;
@@ -176,14 +176,14 @@ export function SlotPicker({
           <Badge variant={payload.quotaUsed >= payload.quotaLimit ? 'warning' : 'info'}>
             Quota {payload.quotaUsed}/{payload.quotaLimit} {payload.quotaKind}
           </Badge>
-          <span className="text-xs text-muted-foreground">Period {payload.periodKey}</span>
+          <span className="text-small ui-tabular text-muted-foreground">Period {payload.periodKey}</span>
         </div>
       ) : null}
       {loadError !== null ? (
         <p
           data-testid="slot-picker-load-error"
           role="alert"
-          className="text-sm font-medium text-danger-foreground"
+          className="text-body leading-body font-medium text-danger-foreground"
         >
           {loadError}
         </p>
@@ -223,7 +223,7 @@ export function SlotPicker({
                 disabled={!slot.available}
                 onClick={() => toggle(slot.startsAt, slot.available)}
                 className={cx(
-                  'flex min-w-0 flex-col gap-1 rounded-xl border p-3 text-left text-sm transition-[background-color,border-color,transform] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring motion-reduce:transition-none',
+                  'flex min-w-0 flex-col gap-1 rounded-lg border p-3 text-left text-body transition-[background-color,border-color,transform] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring motion-reduce:transition-none',
                   active
                     ? 'border-primary bg-primary/10 text-foreground active:scale-[0.98] motion-reduce:active:scale-100'
                     : slot.available
@@ -231,10 +231,10 @@ export function SlotPicker({
                       : 'cursor-not-allowed border-border bg-neutral text-muted-foreground',
                 )}
               >
-                <span className="font-semibold tabular-nums">
+                <span className="font-semibold ui-tabular">
                   {formatTime(slot.startsAt)} – {formatTime(slot.endsAt)}
                 </span>
-                <span className="text-xs tabular-nums">
+                <span className="text-small ui-tabular">
                   {slot.available
                     ? `${slot.remaining} of ${slot.capacity} seats left`
                     : slot.startsAt <= new Date().toISOString()
@@ -251,7 +251,7 @@ export function SlotPicker({
         <p
           data-testid="slot-picker-submit-error"
           role="alert"
-          className="text-sm font-medium text-danger-foreground"
+          className="text-body leading-body font-medium text-danger-foreground"
         >
           {submitError}
         </p>

@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import { Button, FormField, useToast } from '@/shared/ui';
-import { INPUT_CLASS } from './formControls';
+import { INPUT_CLASS } from '@/shared/ui';
 
 const closureSchema = z.object({
   startsAt: z.string().min(1, 'Start is required.'),
@@ -67,11 +67,11 @@ export function ClosureCreateForm({ facilityId }: { facilityId: string }) {
       data-testid="closure-create-form"
       onSubmit={onSubmit}
       noValidate
-      className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4 sm:p-5"
+      className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:p-5"
     >
       <div className="flex min-w-0 flex-col gap-1">
-        <h3 className="text-sm font-semibold text-foreground">Add a closure</h3>
-        <p className="text-sm leading-6 text-muted-foreground">
+        <h3 className="text-body font-semibold text-foreground">Add a closure</h3>
+        <p className="text-small leading-small text-muted-foreground">
           Closed windows remove slots from booking until the closure ends.
         </p>
       </div>
@@ -79,7 +79,7 @@ export function ClosureCreateForm({ facilityId }: { facilityId: string }) {
         <p
           data-testid="closure-create-error"
           role="alert"
-          className="text-sm font-medium text-danger-foreground"
+          className="text-body leading-body font-medium text-danger-foreground"
         >
           {serverError}
         </p>
