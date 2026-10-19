@@ -20,7 +20,7 @@ export default async function MyRoomsPage() {
       className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6"
     >
       <PageHeader
-        title="My Rooms"
+        title="Rooms"
         description="Rooms where you hold an active membership or ownership."
       />
       {rooms.length === 0 ? (
@@ -32,7 +32,7 @@ export default async function MyRoomsPage() {
       ) : (
         <ul
           data-testid="my-rooms-list"
-          className="overflow-hidden rounded-xl border border-border bg-surface"
+          className="overflow-hidden rounded-lg border border-border bg-surface"
         >
           {await Promise.all(
             rooms.map(async (room, index) => {
@@ -46,10 +46,10 @@ export default async function MyRoomsPage() {
                     className="flex items-center gap-4 px-4 py-4 transition-[background-color] duration-150 ease-out hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring motion-reduce:transition-none"
                   >
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="truncate text-sm font-semibold text-foreground">
+                      <span className="truncate text-heading font-semibold text-foreground">
                         {building?.name ?? 'Building'} · {room.roomCode}
                       </span>
-                      <span className="text-sm text-muted-foreground">Area {room.areaSqm} sqm</span>
+                      <span className="text-small text-muted-foreground">Area {room.areaSqm} sqm</span>
                     </div>
                     <Badge variant={room.status === 'ACTIVE' ? 'success' : 'neutral'}>
                       {room.status === 'ACTIVE' ? 'Active' : 'Inactive'}

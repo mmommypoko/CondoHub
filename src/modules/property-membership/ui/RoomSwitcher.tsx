@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Building2 } from 'lucide-react';
 import { INPUT_BASE_CLASS, cx } from '@/shared/ui';
 
@@ -18,9 +18,10 @@ export function RoomSwitcher({
   currentRoomId: string | null;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   if (rooms.length === 0) return null;
   return (
-    <label className="flex min-w-0 items-center gap-2 text-sm">
+    <label className="flex min-w-0 items-center gap-2 text-body">
       <Building2 aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
       <span className="sr-only">Current room</span>
       <select
@@ -30,10 +31,15 @@ export function RoomSwitcher({
         value={currentRoomId ?? ''}
         onChange={(event) => {
           const next = event.target.value;
-          if (next !== '') {
-            document.cookie = `lastRoomId=${next}; Path=/; Max-Age=31536000; SameSite=Lax`;
-            router.push(`/rooms/${next}`);
+          if (next === '') return;
+          document.cookie = `lastRoomId=${next}; Path=/; Max-Age=31536000; SameSite=Lax`;
+          const segments = pathname.split('/');
+          if (segments[1] === 'rooms' && typeof segments[2] === 'string' && segments[2] !== '') {
+            segments[2] = next;
+            router.push(segments.join('/'));
+            return;
           }
+          router.refresh();
         }}
       >
         {currentRoomId === null ? <option value="">Select a room</option> : null}

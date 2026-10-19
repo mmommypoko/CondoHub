@@ -1,15 +1,13 @@
 import {
-  Archive,
   Building2,
   CalendarDays,
-  FileText,
-  Home,
-  KeyRound,
+  House,
   Megaphone,
   ReceiptText,
   Users,
   Wrench,
   Zap,
+  KeyRound,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -21,22 +19,20 @@ export interface ShellNavLink {
 }
 
 export const RESIDENT_NAV_LINKS: ShellNavLink[] = [
-  { href: '/rooms', label: 'Rooms', icon: Home, testId: 'nav-my-rooms' },
-  { href: '/facilities', label: 'Facilities', icon: CalendarDays, testId: 'nav-facilities' },
-  { href: '/maintenance', label: 'Requests', icon: Wrench, testId: 'nav-maintenance' },
+  { href: '/', label: 'Home', icon: House, testId: 'nav-home' },
+  { href: '/rooms', label: 'Rooms', icon: Building2, testId: 'nav-my-rooms' },
   { href: '/invoices', label: 'Bills', icon: ReceiptText, testId: 'nav-invoices' },
+  { href: '/maintenance', label: 'Maintenance', icon: Wrench, testId: 'nav-maintenance' },
 ];
 
 export const RESIDENT_MORE_LINKS: ShellNavLink[] = [
   { href: '/announcements', label: 'Announcements', icon: Megaphone, testId: 'nav-more-announcements' },
-  { href: '/former-debt', label: 'Former debt', icon: FileText, testId: 'nav-more-former-debt' },
-  { href: '/historical-fees', label: 'Historical fees', icon: Archive, testId: 'nav-more-historical-fees' },
 ];
 
 export const ADMIN_WORKSPACE_LINKS: ShellNavLink[] = [
-  { href: '/rooms', label: 'My Rooms', icon: Home, testId: 'nav-my-rooms' },
+  { href: '/rooms', label: 'Rooms', icon: House, testId: 'nav-my-rooms' },
   { href: '/facilities', label: 'Facilities', icon: CalendarDays, testId: 'nav-facilities' },
-  { href: '/maintenance', label: 'My Requests', icon: Wrench, testId: 'nav-maintenance' },
+  { href: '/maintenance', label: 'Maintenance', icon: Wrench, testId: 'nav-maintenance' },
 ];
 
 export const ADMIN_LINKS: ShellNavLink[] = [
@@ -58,5 +54,6 @@ export const ADMIN_LINKS: ShellNavLink[] = [
 ];
 
 export function matchNavHref(pathname: string, href: string): boolean {
+  if (href === '/') return pathname === '/';
   return pathname === href || pathname.startsWith(`${href}/`);
 }

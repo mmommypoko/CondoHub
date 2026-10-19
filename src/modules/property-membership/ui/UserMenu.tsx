@@ -34,16 +34,16 @@ export function UserMenu({ roleLabel, username }: { roleLabel: string; username:
     <div className="flex min-w-0 items-center gap-2">
       <CircleUserRound aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
       <div className="hidden min-w-0 max-w-36 flex-col overflow-hidden leading-tight sm:flex md:max-w-48">
-        <span data-testid="user-menu-username" className="truncate text-sm font-medium text-foreground">
+        <span data-testid="user-menu-username" className="truncate text-body font-medium text-foreground">
           {username}
         </span>
-        <span className="truncate text-xs text-muted-foreground">{roleLabel}</span>
+        <span className="truncate text-small text-muted-foreground">{roleLabel}</span>
       </div>
       <span className="hidden h-6 w-px shrink-0 bg-border sm:block" aria-hidden="true" />
       <Link
         data-testid="user-menu-change-password"
         href="/change-password"
-        className="hidden shrink-0 rounded-lg px-2 py-1.5 text-sm font-medium text-body-secondary transition-[background-color,color] duration-150 ease-out hover:bg-ghost-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring motion-reduce:transition-none md:inline-flex"
+        className="hidden shrink-0 rounded-md px-2 py-1.5 text-body font-medium text-body-secondary transition-[background-color,color] duration-150 ease-out hover:bg-ghost-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring motion-reduce:transition-none md:inline-flex"
       >
         Password
       </Link>
@@ -54,7 +54,7 @@ export function UserMenu({ roleLabel, username }: { roleLabel: string; username:
         disabled={signingOut}
         aria-busy={signingOut || undefined}
         className={cx(
-          'inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-body-secondary transition-[background-color,color,opacity] duration-150 ease-out hover:bg-ghost-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring motion-reduce:transition-none',
+          'inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-body font-medium text-body-secondary transition-[background-color,color,opacity] duration-150 ease-out hover:bg-ghost-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring motion-reduce:transition-none',
           signingOut && 'cursor-wait opacity-70',
         )}
       >

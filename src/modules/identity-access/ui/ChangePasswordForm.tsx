@@ -21,7 +21,6 @@ const changePasswordSchema = z
 
 type ChangePasswordValues = z.infer<typeof changePasswordSchema>;
 
-
 export default function ChangePasswordForm() {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -57,8 +56,8 @@ export default function ChangePasswordForm() {
   return (
     <form data-testid="change-password-form" onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">Change password</h2>
-        <p className="text-sm leading-6 text-muted-foreground">
+        <h2 className="text-title font-semibold tracking-tight text-foreground">Change password</h2>
+        <p className="text-small leading-6 text-muted-foreground">
           Your password must be at least 12 characters and differ from your username and temporary password.
         </p>
       </div>
@@ -66,7 +65,7 @@ export default function ChangePasswordForm() {
         <p
           data-testid="change-password-error"
           role="alert"
-          className="rounded-lg border border-danger-border bg-danger px-3 py-2 text-sm font-medium text-danger-foreground"
+          className="rounded-md border border-danger-border bg-danger px-3 py-2 text-body font-medium text-danger-foreground"
         >
           {serverError}
         </p>

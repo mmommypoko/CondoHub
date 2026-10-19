@@ -15,7 +15,6 @@ const loginSchema = z.object({
 
 type LoginValues = z.infer<typeof loginSchema>;
 
-
 function safeReturnUrl(value: string | null): string {
   if (value === null || value === '') return '/';
   if (!value.startsWith('/')) return '/';
@@ -56,14 +55,14 @@ export default function LoginForm() {
   return (
     <form data-testid="login-form" onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">Sign in</h2>
-        <p className="text-sm leading-6 text-muted-foreground">Use your username and password.</p>
+        <h2 className="text-title font-semibold tracking-tight text-foreground">Sign in</h2>
+        <p className="text-small leading-6 text-muted-foreground">Use your username and password.</p>
       </div>
       {serverError !== null ? (
         <p
           data-testid="login-error"
           role="alert"
-          className="rounded-lg border border-danger-border bg-danger px-3 py-2 text-sm font-medium text-danger-foreground"
+          className="rounded-md border border-danger-border bg-danger px-3 py-2 text-body font-medium text-danger-foreground"
         >
           {serverError}
         </p>

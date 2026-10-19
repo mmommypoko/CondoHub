@@ -10,7 +10,6 @@ import {
   getActiveResidentRooms,
   getCurrentOwners,
 } from '@/modules/property-membership/application/index';
-import { countUnresolvedTurnoverReviews } from '@/modules/billing-payments/application/index';
 import { findRoomById } from '@/modules/property-membership/infrastructure/structureRepository';
 import { findBuildingById } from '@/modules/property-membership/infrastructure/structureRepository';
 import { getSenderProfile } from '@/modules/identity-access/application/index';
@@ -48,12 +47,6 @@ export default async function ResidentLayout({ children }: { children: ReactNode
     const owners = await getCurrentOwners(currentRoomId, now);
     roleLabel = owners.some((owner) => owner.userId === actor.userId) ? 'Owner' : 'Resident';
   }
-  let turnoverUnresolved = 0;
-  try {
-    turnoverUnresolved = await countUnresolvedTurnoverReviews(actor);
-  } catch {
-    turnoverUnresolved = 0;
-  }
   let username = 'Account';
   try {
     const profile = await getSenderProfile(actor.userId);
@@ -68,7 +61,7 @@ export default async function ResidentLayout({ children }: { children: ReactNode
         <TopBar
           roleLabel={roleLabel}
           username={username}
-          brandHref="/rooms"
+          brandHref="/"
           context={
             <div className="flex min-w-0 items-center gap-3">
               <Badge data-testid="role-label" variant="neutral">
@@ -94,25 +87,6 @@ export default async function ResidentLayout({ children }: { children: ReactNode
               </Link>
             </div>
           </div>
-        ) : null}
-        {turnoverUnresolved > 0 ? (
-          <nav
-            aria-label="Billing attention"
-            className="shrink-0 border-b border-border bg-surface px-4 py-2 sm:px-6"
-          >
-            <div className="mx-auto w-full max-w-5xl">
-              <Link
-                data-testid="nav-turnover-reviews-badge"
-                href="/invoices/turnover-reviews?state=UNRESOLVED"
-                className="inline-flex min-w-0 items-center gap-2 rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
-              >
-                <Badge data-testid="turnover-unresolved-badge" variant="warning">
-                  {turnoverUnresolved} unresolved turnover{' '}
-                  {turnoverUnresolved === 1 ? 'review' : 'reviews'}
-                </Badge>
-              </Link>
-            </div>
-          </nav>
         ) : null}
         <div className="flex flex-1 flex-col pb-20 md:pb-0">{children}</div>
         <ResidentBottomNav />

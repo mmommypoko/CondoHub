@@ -264,7 +264,10 @@ test.describe('billing turnover: queue, resolve, concealment, ms-bill-08', () =>
       await expect(sessionA.page.getByTestId('owner-turnover-review-list-page')).toBeVisible();
       await expect(sessionA.page.getByTestId(`owner-turnover-review-row-${ctx.review206 ?? ''}`)).toBeVisible();
       await expect(sessionA.page.getByTestId('owner-turnover-review-unresolved-indicator')).toContainText('2 unresolved');
+      await sessionA.page.goto('/');
+      await expect(sessionA.page.getByTestId('home-page')).toBeVisible();
       await expect(sessionA.page.getByTestId('turnover-unresolved-badge')).toContainText('2 unresolved turnover reviews');
+      await sessionA.page.goto('/invoices/turnover-reviews');
       await sessionA.page.getByTestId(`owner-turnover-review-row-${ctx.review206 ?? ''}`).click();
       await expect(sessionA.page.getByTestId('owner-turnover-review-detail-page')).toBeVisible();
       await expect(sessionA.page.getByTestId('turnover-review-detail-state')).toHaveText('Unresolved');
@@ -283,6 +286,8 @@ test.describe('billing turnover: queue, resolve, concealment, ms-bill-08', () =>
       await outsider.page.goto('/invoices/turnover-reviews');
       await expect(outsider.page.getByTestId('owner-turnover-review-list-page')).toBeVisible();
       await expect(outsider.page.getByTestId('owner-turnover-review-list-empty')).toBeVisible();
+      await outsider.page.goto('/');
+      await expect(outsider.page.getByTestId('home-page')).toBeVisible();
       await expect(outsider.page.getByTestId('turnover-unresolved-badge')).toHaveCount(0);
       await outsider.page.goto(`/invoices/turnover-reviews/${ctx.review206 ?? ''}`);
       await expect(outsider.page.getByTestId('owner-turnover-review-list-page')).toBeVisible();

@@ -22,6 +22,18 @@ import { TenancyEndButton } from '@/modules/property-membership/ui/TenancyEndBut
 import { getSenderProfile } from '@/modules/identity-access/application/index';
 import { db } from '@/shared/db/client';
 
+function memberRoleLabel(role: string): string {
+  if (role === 'MAIN') return 'Main';
+  if (role === 'SUB') return 'Sub';
+  return role;
+}
+
+function tenancyModeLabel(mode: string): string {
+  if (mode === 'PROJECT_MANAGED') return 'Project managed';
+  if (mode === 'PRIVATE_OWNER_MANAGED') return 'Owner managed';
+  return mode;
+}
+
 export default async function RoomDetailPage({
   params,
 }: {
@@ -82,20 +94,20 @@ export default async function RoomDetailPage({
         <Link
           data-testid="room-detail-back"
           href="/rooms"
-          className="inline-flex w-fit items-center gap-1.5 rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          className="inline-flex w-fit items-center gap-1.5 rounded-md text-body font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
-          My Rooms
+          Back to Rooms
         </Link>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 flex-col gap-1">
             <h1
               data-testid="room-detail-title"
-              className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl"
+              className="text-display font-semibold tracking-tight text-foreground"
             >
               {building?.name ?? 'Building'} · {room.roomCode}
             </h1>
-            <p className="text-sm leading-6 text-muted-foreground">Area {room.areaSqm} sqm</p>
+            <p className="text-small leading-6 text-muted-foreground">Area {room.areaSqm} sqm</p>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             <Link
@@ -124,111 +136,119 @@ export default async function RoomDetailPage({
           </div>
         </div>
       </div>
-      <section className="flex flex-col gap-3" aria-label="Owners">
-        <h2 className="text-sm font-semibold text-foreground">Current owners</h2>
-        {owners.length === 0 ? (
-          <p data-testid="room-owners-empty" className="text-sm leading-6 text-muted-foreground">
-            No current owners recorded.
-          </p>
-        ) : (
-          <ul data-testid="room-owners-list" className="flex flex-wrap gap-2">
-            {owners.map((owner) => (
-              <li key={owner.ownershipId}>
-                <Badge variant="info">{memberNames.get(owner.userId) ?? owner.userId}</Badge>
-              </li>
-            ))}
-          </ul>
-        )}
+      <section aria-label="Details" className="flex flex-col gap-6">
+        <h2 className="text-title font-semibold tracking-tight text-foreground">Details</h2>
+        <div className="flex flex-col gap-2">
+          <h3 className="text-heading font-semibold text-foreground">Current owners</h3>
+          {owners.length === 0 ? (
+            <p data-testid="room-owners-empty" className="text-body leading-6 text-muted-foreground">
+              No current owners recorded.
+            </p>
+          ) : (
+            <ul data-testid="room-owners-list" className="flex flex-wrap gap-2">
+              {owners.map((owner) => (
+                <li key={owner.ownershipId}>
+                  <Badge variant="info">{memberNames.get(owner.userId) ?? owner.userId}</Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="flex flex-col gap-2">
+          <h3 className="text-heading font-semibold text-foreground">
+            Memberships ({memberships.length})
+          </h3>
+          {memberships.length === 0 ? (
+            <p data-testid="room-memberships-empty" className="text-body leading-6 text-muted-foreground">
+              No memberships recorded.
+            </p>
+          ) : (
+            <ul
+              data-testid="room-memberships-list"
+              className="overflow-hidden rounded-lg border border-border bg-surface"
+            >
+              {memberships.map((membership, index) => (
+                <li
+                  key={membership.id}
+                  className={
+                    index === memberships.length - 1
+                      ? 'flex items-center justify-between gap-3 px-4 py-3 text-body'
+                      : 'flex items-center justify-between gap-3 border-b border-border px-4 py-3 text-body'
+                  }
+                >
+                  <span className="min-w-0 truncate text-foreground">{memberNames.get(membership.userId) ?? membership.userId}</span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <Badge variant={membership.endAt === null ? 'success' : 'neutral'}>
+                      {memberRoleLabel(membership.memberRole)}
+                      {membership.endAt === null ? '' : ' · ended'}
+                    </Badge>
+                    {canManageMembers && membership.endAt === null ? (
+                      <EndMembershipButton roomId={room.id} membershipId={membership.id} />
+                    ) : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="flex flex-col gap-2">
+          <h3 className="text-heading font-semibold text-foreground">Tenancies ({tenancies.length})</h3>
+          {tenancies.length === 0 ? (
+            <p data-testid="room-tenancies-empty" className="text-body leading-6 text-muted-foreground">
+              No tenancies recorded.
+            </p>
+          ) : (
+            <ul
+              data-testid="room-tenancies-list"
+              className="overflow-hidden rounded-lg border border-border bg-surface"
+            >
+              {tenancies.map((tenancy, index) => (
+                <li
+                  key={tenancy.id}
+                  className={
+                    index === tenancies.length - 1
+                      ? 'flex items-center justify-between gap-3 px-4 py-3 text-body'
+                      : 'flex items-center justify-between gap-3 border-b border-border px-4 py-3 text-body'
+                  }
+                >
+                  <span className="min-w-0 truncate text-foreground">{tenancyModeLabel(tenancy.managementMode)}</span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <Badge variant={tenancy.state === 'ACTIVE' ? 'success' : 'neutral'}>
+                      {tenancy.state}
+                    </Badge>
+                    {tenancy.state === 'ACTIVE' &&
+                    (actor.isSystemAdmin ||
+                      (isRoomOwner && tenancy.managementMode === 'PRIVATE_OWNER_MANAGED')) ? (
+                      <TenancyEndButton roomId={room.id} tenancyId={tenancy.id} />
+                    ) : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </section>
-      <section className="flex flex-col gap-3" aria-label="Memberships">
-        <h2 className="text-sm font-semibold text-foreground">
-          Memberships ({memberships.length})
-        </h2>
-        {memberships.length === 0 ? (
-          <p data-testid="room-memberships-empty" className="text-sm leading-6 text-muted-foreground">
-            No memberships recorded.
-          </p>
-        ) : (
-          <ul
-            data-testid="room-memberships-list"
-            className="overflow-hidden rounded-xl border border-border bg-surface"
-          >
-            {memberships.map((membership, index) => (
-              <li
-                key={membership.id}
-                className={
-                  index === memberships.length - 1
-                    ? 'flex items-center justify-between gap-3 px-4 py-3 text-sm'
-                    : 'flex items-center justify-between gap-3 border-b border-border px-4 py-3 text-sm'
-                }
-              >
-                <span className="min-w-0 truncate text-foreground">{memberNames.get(membership.userId) ?? membership.userId}</span>
-                <span className="flex shrink-0 items-center gap-2">
-                  <Badge variant={membership.endAt === null ? 'success' : 'neutral'}>
-                    {membership.memberRole}
-                    {membership.endAt === null ? '' : ' · ended'}
-                  </Badge>
-                  {canManageMembers && membership.endAt === null ? (
-                    <EndMembershipButton roomId={room.id} membershipId={membership.id} />
-                  ) : null}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-      {canManageMembers ? (
-        <section className="flex flex-col gap-3" aria-label="Add member">
-          <h2 className="text-sm font-semibold text-foreground">Add member</h2>
-          <RoomMemberAddForm
-            roomId={room.id}
-            activeTenancies={activeTenancies.map((tenancy) => ({
-              id: tenancy.id,
-              managementMode: tenancy.managementMode,
-            }))}
-          />
-        </section>
-      ) : null}
-      <section className="flex flex-col gap-3" aria-label="Tenancies">
-        <h2 className="text-sm font-semibold text-foreground">Tenancies ({tenancies.length})</h2>
-        {tenancies.length === 0 ? (
-          <p data-testid="room-tenancies-empty" className="text-sm leading-6 text-muted-foreground">
-            No tenancies recorded.
-          </p>
-        ) : (
-          <ul
-            data-testid="room-tenancies-list"
-            className="overflow-hidden rounded-xl border border-border bg-surface"
-          >
-            {tenancies.map((tenancy, index) => (
-              <li
-                key={tenancy.id}
-                className={
-                  index === tenancies.length - 1
-                    ? 'flex items-center justify-between gap-3 px-4 py-3 text-sm'
-                    : 'flex items-center justify-between gap-3 border-b border-border px-4 py-3 text-sm'
-                }
-              >
-                <span className="min-w-0 truncate text-foreground">{tenancy.managementMode}</span>
-                <span className="flex shrink-0 items-center gap-2">
-                  <Badge variant={tenancy.state === 'ACTIVE' ? 'success' : 'neutral'}>
-                    {tenancy.state}
-                  </Badge>
-                  {tenancy.state === 'ACTIVE' &&
-                  (actor.isSystemAdmin ||
-                    (isRoomOwner && tenancy.managementMode === 'PRIVATE_OWNER_MANAGED')) ? (
-                    <TenancyEndButton roomId={room.id} tenancyId={tenancy.id} />
-                  ) : null}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-      {canManageTenancies ? (
-        <section className="flex flex-col gap-3" aria-label="New tenancy">
-          <h2 className="text-sm font-semibold text-foreground">New tenancy</h2>
-          <TenancyCreateForm roomId={room.id} allowProjectManaged={actor.isSystemAdmin} />
+      {canManageMembers || canManageTenancies ? (
+        <section aria-label="Manage this room" className="flex flex-col gap-6">
+          <h2 className="text-title font-semibold tracking-tight text-foreground">Manage this room</h2>
+          {canManageMembers ? (
+            <div className="flex flex-col gap-2">
+              <h3 className="text-heading font-semibold text-foreground">Add member</h3>
+              <RoomMemberAddForm
+                roomId={room.id}
+                activeTenancies={activeTenancies.map((tenancy) => ({
+                  id: tenancy.id,
+                  managementMode: tenancy.managementMode,
+                }))}
+              />
+            </div>
+          ) : null}
+          {canManageTenancies ? (
+            <div className="flex flex-col gap-2">
+              <h3 className="text-heading font-semibold text-foreground">New tenancy</h3>
+              <TenancyCreateForm roomId={room.id} allowProjectManaged={actor.isSystemAdmin} />
+            </div>
+          ) : null}
         </section>
       ) : null}
     </main>
