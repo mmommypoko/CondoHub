@@ -42,7 +42,7 @@ export function Lightbox({ open, onClose, src, alt, title, testId }: LightboxPro
             <span className="flex size-12 items-center justify-center rounded-full bg-secondary text-muted-foreground">
               <ImageOff aria-hidden="true" className="size-6" />
             </span>
-            <p className="text-sm text-muted-foreground">Image unavailable</p>
+            <p className="text-small leading-small text-muted-foreground">Image unavailable</p>
           </div>
         ) : (
           <div className="relative w-full">

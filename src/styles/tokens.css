@@ -48,6 +48,50 @@
   --ui-disabled-border: #e7e4de;
   --ui-skeleton: #e7e4de;
   --ui-link: #0f766e;
+
+  --ui-radius-sm: 6px;
+  --ui-radius-md: 8px;
+  --ui-radius-lg: 12px;
+  --ui-radius-xl: 16px;
+  --ui-radius-full: 9999px;
+
+  --ui-shadow-none: none;
+  --ui-shadow-raised: 0 1px 2px rgb(28 25 23 / 0.06);
+  --ui-shadow-overlay: 0 8px 24px rgb(28 25 23 / 0.12);
+
+  --ui-text-display: 24px;
+  --ui-leading-display: 32px;
+  --ui-text-title: 20px;
+  --ui-leading-title: 28px;
+  --ui-text-heading: 16px;
+  --ui-leading-heading: 24px;
+  --ui-text-body: 14px;
+  --ui-leading-body: 20px;
+  --ui-text-small: 13px;
+  --ui-leading-small: 18px;
+  --ui-text-caption: 12px;
+  --ui-leading-caption: 16px;
+  --ui-tracking-display: -0.01em;
+
+  --ui-space-section: 24px;
+  --ui-space-section-mobile: 16px;
+  --ui-space-card: 16px;
+  --ui-space-card-dense: 12px;
+  --ui-space-gutter: 16px;
+  --ui-space-gutter-md: 24px;
+  --ui-space-gutter-lg: 32px;
+  --ui-content-narrow: 44rem;
+  --ui-content-wide: 76rem;
+
+  --ui-duration-instant: 100ms;
+  --ui-duration-fast: 150ms;
+  --ui-duration-base: 200ms;
+  --ui-duration-slow: 250ms;
+  --ui-ease-out: cubic-bezier(0, 0, 0.2, 1);
+
+  --ui-z-sticky: 30;
+  --ui-z-overlay: 50;
+  --ui-z-toast: 60;
 }
 
 @theme inline {
@@ -100,4 +144,35 @@
   --color-disabled-border: var(--ui-disabled-border);
   --color-skeleton: var(--ui-skeleton);
   --color-link: var(--ui-link);
+
+  --radius-sm: var(--ui-radius-sm);
+  --radius-md: var(--ui-radius-md);
+  --radius-lg: var(--ui-radius-lg);
+  --radius-xl: var(--ui-radius-xl);
+  --radius-full: var(--ui-radius-full);
+
+  --shadow-raised: var(--ui-shadow-raised);
+  --shadow-overlay: var(--ui-shadow-overlay);
+
+  --text-display: var(--ui-text-display);
+  --text-title: var(--ui-text-title);
+  --text-heading: var(--ui-text-heading);
+  --text-body: var(--ui-text-body);
+  --text-small: var(--ui-text-small);
+  --text-caption: var(--ui-text-caption);
+
+  --leading-display: var(--ui-leading-display);
+  --leading-title: var(--ui-leading-title);
+  --leading-heading: var(--ui-leading-heading);
+  --leading-body: var(--ui-leading-body);
+  --leading-small: var(--ui-leading-small);
+  --leading-caption: var(--ui-leading-caption);
+  --tracking-display: var(--ui-tracking-display);
+
+  --duration-instant: var(--ui-duration-instant);
+  --duration-fast: var(--ui-duration-fast);
+  --duration-base: var(--ui-duration-base);
+  --duration-slow: var(--ui-duration-slow);
+
+  --ease-out: var(--ui-ease-out);
 }

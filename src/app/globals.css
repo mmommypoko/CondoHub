@@ -15,23 +15,36 @@
   h6 {
     line-height: 1.4;
   }
+
+  :where(:lang(th)) {
+    line-height: 1.8;
+  }
+
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--ui-focus-ring);
+    outline-offset: 2px;
+  }
 }
 
 @layer utilities {
+  .ui-tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
   .animate-ui-fade {
-    animation: ui-fade 200ms ease-out;
+    animation: ui-fade var(--ui-duration-base) var(--ui-ease-out);
   }
 
   .animate-ui-dialog {
-    animation: ui-dialog 200ms ease-out;
+    animation: ui-dialog var(--ui-duration-base) var(--ui-ease-out);
   }
 
   .animate-ui-sheet {
-    animation: ui-sheet 250ms ease-out;
+    animation: ui-sheet var(--ui-duration-slow) var(--ui-ease-out);
   }
 
   .animate-ui-toast {
-    animation: ui-toast 200ms ease-out;
+    animation: ui-toast var(--ui-duration-base) var(--ui-ease-out);
   }
 }
 

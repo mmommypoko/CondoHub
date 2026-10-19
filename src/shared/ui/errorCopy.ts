@@ -24,6 +24,25 @@ export function firstOf(
   return fallback;
 }
 
+export interface ErrorCopies {
+  denied: string;
+  rateLimited: string;
+  fallback: string;
+}
+
+export function resolveErrorCopy(
+  code: string | undefined,
+  payload: unknown,
+  copies: ErrorCopies,
+): string {
+  return firstOf(
+    code,
+    serverErrorMessage(payload, copies.fallback),
+    deniedCopy(copies.denied),
+    rateLimitedCopy(copies.rateLimited),
+  );
+}
+
 export function serverErrorMessage(payload: unknown, fallback: string): string {
   if (typeof payload !== 'object' || payload === null) return fallback;
   const error = (payload as { error?: unknown }).error;

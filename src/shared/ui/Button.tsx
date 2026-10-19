@@ -14,7 +14,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const BASE_STYLES =
-  "inline-flex select-none items-center justify-center gap-2 rounded-lg font-medium transition-[background-color,color,border-color,opacity,transform] duration-150 ease-out active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:active:scale-100 [&_svg]:size-5 [&_svg]:shrink-0";
+  "inline-flex select-none items-center justify-center gap-2 rounded-md text-body font-medium transition-[background-color,color,border-color,opacity,transform] duration-fast ease-out active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:active:scale-100 [&_svg]:size-5 [&_svg]:shrink-0";
 
 const VARIANT_STYLES: Record<ButtonVariant, string> = {
   primary:
@@ -28,9 +28,9 @@ const VARIANT_STYLES: Record<ButtonVariant, string> = {
 };
 
 const SIZE_STYLES: Record<ButtonSize, string> = {
-  sm: "h-8 px-3 text-sm",
-  md: "h-10 px-4 text-sm",
-  lg: "h-11 px-5 text-base",
+  sm: "h-8 px-3 text-body leading-body",
+  md: "h-10 px-4 text-body leading-body",
+  lg: "h-11 px-5 text-heading leading-heading",
 };
 
 export function Button({

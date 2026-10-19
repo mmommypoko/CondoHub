@@ -42,7 +42,7 @@ export function FormField({
 
   return (
     <div data-testid={testId} className={cx("flex flex-col gap-1.5", className)}>
-      <label htmlFor={fieldId} className="text-sm font-medium text-foreground">
+      <label htmlFor={fieldId} className="text-body leading-body font-medium text-foreground">
         {label}
         {required ? (
           <span aria-hidden="true" className="ml-1 text-danger-foreground">
@@ -52,7 +52,7 @@ export function FormField({
       </label>
       {control}
       {hint ? (
-        <p id={hintId} className="text-sm leading-6 text-muted-foreground">
+        <p id={hintId} className="text-small leading-small text-muted-foreground">
           {hint}
         </p>
       ) : null}
@@ -61,7 +61,7 @@ export function FormField({
           id={errorId}
           role="alert"
           data-testid={errorTestId ?? (fieldId ? `${fieldId}-error` : undefined)}
-          className="text-sm leading-6 font-medium text-danger-foreground"
+          className="text-body leading-body font-medium text-danger-foreground"
         >
           {error}
         </p>

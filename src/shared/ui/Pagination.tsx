@@ -15,7 +15,7 @@ export interface PaginationProps {
 }
 
 const LINK_BASE =
-  "inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg border px-2 text-sm font-medium transition-[background-color,color,border-color] duration-150 ease-out focus-visible:outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-focus-ring";
+  "inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border px-2 text-body leading-body font-medium transition-[background-color,color,border-color] duration-fast ease-out focus-visible:outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-focus-ring";
 
 function PageLink({
   href,
@@ -90,7 +90,7 @@ export function Pagination({
       data-testid={testId}
       className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
     >
-      <p className="text-sm text-muted-foreground">
+      <p className="text-small leading-small text-muted-foreground">
         Page {safePage} of {safeTotalPages} ({totalItems} total)
       </p>
       <div className="flex flex-wrap items-center gap-1.5">

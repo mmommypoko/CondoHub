@@ -10,7 +10,8 @@ export interface SkeletonProps extends HTMLAttributes<HTMLDivElement> {
 
 const SKELETON_BASE = "motion-reduce:animate-none animate-pulse rounded-lg bg-skeleton";
 
-export function Skeleton({ variant = "block", lines = 3, className, ...rest }: SkeletonProps) {
+export function Skeleton({ variant = "block", lines: linesProp, className, ...rest }: SkeletonProps) {
+  const lines = linesProp ?? (variant === "table-row" ? 5 : 3);
   if (variant === "text") {
     return (
       <div role="status" aria-label="Loading" className={cx("flex flex-col gap-2", className)} {...rest}>
@@ -29,7 +30,7 @@ export function Skeleton({ variant = "block", lines = 3, className, ...rest }: S
     return (
       <div role="status" aria-label="Loading" className={cx("flex flex-col gap-2", className)} {...rest}>
         {Array.from({ length: lines }, (_, index) => (
-          <span key={index} aria-hidden="true" className={cx(SKELETON_BASE, "h-12 w-full")} />
+          <span key={index} aria-hidden="true" className={cx(SKELETON_BASE, "h-11 w-full")} />
         ))}
       </div>
     );

@@ -25,13 +25,13 @@ export function Badge({ variant = "neutral", icon, className, children, ...rest 
   return (
     <span
       className={cx(
-        "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold",
+        "inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-caption leading-caption font-medium",
         VARIANT_STYLES[variant],
         className,
       )}
       {...rest}
     >
-      <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+      <Icon aria-hidden="true" className="size-4 shrink-0" />
       {children}
     </span>
   );

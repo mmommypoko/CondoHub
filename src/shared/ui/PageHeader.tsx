@@ -34,15 +34,15 @@ export function PageHeader({
             <a
               href={backHref}
               data-testid={backTestId}
-              className="mb-1 inline-flex items-center gap-1.5 rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+              className="mb-1 inline-flex items-center gap-1.5 rounded-lg text-body leading-body font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
             >
               <ArrowLeft aria-hidden="true" className="size-4" />
               {backLabel}
             </a>
           ) : null}
-          <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{title}</h1>
+          <h1 className="text-display leading-display font-semibold tracking-display text-foreground">{title}</h1>
           {description ? (
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p>
+            <p className="mt-1 max-w-2xl text-small leading-small text-muted-foreground">{description}</p>
           ) : null}
         </div>
         {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}

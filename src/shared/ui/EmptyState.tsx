@@ -25,8 +25,8 @@ export function EmptyState({
       <span className="flex size-12 items-center justify-center rounded-full bg-secondary text-muted-foreground">
         <Icon aria-hidden="true" className="size-6" />
       </span>
-      <h2 className="mt-1 text-lg font-semibold text-foreground">{title}</h2>
-      <p className="max-w-sm text-sm leading-6 text-muted-foreground">{description}</p>
+      <h2 className="mt-1 text-title leading-title font-semibold tracking-display text-foreground">{title}</h2>
+      <p className="max-w-sm text-small leading-small text-muted-foreground">{description}</p>
       {action ? <span className="mt-2">{action}</span> : null}
     </div>
   );

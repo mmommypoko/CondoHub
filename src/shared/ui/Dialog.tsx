@@ -20,7 +20,7 @@ export interface DialogProps {
 
 const SIZE_STYLES: Record<DialogSize, string> = {
   sm: "max-w-[25rem]",
-  md: "max-w-[30rem]",
+  md: "max-w-[28rem]",
   lg: "max-w-[35rem]",
 };
 
@@ -123,7 +123,7 @@ export function Dialog({
   const descriptionId = description && testId ? `${testId}-description` : undefined;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[var(--ui-z-overlay)] flex items-center justify-center p-4">
       <div
         aria-hidden="true"
         onClick={onClose}
@@ -138,17 +138,17 @@ export function Dialog({
         tabIndex={-1}
         data-testid={testId}
         className={cx(
-          "animate-ui-dialog relative flex max-h-[calc(100vh-2rem)] w-full flex-col rounded-xl border border-border bg-surface-raised shadow-lg focus-visible:outline-none",
+          "animate-ui-dialog relative flex max-h-[calc(100vh-2rem)] w-full flex-col rounded-lg border border-border bg-surface-raised shadow-overlay focus-visible:outline-none",
           SIZE_STYLES[size],
         )}
       >
         <div className="flex items-start gap-3 border-b border-border px-5 pt-4 pb-4">
           <div className="min-w-0 flex-1">
-            <h2 id={titleId} className="text-lg font-semibold text-foreground">
+            <h2 id={titleId} className="text-title leading-title font-semibold text-foreground">
               {title}
             </h2>
             {description ? (
-              <p id={descriptionId} className="mt-0.5 text-sm leading-6 text-muted-foreground">
+              <p id={descriptionId} className="mt-0.5 text-small leading-small text-muted-foreground">
                 {description}
               </p>
             ) : null}
@@ -158,7 +158,7 @@ export function Dialog({
             onClick={onClose}
             aria-label="Close dialog"
             data-testid={testId ? `${testId}-close` : undefined}
-            className="rounded-lg p-1.5 text-muted-foreground transition-[background-color,color] duration-150 ease-out hover:bg-ghost-hover hover:text-foreground focus-visible:outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+            className="rounded-lg p-1.5 text-muted-foreground transition-[background-color,color] duration-fast ease-out hover:bg-ghost-hover hover:text-foreground focus-visible:outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-focus-ring"
           >
             <X aria-hidden="true" className="size-5" />
           </button>

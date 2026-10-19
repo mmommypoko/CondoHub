@@ -8,7 +8,8 @@ export { Dialog, useOverlayDismiss, useOverlayFocusTrap } from "./Dialog";
 export type { DialogProps, DialogSize } from "./Dialog";
 export { EmptyState } from "./EmptyState";
 export type { EmptyStateProps } from "./EmptyState";
-export { deniedCopy, firstOf, rateLimitedCopy, serverErrorMessage } from "./errorCopy";
+export { deniedCopy, firstOf, rateLimitedCopy, resolveErrorCopy, serverErrorMessage } from "./errorCopy";
+export type { ErrorCopies } from "./errorCopy";
 export { FormField } from "./FormField";
 export type { FormFieldProps } from "./FormField";
 export { Lightbox } from "./Lightbox";
@@ -33,6 +34,8 @@ export {
   FILTER_LINK_ACTIVE,
   FILTER_LINK_BASE,
   FILTER_LINK_IDLE,
+  FOCUS_RING_CLASS,
+  FOCUS_RING_COMPACT_CLASS,
   INPUT_BASE_CLASS,
   INPUT_CLASS,
   TEXTAREA_CLASS,
