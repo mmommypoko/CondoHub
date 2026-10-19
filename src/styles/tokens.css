@@ -1,34 +1,36 @@
 :root {
   color-scheme: light;
 
-  --ui-background: #fafafa;
+  --ui-background: #f7f6f4;
   --ui-surface: #ffffff;
   --ui-surface-raised: #ffffff;
-  --ui-overlay: rgba(24, 24, 27, 0.5);
+  --ui-overlay: rgba(28, 25, 23, 0.5);
 
-  --ui-foreground: #18181b;
-  --ui-secondary-foreground: #3f3f46;
-  --ui-muted-foreground: #71717a;
+  --ui-foreground: #1c1917;
+  --ui-body-secondary: #44403c;
+  --ui-muted-foreground: #6f6a63;
 
-  --ui-border: #e4e4e7;
-  --ui-border-strong: #d4d4d8;
+  --ui-border: #e7e4de;
+  --ui-border-strong: #d8d4cc;
   --ui-input: #ffffff;
-  --ui-input-border: #d4d4d8;
-  --ui-input-placeholder: #71717a;
+  --ui-input-border: #d8d4cc;
+  --ui-input-placeholder: #6f6a63;
 
-  --ui-primary: #18181b;
-  --ui-primary-foreground: #fafafa;
-  --ui-secondary: #f4f4f5;
-  --ui-secondary-foreground: #18181b;
-  --ui-destructive: #dc2626;
+  --ui-primary: #0f766e;
+  --ui-primary-hover: #115e59;
+  --ui-primary-foreground: #ffffff;
+  --ui-secondary: #edeae3;
+  --ui-secondary-foreground: #1c1917;
+  --ui-destructive: #b91c1c;
+  --ui-destructive-hover: #991b1b;
   --ui-destructive-foreground: #ffffff;
-  --ui-ghost-hover: #f4f4f5;
+  --ui-ghost-hover: #edeae3;
 
   --ui-success: #ecfdf5;
   --ui-success-foreground: #047857;
   --ui-success-border: #a7f3d0;
   --ui-warning: #fffbeb;
-  --ui-warning-foreground: #b45309;
+  --ui-warning-foreground: #92400e;
   --ui-warning-border: #fde68a;
   --ui-danger: #fef2f2;
   --ui-danger-foreground: #b91c1c;
@@ -36,16 +38,16 @@
   --ui-info: #eff6ff;
   --ui-info-foreground: #1d4ed8;
   --ui-info-border: #bfdbfe;
-  --ui-neutral: #f4f4f5;
-  --ui-neutral-foreground: #52525b;
-  --ui-neutral-border: #e4e4e7;
+  --ui-neutral: #f2f1ee;
+  --ui-neutral-foreground: #57534e;
+  --ui-neutral-border: #e7e4de;
 
-  --ui-focus-ring: #2563eb;
-  --ui-disabled: #f4f4f5;
-  --ui-disabled-foreground: #a1a1aa;
-  --ui-disabled-border: #e4e4e7;
-  --ui-skeleton: #e4e4e7;
-  --ui-link: #1d4ed8;
+  --ui-focus-ring: #0f766e;
+  --ui-disabled: #edeae3;
+  --ui-disabled-foreground: #a8a29e;
+  --ui-disabled-border: #e7e4de;
+  --ui-skeleton: #e7e4de;
+  --ui-link: #0f766e;
 }
 
 @theme inline {
@@ -57,7 +59,7 @@
   --color-overlay: var(--ui-overlay);
 
   --color-foreground: var(--ui-foreground);
-  --color-secondary-foreground: var(--ui-secondary-foreground);
+  --color-body-secondary: var(--ui-body-secondary);
   --color-muted-foreground: var(--ui-muted-foreground);
 
   --color-border: var(--ui-border);
@@ -67,10 +69,12 @@
   --color-input-placeholder: var(--ui-input-placeholder);
 
   --color-primary: var(--ui-primary);
+  --color-primary-hover: var(--ui-primary-hover);
   --color-primary-foreground: var(--ui-primary-foreground);
   --color-secondary: var(--ui-secondary);
   --color-secondary-foreground: var(--ui-secondary-foreground);
   --color-destructive: var(--ui-destructive);
+  --color-destructive-hover: var(--ui-destructive-hover);
   --color-destructive-foreground: var(--ui-destructive-foreground);
   --color-ghost-hover: var(--ui-ghost-hover);
 

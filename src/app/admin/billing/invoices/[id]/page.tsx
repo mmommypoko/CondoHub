@@ -1,7 +1,7 @@
 import 'server-only';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
 import {
@@ -43,9 +43,9 @@ export default async function AdminBillingInvoiceDetailPage({
       <Link
         data-testid="invoice-detail-back"
         href="/admin/billing/invoices"
-        className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline"
+        className="inline-flex w-fit items-center gap-1.5 rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
       >
-        <ChevronLeft aria-hidden="true" className="size-4" />
+        <ArrowLeft aria-hidden="true" className="size-4" />
         Back to invoices
       </Link>
       <InvoiceDetailCard invoice={detail} />

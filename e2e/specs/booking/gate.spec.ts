@@ -153,6 +153,8 @@ test.describe('booking browser gate: six screens at 1366/768/360', () => {
     await page.getByTestId('facility-create-code').fill(`E2E-${ns}-UIGATE`);
     await page.getByTestId('facility-create-name').fill(`E2E ${ns} UI Gate Arena`);
     await page.getByTestId('facility-create-quota-limit').fill('5');
+    await page.getByTestId('facility-create-day-6').check();
+    await page.getByTestId('facility-create-day-0').check();
     await page.getByTestId('facility-create-submit').click();
     await expect(page.getByTestId('admin-facilities-list')).toBeVisible({ timeout: 15000 });
     const createdRow = page.getByText(`E2E ${ns} UI Gate Arena`);

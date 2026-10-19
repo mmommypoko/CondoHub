@@ -19,18 +19,18 @@ export function TicketComments({
         <h2 className="text-base font-semibold text-foreground">Comments ({comments.length})</h2>
       </div>
       {comments.length === 0 ? (
-        <p data-testid={`${testIdPrefix}-comments-empty`} className="text-sm text-muted-foreground">
+        <p data-testid={`${testIdPrefix}-comments-empty`} className="text-sm leading-6 text-muted-foreground">
           No comments yet.
         </p>
       ) : (
-        <ul data-testid={`${testIdPrefix}-comments`} className="flex min-w-0 flex-col gap-3">
+        <ul data-testid={`${testIdPrefix}-comments`} className="flex min-w-0 flex-col">
           {comments.map((comment) => (
             <li
               key={comment.id}
               data-testid={`${testIdPrefix}-comment-${comment.id}`}
-              className="flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-surface p-4"
+              className="flex min-w-0 flex-col gap-2 border-b border-border py-4 last:border-b-0"
             >
-              <p data-testid={`${testIdPrefix}-comment-body-${comment.id}`} className="whitespace-pre-wrap break-words text-sm text-foreground">
+              <p data-testid={`${testIdPrefix}-comment-body-${comment.id}`} className="whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
                 {comment.body}
               </p>
               {comment.images.length > 0 ? (
@@ -46,7 +46,7 @@ export function TicketComments({
                   ))}
                 </ul>
               ) : null}
-              <p className="break-all text-xs text-muted-foreground">{formatInstant(comment.createdAt)}</p>
+              <p className="break-all text-xs leading-6 text-muted-foreground">{formatInstant(comment.createdAt)}</p>
             </li>
           ))}
         </ul>

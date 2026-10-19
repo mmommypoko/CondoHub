@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { ImagePlus, X } from 'lucide-react';
-import { Button } from '@/shared/ui/Button';
+import { Button } from '@/shared/ui';
 
 export interface UploadedImage {
   imageId: string;
@@ -142,7 +142,7 @@ export function AnnouncementImageUploader({
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex min-w-0 flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-medium text-foreground">
           Images ({images.length}/{MAX_IMAGES})
@@ -173,11 +173,11 @@ export function AnnouncementImageUploader({
           if (file !== undefined) void uploadFile(file);
         }}
       />
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs leading-6 text-muted-foreground">
         JPEG, PNG, or WebP. Up to 5 MB per image, up to 5 images.
       </p>
       {progress !== null ? (
-        <div data-testid={`${testIdPrefix}-upload-progress`} role="status" className="flex flex-col gap-1">
+        <div data-testid={`${testIdPrefix}-upload-progress`} role="status" className="flex min-w-0 flex-col gap-1">
           <div className="flex items-center justify-between gap-2">
             <span className="min-w-0 truncate text-xs text-muted-foreground">
               Uploading {progress.fileName} — {progress.percent}%
@@ -195,23 +195,23 @@ export function AnnouncementImageUploader({
           </div>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-skeleton">
             <div
-              className="h-full rounded-full bg-primary transition-[width]"
+              className="h-full rounded-full bg-primary"
               style={{ width: `${progress.percent}%` }}
             />
           </div>
         </div>
       ) : null}
       {error !== null ? (
-        <p data-testid={`${testIdPrefix}-upload-error`} role="alert" className="text-sm text-danger">
+        <p data-testid={`${testIdPrefix}-upload-error`} role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
           {error}
         </p>
       ) : null}
       {images.length > 0 ? (
-        <ul data-testid={`${testIdPrefix}-image-list`} className="flex flex-col gap-2">
+        <ul data-testid={`${testIdPrefix}-image-list`} className="flex min-w-0 flex-col rounded-xl border border-border bg-surface">
           {images.map((image) => (
             <li
               key={image.imageId}
-              className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-border bg-surface p-2 text-sm"
+              className="flex min-w-0 items-center justify-between gap-2 border-b border-border p-2 pl-3 text-sm last:border-b-0"
             >
               <span className="min-w-0 truncate text-foreground">{image.fileName}</span>
               <Button

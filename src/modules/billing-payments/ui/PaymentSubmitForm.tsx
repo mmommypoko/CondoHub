@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@/shared/ui/Button';
-import { useToast } from '@/shared/ui/Toast';
+import { Button, deniedCopy, firstOf, useToast } from '@/shared/ui';
 import {
   PaymentSlipUploader,
   type SlipUpload,
@@ -22,8 +21,7 @@ function submitErrorCopy(code: string | undefined, fallback: string): string {
   if (code === 'PENDING_PAYMENT_EXISTS') {
     return 'A slip is already awaiting review for this invoice. Wait for the review before submitting again.';
   }
-  if (code === 'RESOURCE_NOT_FOUND' || code === 'ACCESS_DENIED') return 'This submission is not available.';
-  return fallback;
+  return firstOf(code, fallback, deniedCopy('This submission is not available.'));
 }
 
 export function PaymentSubmitForm({ invoiceId, onSubmitted }: { invoiceId: string; onSubmitted: () => void }) {
@@ -72,12 +70,12 @@ export function PaymentSubmitForm({ invoiceId, onSubmitted }: { invoiceId: strin
   return (
     <form data-testid="payment-submit-form" onSubmit={onSubmit} noValidate className="flex min-w-0 flex-col gap-3">
       {serverError !== null ? (
-        <p data-testid="payment-submit-error" role="alert" className="text-sm text-danger">
+        <p data-testid="payment-submit-error" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
           {serverError}
         </p>
       ) : null}
       {errors.imageId !== undefined ? (
-        <p data-testid="payment-submit-missing" role="alert" className="text-sm text-danger">
+        <p data-testid="payment-submit-missing" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
           {errors.imageId.message}
         </p>
       ) : null}

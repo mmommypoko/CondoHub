@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { apiJson } from '../../helpers/api';
 import { readRunContext } from '../../fixtures/run-context';
 import { projectToday } from '../../helpers/dates';
-import { completeFirstLogin, loginAsAdmin, provisionUser, roomOwnerAt } from '../../helpers/owner';
+import { completeFirstLogin, loginAsAdmin, provisionUser, roomOwnerAt, signInSuspendedActor } from '../../helpers/owner';
 import { buildValidImage } from '../../helpers/announcementFiles';
 import { completeUpload, mintIntent, putBytes, readAccess } from '../upload/uploadFlow';
 import {
@@ -1094,10 +1094,9 @@ test.describe('billing payments: submit, review, edit, transfer, tenants, admin 
     const suspendedContext = await browser.newContext({ baseURL });
     const suspendedPage = await suspendedContext.newPage();
     try {
-      const signin = await apiJson<{ token?: string }>(suspendedPage.request, {
-        method: 'POST',
-        path: '/api/auth/sign-in/username',
-        body: { username: ctx.stranger?.username ?? '', password: ctx.stranger?.password ?? '' },
+      const signin = await signInSuspendedActor(suspendedPage.request, {
+        username: ctx.stranger?.username ?? '',
+        password: ctx.stranger?.password ?? '',
       });
       expect(signin.status).toBe(200);
       const denied = await postSubmission(suspendedPage.request, fresh.id, { imageId: randomUUID() });

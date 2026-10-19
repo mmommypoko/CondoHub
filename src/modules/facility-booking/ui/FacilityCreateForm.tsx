@@ -5,8 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/shared/ui/Button';
-import { useToast } from '@/shared/ui/Toast';
+import { Button, FormField, useToast } from '@/shared/ui';
+import { CHECKBOX_CLASS, INPUT_CLASS, TEXTAREA_CLASS } from './formControls';
 
 const DAYS = [
   { key: '1', label: 'Mon' },
@@ -148,138 +148,103 @@ export function FacilityCreateForm({ projectId }: { projectId: string }) {
       data-testid="facility-create-form"
       onSubmit={onSubmit}
       noValidate
-      className="flex flex-col gap-4"
+      className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4 sm:p-5"
     >
       {serverError !== null ? (
-        <p data-testid="facility-create-error" role="alert" className="text-sm text-danger">
+        <p
+          data-testid="facility-create-error"
+          role="alert"
+          className="text-sm font-medium text-danger-foreground"
+        >
           {serverError}
         </p>
       ) : null}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="flex min-w-0 flex-col gap-1">
-          <label htmlFor="facility-create-code" className="text-sm font-medium text-foreground">
-            Code
-          </label>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <FormField label="Code" htmlFor="facility-create-code" error={errors.code?.message ?? ''} required>
           <input
-            id="facility-create-code"
             data-testid="facility-create-code"
             type="text"
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+            required
+            className={INPUT_CLASS}
             {...register('code')}
           />
-          {errors.code !== undefined ? (
-            <p role="alert" className="text-sm text-danger">
-              {errors.code.message}
-            </p>
-          ) : null}
-        </div>
-        <div className="flex min-w-0 flex-col gap-1">
-          <label htmlFor="facility-create-name" className="text-sm font-medium text-foreground">
-            Name
-          </label>
+        </FormField>
+        <FormField label="Name" htmlFor="facility-create-name" error={errors.name?.message ?? ''} required>
           <input
-            id="facility-create-name"
             data-testid="facility-create-name"
             type="text"
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+            required
+            className={INPUT_CLASS}
             {...register('name')}
           />
-          {errors.name !== undefined ? (
-            <p role="alert" className="text-sm text-danger">
-              {errors.name.message}
-            </p>
-          ) : null}
-        </div>
+        </FormField>
       </div>
-      <div className="flex min-w-0 flex-col gap-1">
-        <label htmlFor="facility-create-description" className="text-sm font-medium text-foreground">
-          Description
-        </label>
+      <FormField label="Description" htmlFor="facility-create-description" hint="Shown to residents on the facility page.">
         <textarea
-          id="facility-create-description"
           data-testid="facility-create-description"
           rows={3}
-          className="w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 py-2 text-sm text-foreground"
+          className={TEXTAREA_CLASS}
           {...register('description')}
         />
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="flex min-w-0 flex-col gap-1">
-          <label htmlFor="facility-create-capacity" className="text-sm font-medium text-foreground">
-            Seats per slot
-          </label>
+      </FormField>
+      <div className="grid grid-cols-1 gap-4 border-t border-border pt-4 sm:grid-cols-2">
+        <FormField label="Seats per slot" htmlFor="facility-create-capacity">
           <input
-            id="facility-create-capacity"
             data-testid="facility-create-capacity"
             type="number"
             min={1}
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+            className={INPUT_CLASS}
             {...register('capacity')}
           />
-        </div>
-        <div className="flex min-w-0 flex-col gap-1">
-          <label htmlFor="facility-create-slot" className="text-sm font-medium text-foreground">
-            Slot length (minutes)
-          </label>
+        </FormField>
+        <FormField label="Slot length (minutes)" htmlFor="facility-create-slot">
           <input
-            id="facility-create-slot"
             data-testid="facility-create-slot-minutes"
             type="number"
             min={5}
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+            className={INPUT_CLASS}
             {...register('slotMinutes')}
           />
-        </div>
-        <div className="flex min-w-0 flex-col gap-1">
-          <label htmlFor="facility-create-quota-kind" className="text-sm font-medium text-foreground">
-            Quota period
-          </label>
+        </FormField>
+        <FormField label="Quota period" htmlFor="facility-create-quota-kind">
           <select
-            id="facility-create-quota-kind"
             data-testid="facility-create-quota-kind"
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+            className={INPUT_CLASS}
             {...register('quotaKind')}
           >
             <option value="DAILY">Daily</option>
             <option value="WEEKLY">Weekly</option>
             <option value="MONTHLY">Monthly</option>
           </select>
-        </div>
-        <div className="flex min-w-0 flex-col gap-1">
-          <label htmlFor="facility-create-quota-limit" className="text-sm font-medium text-foreground">
-            Quota slots per period
-          </label>
+        </FormField>
+        <FormField label="Quota slots per period" htmlFor="facility-create-quota-limit">
           <input
-            id="facility-create-quota-limit"
             data-testid="facility-create-quota-limit"
             type="number"
             min={0}
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+            className={INPUT_CLASS}
             {...register('quotaLimit')}
           />
-        </div>
-        <div className="flex min-w-0 flex-col gap-1">
-          <label htmlFor="facility-create-advance" className="text-sm font-medium text-foreground">
-            Advance booking days
-          </label>
+        </FormField>
+        <FormField label="Advance booking days" htmlFor="facility-create-advance">
           <input
-            id="facility-create-advance"
             data-testid="facility-create-advance-days"
             type="number"
             min={0}
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+            className={INPUT_CLASS}
             {...register('advanceDays')}
           />
-        </div>
+        </FormField>
       </div>
-      <fieldset className="flex min-w-0 flex-col gap-2">
+      <fieldset className="flex min-w-0 flex-col gap-2 border-t border-border pt-4">
         <legend className="text-sm font-medium text-foreground">Open days</legend>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
           {DAYS.map((day) => (
             <label key={day.key} className="flex items-center gap-2 text-sm text-foreground">
               <input
                 data-testid={`facility-create-day-${day.key}`}
                 type="checkbox"
+                className={CHECKBOX_CLASS}
                 value={day.key}
                 {...register('openDays')}
               />
@@ -288,60 +253,44 @@ export function FacilityCreateForm({ projectId }: { projectId: string }) {
           ))}
         </div>
         {errors.openDays !== undefined ? (
-          <p role="alert" className="text-sm text-danger">
+          <p role="alert" className="text-sm font-medium text-danger-foreground">
             {errors.openDays.message}
           </p>
         ) : null}
       </fieldset>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex min-w-0 flex-col gap-1">
-          <label htmlFor="facility-create-open-start" className="text-sm font-medium text-foreground">
-            Opens
-          </label>
+      <div className="grid grid-cols-2 gap-4 border-t border-border pt-4">
+        <FormField label="Opens" htmlFor="facility-create-open-start" className="min-w-0">
           <input
-            id="facility-create-open-start"
             data-testid="facility-create-open-start"
             type="time"
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+            className={INPUT_CLASS}
             {...register('openStart')}
           />
-        </div>
-        <div className="flex min-w-0 flex-col gap-1">
-          <label htmlFor="facility-create-open-end" className="text-sm font-medium text-foreground">
-            Closes
-          </label>
+        </FormField>
+        <FormField label="Closes" htmlFor="facility-create-open-end" className="min-w-0">
           <input
-            id="facility-create-open-end"
             data-testid="facility-create-open-end"
             type="time"
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+            className={INPUT_CLASS}
             {...register('openEnd')}
           />
-        </div>
-        <div className="flex min-w-0 flex-col gap-1">
-          <label htmlFor="facility-create-break-start" className="text-sm font-medium text-foreground">
-            Break start (optional)
-          </label>
+        </FormField>
+        <FormField label="Break start (optional)" htmlFor="facility-create-break-start" className="min-w-0">
           <input
-            id="facility-create-break-start"
             data-testid="facility-create-break-start"
             type="time"
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+            className={INPUT_CLASS}
             {...register('breakStart')}
           />
-        </div>
-        <div className="flex min-w-0 flex-col gap-1">
-          <label htmlFor="facility-create-break-end" className="text-sm font-medium text-foreground">
-            Break end (optional)
-          </label>
+        </FormField>
+        <FormField label="Break end (optional)" htmlFor="facility-create-break-end" className="min-w-0">
           <input
-            id="facility-create-break-end"
             data-testid="facility-create-break-end"
             type="time"
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+            className={INPUT_CLASS}
             {...register('breakEnd')}
           />
-        </div>
+        </FormField>
       </div>
       <div className="flex flex-wrap gap-2">
         <Button data-testid="facility-create-submit" type="submit" loading={isSubmitting}>

@@ -1,10 +1,10 @@
 import 'server-only';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
-import { EmptyState } from '@/shared/ui/EmptyState';
+import { EmptyState } from '@/shared/ui';
 import { getAnnouncementDetail } from '@/modules/announcements/application/index';
 import { AnnouncementEditForm } from '@/modules/announcements/ui/AnnouncementEditForm';
 import { AnnouncementImage } from '@/modules/announcements/ui/AnnouncementImage';
@@ -29,14 +29,14 @@ export default async function AdminAnnouncementEditPage({
       <Link
         data-testid="admin-announcement-edit-back"
         href="/admin/announcements"
-        className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline"
+        className="inline-flex w-fit items-center gap-1.5 rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
       >
-        <ChevronLeft aria-hidden="true" className="size-4" />
+        <ArrowLeft aria-hidden="true" className="size-4" />
         Back to announcements
       </Link>
       <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="break-words text-xl font-semibold text-foreground">Edit announcement</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="break-words text-xl font-semibold tracking-tight text-foreground sm:text-2xl">Edit announcement</h1>
+        <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
           Editing after publish bumps the revision and records a snapshot.
         </p>
       </div>
@@ -54,11 +54,11 @@ export default async function AdminAnnouncementEditPage({
         revisions={detail.revisions}
       />
       {detail.images.length > 0 ? (
-        <section className="flex flex-col gap-2" aria-label="Current images">
+        <section className="flex min-w-0 flex-col gap-2 border-t border-border pt-6" aria-label="Current images">
           <h2 className="text-sm font-semibold text-foreground">
             Current images ({detail.images.length})
           </h2>
-          <div className="flex flex-col gap-3">
+          <div className="flex min-w-0 flex-col gap-3">
             {detail.images.map((image, index) => (
               <AnnouncementImage
                 key={image.id}

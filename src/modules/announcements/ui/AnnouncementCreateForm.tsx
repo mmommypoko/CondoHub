@@ -5,8 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/shared/ui/Button';
-import { useToast } from '@/shared/ui/Toast';
+import { Button, FormField, INPUT_BASE_CLASS, cx, useToast } from '@/shared/ui';
 import {
   AnnouncementImageUploader,
   type UploadedImage,
@@ -20,6 +19,12 @@ const createSchema = z.object({
 });
 
 type CreateValues = z.infer<typeof createSchema>;
+
+const PUBLISH_MODES = [
+  { value: 'draft', testId: 'announcement-create-mode-draft', label: 'Save as draft' },
+  { value: 'now', testId: 'announcement-create-mode-now', label: 'Publish now' },
+  { value: 'scheduled', testId: 'announcement-create-mode-scheduled', label: 'Schedule for later' },
+] as const;
 
 function toIsoOrNull(mode: string, publishAt: string | undefined): string | null {
   if (mode === 'now') return new Date().toISOString();
@@ -62,7 +67,7 @@ export function AnnouncementCreateForm() {
       const payload = (await response.json().catch(() => null)) as {
         error?: { message?: string };
       } | null;
-      setServerError(payload?.error?.message ?? 'Could not create the announcement.');
+      setServerError(payload?.error?.message ?? 'Could not create this announcement. Check the form and retry.');
       return;
     }
     toast.success('Announcement created.');
@@ -75,94 +80,60 @@ export function AnnouncementCreateForm() {
       data-testid="announcement-create-form"
       onSubmit={onSubmit}
       noValidate
-      className="flex flex-col gap-4"
+      className="flex min-w-0 flex-col gap-4"
     >
       {serverError !== null ? (
-        <p data-testid="announcement-create-error" role="alert" className="text-sm text-danger">
+        <p data-testid="announcement-create-error" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
           {serverError}
         </p>
       ) : null}
-      <div className="flex flex-col gap-1">
-        <label htmlFor="announcement-create-title" className="text-sm font-medium text-foreground">
-          Title
-        </label>
+      <FormField label="Title" htmlFor="announcement-create-title" {...(errors.title?.message === undefined ? {} : { error: errors.title.message })} required>
         <input
-          id="announcement-create-title"
           data-testid="announcement-create-title"
           type="text"
-          aria-invalid={errors.title !== undefined}
-          aria-describedby={errors.title !== undefined ? 'announcement-create-title-error' : undefined}
-          className="h-10 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          required
+          className={cx(INPUT_BASE_CLASS, 'h-10')}
           {...register('title')}
         />
-        {errors.title !== undefined ? (
-          <p id="announcement-create-title-error" role="alert" className="text-sm text-danger">
-            {errors.title.message}
-          </p>
-        ) : null}
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="announcement-create-body" className="text-sm font-medium text-foreground">
-          Body
-        </label>
+      </FormField>
+      <FormField label="Body" htmlFor="announcement-create-body" {...(errors.body?.message === undefined ? {} : { error: errors.body.message })} required>
         <textarea
-          id="announcement-create-body"
           data-testid="announcement-create-body"
           rows={6}
-          aria-invalid={errors.body !== undefined}
-          aria-describedby={errors.body !== undefined ? 'announcement-create-body-error' : undefined}
-          className="rounded-lg border border-input-border bg-surface px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          required
+          className={cx(INPUT_BASE_CLASS, 'py-2 leading-6')}
           {...register('body')}
         />
-        {errors.body !== undefined ? (
-          <p id="announcement-create-body-error" role="alert" className="text-sm text-danger">
-            {errors.body.message}
-          </p>
-        ) : null}
-      </div>
-      <fieldset className="flex flex-col gap-2">
+      </FormField>
+      <fieldset className="flex min-w-0 flex-col gap-2">
         <legend className="text-sm font-medium text-foreground">Publishing</legend>
-        <label className="flex items-center gap-2 text-sm text-foreground">
-          <input
-            data-testid="announcement-create-mode-draft"
-            type="radio"
-            value="draft"
-            {...register('publishMode')}
-          />
-          Save as draft
-        </label>
-        <label className="flex items-center gap-2 text-sm text-foreground">
-          <input
-            data-testid="announcement-create-mode-now"
-            type="radio"
-            value="now"
-            {...register('publishMode')}
-          />
-          Publish now
-        </label>
-        <label className="flex items-center gap-2 text-sm text-foreground">
-          <input
-            data-testid="announcement-create-mode-scheduled"
-            type="radio"
-            value="scheduled"
-            {...register('publishMode')}
-          />
-          Schedule for later
-        </label>
+        <div className="flex min-w-0 flex-col gap-1">
+          {PUBLISH_MODES.map((mode) => (
+            <label
+              key={mode.value}
+              className="flex w-fit cursor-pointer items-center gap-2.5 rounded-lg px-1 py-1 text-sm text-foreground transition-[background-color] duration-150 ease-out hover:bg-secondary motion-reduce:transition-none"
+            >
+              <input
+                data-testid={mode.testId}
+                type="radio"
+                value={mode.value}
+                className="size-4 shrink-0 accent-primary"
+                {...register('publishMode')}
+              />
+              {mode.label}
+            </label>
+          ))}
+        </div>
       </fieldset>
       {publishMode === 'scheduled' ? (
-        <div className="flex flex-col gap-1">
-          <label htmlFor="announcement-create-publish-at" className="text-sm font-medium text-foreground">
-            Publish at
-          </label>
+        <FormField label="Publish at" htmlFor="announcement-create-publish-at">
           <input
-            id="announcement-create-publish-at"
             data-testid="announcement-create-publish-at"
             type="datetime-local"
-            className="h-10 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+            className={cx(INPUT_BASE_CLASS, 'h-10')}
             {...register('publishAt')}
           />
-        </div>
+        </FormField>
       ) : null}
       <AnnouncementImageUploader
         images={images}

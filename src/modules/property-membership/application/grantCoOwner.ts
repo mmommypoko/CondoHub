@@ -58,6 +58,7 @@ export async function grantCoOwner(
     username: input.username ?? null,
     email: input.email ?? null,
     name: input.name ?? null,
+    phone: input.phone ?? null,
   });
   if (input.idempotencyKey !== undefined) {
     const existing = await getIdempotencyRecord(db, {

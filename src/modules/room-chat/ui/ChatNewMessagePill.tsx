@@ -1,7 +1,7 @@
 'use client';
 
 import { ArrowDown } from 'lucide-react';
-import { Button } from '@/shared/ui/Button';
+import { Button } from '@/shared/ui';
 
 export function ChatNewMessagePill({
   count,
@@ -20,7 +20,7 @@ export function ChatNewMessagePill({
         variant="primary"
         size="sm"
         onClick={onJump}
-        className="pointer-events-auto shadow-lg"
+        className="pointer-events-auto rounded-full shadow-lg"
       >
         <ArrowDown aria-hidden="true" className="size-4" />
         {count === 1 ? 'New message' : `${count} new messages`}

@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@/shared/ui/Button';
-import { useToast } from '@/shared/ui/Toast';
+import { Button, FormField, TEXTAREA_CLASS, cx, deniedCopy, firstOf, rateLimitedCopy, useToast } from '@/shared/ui';
 import {
   TicketImageUploader,
   type TicketUploadedImage,
@@ -19,11 +18,7 @@ interface ErrorPayload {
 }
 
 function commentErrorCopy(code: string | undefined, fallback: string): string {
-  if (code === 'RESOURCE_NOT_FOUND' || code === 'ACCESS_DENIED') {
-    return 'This request is not available.';
-  }
-  if (code === 'RATE_LIMITED') return 'Too many requests. Please wait a moment and retry.';
-  return fallback;
+  return firstOf(code, fallback, deniedCopy('This request is not available.'), rateLimitedCopy('Too many requests. Please wait a moment and retry.'));
 }
 
 export function TicketCommentForm({
@@ -66,7 +61,7 @@ export function TicketCommentForm({
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as ErrorPayload | null;
         setServerError(
-          commentErrorCopy(payload?.error?.code, payload?.error?.message ?? 'Could not post the comment.'),
+          commentErrorCopy(payload?.error?.code, payload?.error?.message ?? 'Could not post this comment. Check the form and retry.'),
         );
         return;
       }
@@ -81,31 +76,21 @@ export function TicketCommentForm({
   return (
     <form data-testid={`${testIdPrefix}-comment-form`} onSubmit={onSubmit} noValidate className="flex min-w-0 flex-col gap-3">
       {serverError !== null ? (
-        <p data-testid={`${testIdPrefix}-comment-error`} role="alert" className="text-sm text-danger">
+        <p data-testid={`${testIdPrefix}-comment-error`} role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
           {serverError}
         </p>
       ) : null}
-      <div className="flex min-w-0 flex-col gap-1">
-        <label htmlFor={`${testIdPrefix}-comment-body`} className="text-sm font-medium text-foreground">
-          Add a comment
-        </label>
+      <FormField label="Add a comment" htmlFor={`${testIdPrefix}-comment-body`} {...(errors.body?.message === undefined ? {} : { error: errors.body.message })} required>
         <textarea
-          id={`${testIdPrefix}-comment-body`}
           data-testid={`${testIdPrefix}-comment-body`}
           rows={4}
           maxLength={20000}
+          required
           placeholder="Share an update or ask for clarification."
-          aria-invalid={errors.body !== undefined}
-          aria-describedby={errors.body !== undefined ? `${testIdPrefix}-comment-body-error` : undefined}
-          className="w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          className={cx(TEXTAREA_CLASS, 'leading-6')}
           {...register('body')}
         />
-        {errors.body !== undefined ? (
-          <p id={`${testIdPrefix}-comment-body-error`} data-testid={`${testIdPrefix}-comment-body-error`} role="alert" className="text-sm text-danger">
-            {errors.body.message}
-          </p>
-        ) : null}
-      </div>
+      </FormField>
       <TicketImageUploader
         images={images}
         onChange={setImages}

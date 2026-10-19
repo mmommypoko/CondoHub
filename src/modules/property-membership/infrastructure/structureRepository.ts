@@ -112,6 +112,35 @@ export async function insertFloor(
   return toFloorRow(row);
 }
 
+export async function updateFloor(
+  tx: Tx,
+  id: string,
+  input: { code?: string | undefined; label?: string | undefined },
+): Promise<FloorRow | null> {
+  const rows = await tx
+    .update(floor)
+    .set({ ...(input.code !== undefined ? { code: input.code } : {}), ...(input.label !== undefined ? { label: input.label } : {}) })
+    .where(eq(floor.id, id))
+    .returning();
+  const row = rows[0];
+  return row === undefined ? null : toFloorRow(row);
+}
+
+export async function deleteFloor(tx: Tx, id: string): Promise<FloorRow | null> {
+  const rows = await tx.delete(floor).where(eq(floor.id, id)).returning();
+  const row = rows[0];
+  return row === undefined ? null : toFloorRow(row);
+}
+
+export async function listRoomsByFloor(db: Db, floorId: string): Promise<RoomRow[]> {
+  const rows = await db
+    .select()
+    .from(room)
+    .where(eq(room.floorId, floorId))
+    .orderBy(room.roomCode);
+  return rows.map(toRoomRow);
+}
+
 export async function findRoomById(db: Db, id: string): Promise<RoomRow | null> {
   const rows = await db.select().from(room).where(eq(room.id, id)).limit(1);
   const row = rows[0];

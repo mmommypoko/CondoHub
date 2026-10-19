@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/shared/ui/Button';
-import { useToast } from '@/shared/ui/Toast';
+import { Button, FormField, useToast } from '@/shared/ui';
+import { INPUT_CLASS } from '@/modules/billing-payments/ui/formControls';
 import {
   chargeEventCreateSchema,
   type ChargeEventCreateValues,
@@ -87,85 +87,59 @@ export function ChargeEventCreateForm() {
   );
 
   return (
-    <form data-testid="charge-event-create-form" onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
+    <form data-testid="charge-event-create-form" onSubmit={onSubmit} noValidate className="flex min-w-0 flex-col gap-4">
       {serverError !== null ? (
-        <p data-testid="charge-event-create-error" role="alert" className="text-sm text-danger">
+        <p data-testid="charge-event-create-error" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
           {serverError}
         </p>
       ) : null}
       {conflict ? (
-        <p data-testid="charge-event-create-conflict" role="alert" className="text-sm text-danger">
+        <p data-testid="charge-event-create-conflict" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
           The event conflicts with an existing record.
         </p>
       ) : null}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="flex min-w-0 flex-col gap-1">
-          <label htmlFor="charge-event-create-date" className="text-sm font-medium text-foreground">
-            Effective date
-          </label>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <FormField
+          label="Effective date"
+          htmlFor="charge-event-create-date"
+          required
+          error={errors.eventEffectiveDate?.message ?? ''}
+        >
           <input
-            id="charge-event-create-date"
             data-testid="charge-event-create-date"
             type="date"
-            aria-invalid={errors.eventEffectiveDate !== undefined}
-            aria-describedby={
-              errors.eventEffectiveDate !== undefined ? 'charge-event-create-date-error' : undefined
-            }
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+            className={INPUT_CLASS}
             {...register('eventEffectiveDate')}
           />
-          {errors.eventEffectiveDate !== undefined ? (
-            <p id="charge-event-create-date-error" role="alert" className="text-sm text-danger">
-              {errors.eventEffectiveDate.message}
-            </p>
-          ) : null}
-        </div>
-        <div className="flex min-w-0 flex-col gap-1">
-          <label htmlFor="charge-event-create-amount" className="text-sm font-medium text-foreground">
-            Amount (THB, optional)
-          </label>
+        </FormField>
+        <FormField
+          label="Amount (THB, optional)"
+          htmlFor="charge-event-create-amount"
+          error={errors.configuredAmount?.message ?? ''}
+        >
           <input
-            id="charge-event-create-amount"
             data-testid="charge-event-create-amount"
             type="text"
             inputMode="decimal"
             placeholder="3000.00"
-            aria-invalid={errors.configuredAmount !== undefined}
-            aria-describedby={
-              errors.configuredAmount !== undefined ? 'charge-event-create-amount-error' : undefined
-            }
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+            className={INPUT_CLASS}
             {...register('configuredAmount')}
           />
-          {errors.configuredAmount !== undefined ? (
-            <p id="charge-event-create-amount-error" role="alert" className="text-sm text-danger">
-              {errors.configuredAmount.message}
-            </p>
-          ) : null}
-        </div>
+        </FormField>
       </div>
-      <div className="flex min-w-0 flex-col gap-1">
-        <label htmlFor="charge-event-create-note" className="text-sm font-medium text-foreground">
-          Note (optional)
-        </label>
+      <FormField
+        label="Note (optional)"
+        htmlFor="charge-event-create-note"
+        error={errors.contextNote?.message ?? ''}
+      >
         <input
-          id="charge-event-create-note"
           data-testid="charge-event-create-note"
           type="text"
           maxLength={500}
-          aria-invalid={errors.contextNote !== undefined}
-          aria-describedby={
-            errors.contextNote !== undefined ? 'charge-event-create-note-error' : undefined
-          }
-          className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          className={INPUT_CLASS}
           {...register('contextNote')}
         />
-        {errors.contextNote !== undefined ? (
-          <p id="charge-event-create-note-error" role="alert" className="text-sm text-danger">
-            {errors.contextNote.message}
-          </p>
-        ) : null}
-      </div>
+      </FormField>
       <div className="flex flex-wrap gap-2">
         <Button data-testid="charge-event-create-submit" type="submit" loading={isSubmitting}>
           Create event

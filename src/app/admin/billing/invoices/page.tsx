@@ -3,29 +3,14 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
-import { Badge } from '@/shared/ui/Badge';
-import { EmptyState } from '@/shared/ui/EmptyState';
+import { Badge, DataTable, DataTableCell, DataTableRow, EmptyState, PageHeader, Pagination, cx } from '@/shared/ui';
 import { listInvoices } from '@/modules/billing-payments/application/index';
+import { invoiceStateLabel, invoiceStateVariant, kindLabel } from '@/modules/billing-payments/ui/billingLabels';
+import { FILTER_LINK_ACTIVE, FILTER_LINK_BASE, FILTER_LINK_IDLE } from '@/modules/billing-payments/ui/formControls';
 
 export const dynamic = 'force-dynamic';
 
-function kindLabel(kind: string): string {
-  if (kind === 'PRIVATE_RENT') return 'Private rent';
-  if (kind === 'PROJECT_MANAGED_RENT') return 'Project rent';
-  return 'Common fee';
-}
-
-function stateLabel(state: string): string {
-  if (state === 'PAID') return 'Paid';
-  if (state === 'PARTIALLY_PAID') return 'Partially paid';
-  return 'Unpaid';
-}
-
-function stateVariant(state: string): 'success' | 'info' | 'warning' {
-  if (state === 'PAID') return 'success';
-  if (state === 'PARTIALLY_PAID') return 'info';
-  return 'warning';
-}
+const BASE_PATH = '/admin/billing/invoices';
 
 export default async function AdminBillingInvoicesPage({
   searchParams,
@@ -52,39 +37,38 @@ export default async function AdminBillingInvoicesPage({
     },
   );
   const totalPages = Math.max(1, Math.ceil(feed.total / 20));
+  const suffix = kind === undefined ? '' : `&kind=${kind}`;
   return (
     <main
       data-testid="invoice-list-page"
       className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
     >
-      <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="text-xl font-semibold text-foreground">Invoices</h1>
-        <p className="text-sm text-muted-foreground">
-          Issued invoices with payment state and outstanding balances. Open an invoice to review slips.
-        </p>
-      </div>
+      <PageHeader
+        title="Invoices"
+        description="Issued invoices with payment state and outstanding balances. Open an invoice to review slips."
+      />
       <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter by kind">
         <Link
           data-testid="invoice-filter-all"
-          href="/admin/billing/invoices"
+          href={BASE_PATH}
           aria-current={kind === undefined ? 'page' : undefined}
-          className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary-foreground hover:bg-secondary"
+          className={cx(FILTER_LINK_BASE, kind === undefined ? FILTER_LINK_ACTIVE : FILTER_LINK_IDLE)}
         >
           All
         </Link>
         <Link
           data-testid="invoice-filter-common"
-          href="/admin/billing/invoices?kind=COMMON_FEE"
+          href={`${BASE_PATH}?kind=COMMON_FEE`}
           aria-current={kind === 'COMMON_FEE' ? 'page' : undefined}
-          className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary-foreground hover:bg-secondary"
+          className={cx(FILTER_LINK_BASE, kind === 'COMMON_FEE' ? FILTER_LINK_ACTIVE : FILTER_LINK_IDLE)}
         >
           Common fee
         </Link>
         <Link
           data-testid="invoice-filter-rent"
-          href="/admin/billing/invoices?kind=PROJECT_MANAGED_RENT"
+          href={`${BASE_PATH}?kind=PROJECT_MANAGED_RENT`}
           aria-current={kind === 'PROJECT_MANAGED_RENT' ? 'page' : undefined}
-          className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary-foreground hover:bg-secondary"
+          className={cx(FILTER_LINK_BASE, kind === 'PROJECT_MANAGED_RENT' ? FILTER_LINK_ACTIVE : FILTER_LINK_IDLE)}
         >
           Project rent
         </Link>
@@ -96,80 +80,67 @@ export default async function AdminBillingInvoicesPage({
           description="When the billing job issues invoices, they appear here with totals and due dates."
         />
       ) : (
-        <ul data-testid="invoice-list" className="flex flex-col gap-3">
+        <DataTable
+          testId="invoice-list"
+          caption="Issued invoices"
+          columns={[
+            { key: 'invoice', header: 'Invoice' },
+            { key: 'state', header: 'State' },
+            { key: 'total', header: 'Total', numeric: true },
+            { key: 'outstanding', header: 'Outstanding', numeric: true },
+            { key: 'due', header: 'Due', numeric: true },
+          ]}
+        >
           {feed.rows.map((row) => (
-            <li
-              key={row.id}
-              className="flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-surface p-4"
-            >
-              <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                <Link
-                  data-testid={`invoice-row-${row.id}`}
-                  href={`/admin/billing/invoices/${row.id}`}
-                  className="min-w-0 flex-1 basis-40 break-words text-sm font-semibold text-foreground hover:underline"
-                >
-                  {kindLabel(row.kind)} · {row.periodStart}
-                </Link>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge data-testid={`invoice-state-${row.id}`} variant={stateVariant(row.state)}>
-                    {stateLabel(row.state)}
+            <DataTableRow key={row.id} rowKey={row.id}>
+              <DataTableCell link href={`${BASE_PATH}/${row.id}`} linkTestId={`invoice-row-${row.id}`}>
+                {kindLabel(row.kind)} · {row.periodStart}
+              </DataTableCell>
+              <DataTableCell>
+                <span className="inline-flex flex-wrap items-center gap-2">
+                  <Badge data-testid={`invoice-state-${row.id}`} variant={invoiceStateVariant(row.state)}>
+                    {invoiceStateLabel(row.state)}
                   </Badge>
-                  <Badge data-testid={`invoice-total-${row.id}`} variant="neutral">
-                    {row.total.amount} {row.total.currency}
-                  </Badge>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                <span>Due {row.dueDate}</span>
-                <span>Period {row.periodStart} to {row.periodEnd}</span>
+                  {row.overdue ? (
+                    <Badge data-testid={`invoice-overdue-${row.id}`} variant="danger">
+                      Overdue
+                    </Badge>
+                  ) : null}
+                  {row.pendingOnPaid ? (
+                    <Badge data-testid={`invoice-pending-on-paid-${row.id}`} variant="warning">
+                      Paid, slips pending
+                    </Badge>
+                  ) : null}
+                </span>
+              </DataTableCell>
+              <DataTableCell numeric>
+                <span data-testid={`invoice-total-${row.id}`} className="font-medium text-foreground">
+                  {row.total.amount} {row.total.currency}
+                </span>
+              </DataTableCell>
+              <DataTableCell numeric>
                 <span data-testid={`invoice-outstanding-${row.id}`}>
                   Outstanding {row.outstanding.amount} {row.outstanding.currency}
                 </span>
-                {row.overdue ? (
-                  <Badge data-testid={`invoice-overdue-${row.id}`} variant="danger">
-                    Overdue
-                  </Badge>
-                ) : null}
-                {row.pendingOnPaid ? (
-                  <Badge data-testid={`invoice-pending-on-paid-${row.id}`} variant="warning">
-                    Paid, slips pending
-                  </Badge>
-                ) : null}
-              </div>
-            </li>
+              </DataTableCell>
+              <DataTableCell numeric>
+                <span>Due {row.dueDate}</span>
+              </DataTableCell>
+            </DataTableRow>
           ))}
-        </ul>
+        </DataTable>
       )}
-      {totalPages > 1 ? (
-        <nav
-          aria-label="Invoice pages"
-          className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground"
-        >
-          <span>
-            Page {page} of {totalPages} ({feed.total} invoices)
-          </span>
-          <div className="flex gap-2">
-            {page > 1 ? (
-              <Link
-                data-testid="invoice-list-prev"
-                href={`/admin/billing/invoices?page=${page - 1}${kind === undefined ? '' : `&kind=${kind}`}`}
-                className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary-foreground hover:bg-secondary"
-              >
-                Previous
-              </Link>
-            ) : null}
-            {page < totalPages ? (
-              <Link
-                data-testid="invoice-list-next"
-                href={`/admin/billing/invoices?page=${page + 1}${kind === undefined ? '' : `&kind=${kind}`}`}
-                className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary-foreground hover:bg-secondary"
-              >
-                Next
-              </Link>
-            ) : null}
-          </div>
-        </nav>
-      ) : null}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={feed.total}
+        pagePath={BASE_PATH}
+        querySuffix={suffix}
+        testId="invoice-list-pages"
+        nextTestId="invoice-list-next"
+        prevTestId="invoice-list-prev"
+        hideDisabledEnds
+      />
     </main>
   );
 }

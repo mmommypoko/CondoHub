@@ -1,9 +1,9 @@
 import 'server-only';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
-import { EmptyState } from '@/shared/ui/EmptyState';
+import { EmptyState } from '@/shared/ui';
 import { isUuid } from '@/shared/utils/idempotency';
 import { getTicket } from '@/modules/maintenance/application/index';
 import { TicketDetailSections } from '@/modules/maintenance/ui/TicketDetailSections';
@@ -53,9 +53,9 @@ export default async function MaintenanceDetailPage({
             <Link
               data-testid="maintenance-detail-back"
               href="/maintenance"
-              className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline"
+              className="inline-flex items-center gap-1 text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
             >
-              <ChevronLeft aria-hidden="true" className="size-4" />
+              <ArrowLeft aria-hidden="true" className="size-4" />
               Back to requests
             </Link>
           }
@@ -88,9 +88,9 @@ export default async function MaintenanceDetailPage({
       <Link
         data-testid="maintenance-detail-back"
         href="/maintenance"
-        className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline"
+        className="inline-flex w-fit items-center gap-1.5 rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
       >
-        <ChevronLeft aria-hidden="true" className="size-4" />
+        <ArrowLeft aria-hidden="true" className="size-4" />
         Back to requests
       </Link>
       <TicketDetailSections

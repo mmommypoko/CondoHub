@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Badge } from '@/shared/ui/Badge';
-import { Button } from '@/shared/ui/Button';
-import { useToast } from '@/shared/ui/Toast';
+import { Badge, Button, Dialog, FormField, deniedCopy, firstOf, useToast } from '@/shared/ui';
 import type { PaymentSubmissionDto } from '@/modules/billing-payments/application/index';
 import { PaymentImage } from '@/modules/billing-payments/ui/PaymentImage';
+import { INPUT_CLASS } from '@/modules/billing-payments/ui/formControls';
+import { formatInstant, submissionStateLabel, submissionStateVariant } from '@/modules/billing-payments/ui/billingLabels';
 import {
   paymentApproveFormSchema,
   paymentRejectFormSchema,
@@ -19,47 +19,24 @@ interface ErrorPayload {
   error?: { code?: string; message?: string };
 }
 
-function submissionLabel(state: PaymentSubmissionDto['state']): string {
-  if (state === 'APPROVED') return 'Approved';
-  if (state === 'REJECTED') return 'Rejected';
-  return 'Pending';
-}
-
-function submissionVariant(state: PaymentSubmissionDto['state']): 'success' | 'danger' | 'warning' {
-  if (state === 'APPROVED') return 'success';
-  if (state === 'REJECTED') return 'danger';
-  return 'warning';
-}
-
-function formatInstant(value: string | null): string {
-  if (value === null) return 'Not reviewed yet';
-  return new Date(value).toLocaleString('en-US', {
-    timeZone: 'Asia/Bangkok',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
 function reviewErrorCopy(code: string | undefined, fallback: string): string {
   if (code === 'PAYMENT_ALREADY_REVIEWED') return 'Someone reviewed this submission first. Reload the page.';
   if (code === 'PAYMENT_APPROVED_AMOUNT_EXCEEDS_OUTSTANDING') {
     return 'The approved amount is larger than the outstanding balance. Reload the page and retry.';
   }
-  if (code === 'RESOURCE_NOT_FOUND' || code === 'ACCESS_DENIED') return 'This review is not available.';
-  return fallback;
+  return firstOf(code, fallback, deniedCopy('This review is not available.'));
 }
 
 function ApproveForm({
   submissionId,
   outstanding,
   onDone,
+  onClose,
 }: {
   submissionId: string;
   outstanding: string;
   onDone: () => void;
+  onClose: () => void;
 }) {
   const { toast } = useToast();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -100,37 +77,40 @@ function ApproveForm({
       data-testid={`payment-approve-form-${submissionId}`}
       onSubmit={onSubmit}
       noValidate
-      className="flex min-w-0 flex-col gap-2"
+      id={`payment-approve-form-${submissionId}`}
+      className="flex min-w-0 flex-col gap-3"
     >
       {serverError !== null ? (
-        <p data-testid={`payment-approve-error-${submissionId}`} role="alert" className="text-sm text-danger">
+        <p data-testid={`payment-approve-error-${submissionId}`} role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
           {serverError}
         </p>
       ) : null}
-      <div className="flex min-w-0 flex-col gap-1">
-        <label htmlFor={`payment-approve-amount-${submissionId}`} className="text-sm font-medium text-foreground">
-          Approved amount (THB)
-        </label>
+      <FormField
+        label="Approved amount (THB)"
+        htmlFor={`payment-approve-amount-${submissionId}`}
+        hint={`Outstanding balance: ${outstanding} THB.`}
+        error={errors.amount?.message ?? ''}
+        errorTestId={`payment-approve-amount-error-${submissionId}`}
+      >
         <input
-          id={`payment-approve-amount-${submissionId}`}
           data-testid={`payment-approve-amount-${submissionId}`}
           type="text"
           inputMode="decimal"
           placeholder="3000.00"
-          aria-invalid={errors.amount !== undefined}
-          aria-describedby={errors.amount !== undefined ? `payment-approve-amount-error-${submissionId}` : undefined}
-          className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          className={INPUT_CLASS}
           {...register('amount')}
         />
-        <p className="text-xs text-muted-foreground">Outstanding balance: {outstanding} THB.</p>
-        {errors.amount !== undefined ? (
-          <p id={`payment-approve-amount-error-${submissionId}`} data-testid={`payment-approve-amount-error-${submissionId}`} role="alert" className="text-sm text-danger">
-            {errors.amount.message}
-          </p>
-        ) : null}
-      </div>
-      <div>
-        <Button data-testid={`payment-approve-submit-${submissionId}`} type="submit" loading={isSubmitting} size="sm">
+      </FormField>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button
+          data-testid={`payment-approve-submit-${submissionId}`}
+          type="submit"
+          loading={isSubmitting}
+          size="sm"
+        >
           Approve
         </Button>
       </div>
@@ -138,7 +118,15 @@ function ApproveForm({
   );
 }
 
-function RejectForm({ submissionId, onDone }: { submissionId: string; onDone: () => void }) {
+function RejectForm({
+  submissionId,
+  onDone,
+  onClose,
+}: {
+  submissionId: string;
+  onDone: () => void;
+  onClose: () => void;
+}) {
   const { toast } = useToast();
   const [serverError, setServerError] = useState<string | null>(null);
   const {
@@ -178,34 +166,32 @@ function RejectForm({ submissionId, onDone }: { submissionId: string; onDone: ()
       data-testid={`payment-reject-form-${submissionId}`}
       onSubmit={onSubmit}
       noValidate
-      className="flex min-w-0 flex-col gap-2"
+      id={`payment-reject-form-${submissionId}`}
+      className="flex min-w-0 flex-col gap-3"
     >
       {serverError !== null ? (
-        <p data-testid={`payment-reject-error-${submissionId}`} role="alert" className="text-sm text-danger">
+        <p data-testid={`payment-reject-error-${submissionId}`} role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
           {serverError}
         </p>
       ) : null}
-      <div className="flex min-w-0 flex-col gap-1">
-        <label htmlFor={`payment-reject-reason-${submissionId}`} className="text-sm font-medium text-foreground">
-          Rejection reason
-        </label>
+      <FormField
+        label="Rejection reason"
+        htmlFor={`payment-reject-reason-${submissionId}`}
+        error={errors.reason?.message ?? ''}
+        errorTestId={`payment-reject-reason-error-${submissionId}`}
+      >
         <input
-          id={`payment-reject-reason-${submissionId}`}
           data-testid={`payment-reject-reason-${submissionId}`}
           type="text"
           maxLength={2000}
-          aria-invalid={errors.reason !== undefined}
-          aria-describedby={errors.reason !== undefined ? `payment-reject-reason-error-${submissionId}` : undefined}
-          className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          className={INPUT_CLASS}
           {...register('reason')}
         />
-        {errors.reason !== undefined ? (
-          <p id={`payment-reject-reason-error-${submissionId}`} data-testid={`payment-reject-reason-error-${submissionId}`} role="alert" className="text-sm text-danger">
-            {errors.reason.message}
-          </p>
-        ) : null}
-      </div>
-      <div>
+      </FormField>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+          Cancel
+        </Button>
         <Button
           data-testid={`payment-reject-submit-${submissionId}`}
           type="submit"
@@ -231,26 +217,27 @@ export function PaymentSubmissionCard({
   approveBlocked: boolean;
   onReviewed: () => void;
 }) {
-  const [mode, setMode] = useState<'none' | 'approve' | 'reject'>('none');
+  const [dialog, setDialog] = useState<'approve' | 'reject' | null>(null);
+  const close = (): void => setDialog(null);
   return (
     <li
       data-testid={`payment-submission-${submission.id}`}
       className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-surface p-4"
     >
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-        <span className="min-w-0 break-all text-xs text-muted-foreground">{submission.id}</span>
-        <Badge data-testid={`payment-submission-state-${submission.id}`} variant={submissionVariant(submission.state)}>
-          {submissionLabel(submission.state)}
+        <span className="min-w-0 break-all text-xs leading-6 text-muted-foreground">{submission.id}</span>
+        <Badge data-testid={`payment-submission-state-${submission.id}`} variant={submissionStateVariant(submission.state)}>
+          {submissionStateLabel(submission.state)}
         </Badge>
       </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-6 text-muted-foreground tabular-nums">
         {submission.approvedAmount !== null ? (
           <span>Approved {submission.approvedAmount.amount} {submission.approvedAmount.currency}</span>
         ) : null}
-        <span>{formatInstant(submission.reviewedAt)}</span>
+        <span>{submission.reviewedAt === null ? 'Not reviewed yet' : formatInstant(submission.reviewedAt)}</span>
       </div>
       {submission.rejectReason !== null ? (
-        <p data-testid={`payment-submission-reason-${submission.id}`} className="break-words text-sm text-foreground">
+        <p data-testid={`payment-submission-reason-${submission.id}`} className="break-words text-sm leading-6 text-foreground">
           Reason: {submission.rejectReason}
         </p>
       ) : null}
@@ -262,7 +249,7 @@ export function PaymentSubmissionCard({
       {submission.state === 'PENDING' ? (
         <div className="flex min-w-0 flex-col gap-3">
           {approveBlocked ? (
-            <p data-testid={`payment-approve-blocked-${submission.id}`} role="alert" className="text-sm text-warning-foreground">
+            <p data-testid={`payment-approve-blocked-${submission.id}`} role="alert" className="text-sm leading-6 text-warning-foreground">
               This invoice is already paid. Pending slips can only be rejected.
             </p>
           ) : null}
@@ -273,7 +260,7 @@ export function PaymentSubmissionCard({
                 type="button"
                 variant="secondary"
                 size="sm"
-                onClick={() => setMode(mode === 'approve' ? 'none' : 'approve')}
+                onClick={() => setDialog('approve')}
               >
                 Approve
               </Button>
@@ -283,15 +270,46 @@ export function PaymentSubmissionCard({
               type="button"
               variant="secondary"
               size="sm"
-              onClick={() => setMode(mode === 'reject' ? 'none' : 'reject')}
+              onClick={() => setDialog('reject')}
             >
               Reject
             </Button>
           </div>
-          {mode === 'approve' && !approveBlocked ? (
-            <ApproveForm submissionId={submission.id} outstanding={outstanding} onDone={onReviewed} />
-          ) : null}
-          {mode === 'reject' ? <RejectForm submissionId={submission.id} onDone={onReviewed} /> : null}
+          <Dialog
+            open={dialog === 'approve'}
+            onClose={close}
+            title="Approve this slip"
+            description={`Confirm the approved amount for slip ${submission.id.slice(0, 8)}.`}
+            testId={`payment-approve-toggle-${submission.id}`}
+            size="sm"
+          >
+            <ApproveForm
+              submissionId={submission.id}
+              outstanding={outstanding}
+              onDone={() => {
+                close();
+                onReviewed();
+              }}
+              onClose={close}
+            />
+          </Dialog>
+          <Dialog
+            open={dialog === 'reject'}
+            onClose={close}
+            title="Reject this slip"
+            description={`The payer sees the rejection reason for slip ${submission.id.slice(0, 8)}.`}
+            testId={`payment-reject-toggle-${submission.id}`}
+            size="sm"
+          >
+            <RejectForm
+              submissionId={submission.id}
+              onDone={() => {
+                close();
+                onReviewed();
+              }}
+              onClose={close}
+            />
+          </Dialog>
         </div>
       ) : null}
     </li>

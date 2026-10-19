@@ -4,6 +4,7 @@ import { db } from '@/shared/db/client';
 import { mapPgError, AppError } from '@/shared/utils/errors';
 import { writeAudit } from '@/shared/observability/audit';
 import {
+  deleteFloor as deleteFloorRow,
   findBuildingById,
   findFloorById,
   findRoomById,
@@ -13,7 +14,9 @@ import {
   listBuildings,
   listFloorsByBuilding,
   listRoomsByBuilding,
+  listRoomsByFloor,
   updateBuildingStatus,
+  updateFloor as updateFloorRow,
   updateRoom,
   type BuildingRow,
   type FloorRow,
@@ -185,6 +188,9 @@ export async function updateRoomDetails(
   ctx: PropertyCtx,
 ): Promise<RoomRow> {
   requireAdmin(actor);
+  if (input.areaSqm === undefined && input.status === undefined) {
+    throw new AppError('VALIDATION_ERROR', 'Provide an area or status to update.');
+  }
   const room = await findRoomById(db, roomId);
   if (room === null) throw new AppError('RESOURCE_NOT_FOUND');
   try {
@@ -230,6 +236,92 @@ export async function disableBuilding(
     return next;
   });
   return updated;
+}
+
+export async function enableBuilding(
+  actor: Actor,
+  buildingId: string,
+  ctx: PropertyCtx,
+): Promise<BuildingRow> {
+  requireAdmin(actor);
+  const building = await findBuildingById(db, buildingId);
+  if (building === null) throw new AppError('RESOURCE_NOT_FOUND');
+  const updated = await db.transaction(async (tx) => {
+    const next = await updateBuildingStatus(tx, buildingId, 'ACTIVE');
+    if (next === null) throw new AppError('RESOURCE_NOT_FOUND');
+    await writeAudit(tx, {
+      actorId: actor.userId,
+      action: 'building.enabled',
+      resourceType: 'building',
+      resourceId: buildingId,
+      requestId: ctx.requestId,
+      before: { status: building.status },
+      after: { status: 'ACTIVE' },
+    });
+    return next;
+  });
+  return updated;
+}
+
+export async function updateFloor(
+  actor: Actor,
+  input: { floorId: string; code?: string | undefined; label?: string | undefined },
+  ctx: PropertyCtx,
+): Promise<FloorRow> {
+  requireAdmin(actor);
+  if (input.code === undefined && input.label === undefined) {
+    throw new AppError('VALIDATION_ERROR', 'Provide a code or label to update.');
+  }
+  const floor = await findFloorById(db, input.floorId);
+  if (floor === null) throw new AppError('RESOURCE_NOT_FOUND');
+  try {
+    return await db.transaction(async (tx) => {
+      const next = await updateFloorRow(tx, input.floorId, { code: input.code, label: input.label });
+      if (next === null) throw new AppError('RESOURCE_NOT_FOUND');
+      await writeAudit(tx, {
+        actorId: actor.userId,
+        action: 'floor.updated',
+        resourceType: 'floor',
+        resourceId: input.floorId,
+        requestId: ctx.requestId,
+        before: { code: floor.code, label: floor.label },
+        after: { code: next.code, label: next.label },
+      });
+      return next;
+    });
+  } catch (error) {
+    throw mapPgError(error, {
+      constraintCodes: { floor_building_code_uq: 'VALIDATION_ERROR' },
+    });
+  }
+}
+
+export async function deleteFloor(
+  actor: Actor,
+  floorId: string,
+  ctx: PropertyCtx,
+): Promise<{ floor: FloorRow }> {
+  requireAdmin(actor);
+  const floor = await findFloorById(db, floorId);
+  if (floor === null) throw new AppError('RESOURCE_NOT_FOUND');
+  const rooms = await listRoomsByFloor(db, floorId);
+  if (rooms.length > 0) {
+    throw new AppError('VALIDATION_ERROR', 'The floor still has rooms and cannot be removed.');
+  }
+  const removed = await db.transaction(async (tx) => {
+    const next = await deleteFloorRow(tx, floorId);
+    if (next === null) throw new AppError('RESOURCE_NOT_FOUND');
+    await writeAudit(tx, {
+      actorId: actor.userId,
+      action: 'floor.deleted',
+      resourceType: 'floor',
+      resourceId: floorId,
+      requestId: ctx.requestId,
+      before: { code: floor.code, label: floor.label },
+    });
+    return next;
+  });
+  return { floor: removed };
 }
 
 export async function listBuildingStructures(

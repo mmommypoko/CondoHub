@@ -1,6 +1,6 @@
 'use client';
 
-import { Badge } from '@/shared/ui/Badge';
+import { Badge } from '@/shared/ui';
 import type { TicketDto } from '@/modules/maintenance/application/index';
 import { TicketImage } from '@/modules/maintenance/ui/TicketImage';
 import {
@@ -25,15 +25,15 @@ export function TicketDetailCard({
     <div className="flex min-w-0 flex-col gap-4">
       <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
+          <p className="break-all text-xs leading-6 text-muted-foreground">
+            <span data-testid={`${testIdPrefix}-id`}>{ticket.id}</span>
+          </p>
           <h1
             data-testid={`${testIdPrefix}-title`}
-            className="break-words text-xl font-semibold text-foreground"
+            className="break-words text-xl font-semibold tracking-tight text-foreground"
           >
             {ticket.subject}
           </h1>
-          <p className="break-all text-xs text-muted-foreground">
-            <span data-testid={`${testIdPrefix}-id`}>{ticket.id}</span>
-          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge data-testid={`${testIdPrefix}-status`} variant={statusVariant(ticket.status)}>
@@ -48,7 +48,7 @@ export function TicketDetailCard({
         <p
           data-testid={`${testIdPrefix}-terminal-note`}
           role="status"
-          className="rounded-xl border border-border bg-surface p-3 text-sm text-muted-foreground"
+          className="rounded-xl border border-border bg-neutral p-3 text-sm leading-6 text-neutral-foreground"
         >
           This request is {statusLabel(ticket.status).toLowerCase()} and read-only. Comments and
           status changes are closed.
@@ -56,45 +56,45 @@ export function TicketDetailCard({
       ) : null}
       <dl
         data-testid={`${testIdPrefix}-facts`}
-        className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-border bg-surface p-4 text-sm sm:grid-cols-2"
+        className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-4 rounded-xl border border-border bg-surface p-4 text-sm sm:grid-cols-2 sm:p-5"
       >
         <div className="flex min-w-0 flex-col gap-1">
-          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <dt className="text-xs font-medium text-muted-foreground">
             Location
           </dt>
-          <dd data-testid={`${testIdPrefix}-location`} className="break-words text-foreground">
+          <dd data-testid={`${testIdPrefix}-location`} className="break-words leading-6 text-foreground">
             {ticket.locationDescription}
           </dd>
         </div>
         <div className="flex min-w-0 flex-col gap-1">
-          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <dt className="text-xs font-medium text-muted-foreground">
             Room
           </dt>
-          <dd data-testid={`${testIdPrefix}-room`} className="break-words text-foreground">
+          <dd data-testid={`${testIdPrefix}-room`} className="break-words leading-6 text-foreground">
             {roomLabel ?? 'Common area, no room'}
           </dd>
         </div>
         <div className="flex min-w-0 flex-col gap-1 sm:col-span-2">
-          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <dt className="text-xs font-medium text-muted-foreground">
             Details
           </dt>
-          <dd data-testid={`${testIdPrefix}-description`} className="whitespace-pre-wrap break-words text-foreground">
+          <dd data-testid={`${testIdPrefix}-description`} className="whitespace-pre-wrap break-words leading-6 text-foreground">
             {ticket.description}
           </dd>
         </div>
         <div className="flex min-w-0 flex-col gap-1">
-          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <dt className="text-xs font-medium text-muted-foreground">
             Reported
           </dt>
-          <dd data-testid={`${testIdPrefix}-created`} className="break-words text-foreground">
+          <dd data-testid={`${testIdPrefix}-created`} className="break-words leading-6 text-foreground">
             {formatInstant(ticket.createdAt)}
           </dd>
         </div>
         <div className="flex min-w-0 flex-col gap-1">
-          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <dt className="text-xs font-medium text-muted-foreground">
             Last update
           </dt>
-          <dd data-testid={`${testIdPrefix}-updated`} className="break-words text-foreground">
+          <dd data-testid={`${testIdPrefix}-updated`} className="break-words leading-6 text-foreground">
             {formatInstant(ticket.updatedAt)}
           </dd>
         </div>
@@ -104,7 +104,7 @@ export function TicketDetailCard({
           Report photos ({ticket.images.length})
         </h2>
         {ticket.images.length === 0 ? (
-          <p data-testid={`${testIdPrefix}-images-empty`} className="text-sm text-muted-foreground">
+          <p data-testid={`${testIdPrefix}-images-empty`} className="text-sm leading-6 text-muted-foreground">
             No photos were attached to this report.
           </p>
         ) : (

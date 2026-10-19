@@ -1,11 +1,10 @@
 import 'server-only';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
-import { Badge } from '@/shared/ui/Badge';
-import { EmptyState } from '@/shared/ui/EmptyState';
+import { Badge, EmptyState } from '@/shared/ui';
 import { getAnnouncementDetail } from '@/modules/announcements/application/index';
 import { AnnouncementImage } from '@/modules/announcements/ui/AnnouncementImage';
 
@@ -49,9 +48,9 @@ export default async function AnnouncementDetailPage({
             <Link
               data-testid="announcement-detail-back"
               href="/announcements"
-              className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline"
+              className="inline-flex items-center gap-1 text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
             >
-              <ChevronLeft aria-hidden="true" className="size-4" />
+              <ArrowLeft aria-hidden="true" className="size-4" />
               Back to announcements
             </Link>
           }
@@ -67,16 +66,16 @@ export default async function AnnouncementDetailPage({
       <Link
         data-testid="announcement-detail-back"
         href="/announcements"
-        className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline"
+        className="inline-flex w-fit items-center gap-1.5 rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
       >
-        <ChevronLeft aria-hidden="true" className="size-4" />
+        <ArrowLeft aria-hidden="true" className="size-4" />
         Back to announcements
       </Link>
-      <article className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-surface p-4 sm:p-6">
+      <article className="flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-surface p-4 sm:p-6">
         <div className="flex min-w-0 flex-col gap-2">
           <h1
             data-testid="announcement-detail-title"
-            className="break-words text-xl font-semibold text-foreground"
+            className="break-words text-xl font-semibold tracking-tight text-foreground"
           >
             {detail.title}
           </h1>
@@ -96,7 +95,7 @@ export default async function AnnouncementDetailPage({
           {detail.body}
         </p>
         {detail.images.length > 0 ? (
-          <div className="flex flex-col gap-3" aria-label="Attached images">
+          <div className="flex min-w-0 flex-col gap-3 border-t border-border pt-4" aria-label="Attached images">
             {detail.images.map((image, index) => (
               <AnnouncementImage
                 key={image.id}

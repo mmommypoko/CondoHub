@@ -1,7 +1,7 @@
 import 'server-only';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { isUuid } from '@/shared/utils/idempotency';
 import { getTurnoverReview } from '@/modules/billing-payments/application/index';
@@ -17,7 +17,9 @@ import { TurnoverResolveSection } from '@/modules/billing-payments/ui/TurnoverRe
 
 export const dynamic = 'force-dynamic';
 
-function formatInstant(value: Date): string {
+const BASE_PATH = '/admin/billing/turnover-reviews';
+
+function formatDay(value: Date): string {
   return value.toISOString().slice(0, 10);
 }
 
@@ -27,13 +29,13 @@ export default async function AdminTurnoverReviewDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const actor = await getActorFromSession();
-  if (actor === null) redirect('/login?returnUrl=/admin/billing/turnover-reviews');
+  if (actor === null) redirect(`/login?returnUrl=${BASE_PATH}`);
   if (!actor.isSystemAdmin) redirect('/');
   if (actor.mustChangePassword) redirect('/change-password');
   const { id } = await params;
-  if (!isUuid(id)) redirect('/admin/billing/turnover-reviews');
+  if (!isUuid(id)) redirect(BASE_PATH);
   const review = await getTurnoverReview(actor, id);
-  if (review === null) redirect('/admin/billing/turnover-reviews');
+  if (review === null) redirect(BASE_PATH);
   let roomCode = review.roomId;
   try {
     const room = await getRoomDetail(review.roomId);
@@ -52,8 +54,8 @@ export default async function AdminTurnoverReviewDetailPage({
       }
       return {
         tenancyId,
-        startsAt: formatInstant(period.startsAt),
-        endsAt: period.endsAt === null ? null : formatInstant(period.endsAt),
+        startsAt: formatDay(period.startsAt),
+        endsAt: period.endsAt === null ? null : formatDay(period.endsAt),
         state: period.state,
       };
     });
@@ -72,10 +74,10 @@ export default async function AdminTurnoverReviewDetailPage({
     >
       <Link
         data-testid="turnover-review-detail-back"
-        href="/admin/billing/turnover-reviews"
-        className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline"
+        href={BASE_PATH}
+        className="inline-flex w-fit items-center gap-1.5 rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
       >
-        <ChevronLeft aria-hidden="true" className="size-4" />
+        <ArrowLeft aria-hidden="true" className="size-4" />
         Back to turnover reviews
       </Link>
       <TurnoverReviewDetailCard
@@ -105,7 +107,7 @@ export default async function AdminTurnoverReviewDetailPage({
             blocked: review.blocked,
             candidates: candidates.map((candidate) => ({
               tenancyId: candidate.tenancyId,
-              label: `Tenancy ${candidate.tenancyId.slice(0, 8)} · ${candidate.startsAt} to ${candidate.endsAt ?? 'present'}`,
+              label: `${candidate.startsAt} to ${candidate.endsAt ?? 'present'}`,
             })),
           }}
           actorIsAdmin

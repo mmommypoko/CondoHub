@@ -1,11 +1,12 @@
 import 'server-only';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
-import { Badge } from '@/shared/ui/Badge';
+import { Badge } from '@/shared/ui';
 import { getFacilityDetail } from '@/modules/facility-booking/application/index';
+import { getRoomDetail } from '@/modules/property-membership/application/index';
 import {
   listBookingsForFacility,
   listSlotsForBooking,
@@ -43,8 +44,17 @@ export default async function AdminFacilityDetailPage({
   if (detail === null) redirect('/admin/facilities');
   const bookings = await listBookingsForFacility(db, id);
   const bookingRows = [];
+  const roomCodes = new Map<string, string>();
   for (const booking of bookings) {
     const slots = await listSlotsForBooking(db, booking.id);
+    if (!roomCodes.has(booking.roomId)) {
+      try {
+        const room = await getRoomDetail(booking.roomId);
+        roomCodes.set(booking.roomId, room.roomCode);
+      } catch {
+        roomCodes.set(booking.roomId, booking.roomId);
+      }
+    }
     bookingRows.push({ booking, slots });
   }
   const scheduleDays = detail.effectiveConfig?.schedule.days;
@@ -60,33 +70,35 @@ export default async function AdminFacilityDetailPage({
       data-testid="admin-facility-detail-page"
       className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
     >
-      <Link
-        data-testid="admin-facility-detail-back"
-        href="/admin/facilities"
-        className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline"
-      >
-        <ChevronLeft aria-hidden="true" className="size-4" />
-        Back to facilities
-      </Link>
-      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-1">
-        <h1
-            data-testid="admin-facility-detail-title"
-            className="break-words text-xl font-semibold text-foreground"
-          >
-            {detail.name}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Code {detail.code} · {detail.capacity} {detail.capacity === 1 ? 'seat' : 'seats'} per slot
-          </p>
+      <div className="flex min-w-0 flex-col gap-3">
+        <Link
+          data-testid="admin-facility-detail-back"
+          href="/admin/facilities"
+          className="inline-flex items-center gap-1.5 self-start rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+        >
+          <ArrowLeft aria-hidden="true" className="size-4" />
+          Back to facilities
+        </Link>
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-col gap-1">
+            <h1
+              data-testid="admin-facility-detail-title"
+              className="break-words text-xl font-semibold tracking-tight text-foreground sm:text-2xl"
+            >
+              {detail.name}
+            </h1>
+            <p className="text-sm leading-6 text-muted-foreground">
+              Code {detail.code} · {detail.capacity} {detail.capacity === 1 ? 'seat' : 'seats'} per slot
+            </p>
+          </div>
+          <Badge variant={detail.status === 'ACTIVE' ? 'success' : 'neutral'}>{detail.status}</Badge>
         </div>
-        <Badge variant={detail.status === 'ACTIVE' ? 'success' : 'neutral'}>{detail.status}</Badge>
+        {detail.description !== null && detail.description !== '' ? (
+          <p data-testid="admin-facility-detail-description" className="max-w-2xl break-words text-sm leading-6 text-muted-foreground">
+            {detail.description}
+          </p>
+        ) : null}
       </div>
-      {detail.description !== null && detail.description !== '' ? (
-        <p data-testid="admin-facility-detail-description" className="break-words text-sm text-muted-foreground">
-          {detail.description}
-        </p>
-      ) : null}
       <section aria-label="Facility settings" className="flex min-w-0 flex-col gap-3">
         <h2 className="text-sm font-semibold text-foreground">Settings</h2>
         <FacilityEditForm
@@ -99,7 +111,7 @@ export default async function AdminFacilityDetailPage({
           }}
         />
       </section>
-      <section aria-label="Effective configuration" className="flex min-w-0 flex-col gap-2">
+      <section aria-label="Effective configuration" className="flex min-w-0 flex-col gap-3">
         <h2 className="text-sm font-semibold text-foreground">Effective configuration</h2>
         {detail.effectiveConfig === null ? (
           <p data-testid="admin-facility-no-config" className="text-sm text-muted-foreground">
@@ -108,14 +120,14 @@ export default async function AdminFacilityDetailPage({
         ) : (
           <div
             data-testid="admin-facility-config"
-            className="flex min-w-0 flex-col gap-1 rounded-xl border border-border bg-surface p-4 text-sm"
+            className="flex min-w-0 flex-col gap-1 rounded-xl border border-border bg-surface p-4 text-sm sm:p-5"
           >
-            <p className="text-foreground">
+            <p className="text-foreground tabular-nums">
               Version {detail.effectiveConfig.version} · {detail.effectiveConfig.slotMinutes} min slots ·
               quota {detail.effectiveConfig.quotaLimit}/{detail.effectiveConfig.quotaKind} · advance{' '}
               {detail.effectiveConfig.advanceDays} days
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs tabular-nums text-muted-foreground">
               Effective {formatInstant(detail.effectiveConfig.effectiveAt)}
             </p>
             <p className="break-words text-xs text-muted-foreground">
@@ -126,7 +138,7 @@ export default async function AdminFacilityDetailPage({
               {firstOpen !== undefined ? ` ${firstOpen.start}–${firstOpen.end}` : ''}
             </p>
             {detail.pendingConfig !== null ? (
-              <p data-testid="admin-facility-pending" className="text-xs text-muted-foreground">
+              <p data-testid="admin-facility-pending" className="text-xs tabular-nums text-muted-foreground">
                 Pending version {detail.pendingConfig.version} from {formatInstant(detail.pendingConfig.effectiveAt)}
               </p>
             ) : null}
@@ -156,19 +168,19 @@ export default async function AdminFacilityDetailPage({
         )}
       </section>
       <section aria-label="Closures" className="flex min-w-0 flex-col gap-3">
-        <h2 className="text-sm font-semibold text-foreground">Closures ({detail.closures.length})</h2>
+        <h2 className="text-sm font-semibold text-foreground tabular-nums">Closures ({detail.closures.length})</h2>
         {detail.closures.length === 0 ? (
           <p data-testid="admin-facility-no-closures" className="text-sm text-muted-foreground">
             No closures recorded.
           </p>
         ) : (
-          <ul data-testid="admin-facility-closures" className="flex flex-col gap-2">
+          <ul data-testid="admin-facility-closures" className="flex flex-col divide-y divide-border rounded-xl border border-border bg-surface">
             {detail.closures.map((closure) => (
               <li
                 key={closure.id}
-                className="flex min-w-0 flex-col gap-1 rounded-lg border border-border bg-surface p-3 text-sm"
+                className="flex min-w-0 flex-col gap-1 px-4 py-3 text-sm sm:px-5"
               >
-                <span className="break-words text-foreground">
+                <span className="break-words text-foreground tabular-nums">
                   {formatInstant(closure.startsAt)} – {formatInstant(closure.endsAt)}
                 </span>
                 <span className="break-words text-xs text-muted-foreground">{closure.reason}</span>
@@ -179,7 +191,7 @@ export default async function AdminFacilityDetailPage({
         <ClosureCreateForm facilityId={detail.id} />
       </section>
       <section aria-label="Bookings" className="flex min-w-0 flex-col gap-3">
-        <h2 className="text-sm font-semibold text-foreground">Bookings ({bookingRows.length})</h2>
+        <h2 className="text-sm font-semibold text-foreground tabular-nums">Bookings ({bookingRows.length})</h2>
         {bookingRows.length === 0 ? (
           <p data-testid="admin-facility-no-bookings" className="text-sm text-muted-foreground">
             No bookings recorded.
@@ -189,12 +201,12 @@ export default async function AdminFacilityDetailPage({
             {bookingRows.map(({ booking, slots }) => (
               <li
                 key={booking.id}
-                className="flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-surface p-4"
+                className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-surface p-4 sm:p-5"
               >
                 <p className="break-words text-xs text-muted-foreground">
-                  Room {booking.roomId} · booked {formatInstant(booking.createdAt.toISOString())}
+                  Room {roomCodes.get(booking.roomId) ?? booking.roomId} · booked {formatInstant(booking.createdAt.toISOString())}
                 </p>
-                <ul className="flex flex-col gap-2">
+                <ul className="flex flex-col gap-2 border-t border-border pt-3">
                   {slots.map((slot) => (
                     <li
                       key={slot.id}
@@ -202,7 +214,7 @@ export default async function AdminFacilityDetailPage({
                       className="flex min-w-0 flex-col gap-2 rounded-lg border border-border p-3"
                     >
                       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                        <span className="min-w-0 break-words text-sm text-foreground">
+                        <span className="min-w-0 break-words text-sm tabular-nums text-foreground">
                           {formatInstant(slot.startsAt.toISOString())}
                         </span>
                         <Badge
@@ -218,13 +230,15 @@ export default async function AdminFacilityDetailPage({
                         </Badge>
                       </div>
                       {slot.state === 'CONFIRMED' ? (
-                        <BookingCancelButton
-                          bookingId={booking.id}
-                          slotId={slot.id}
-                          startsAt={slot.startsAt.toISOString()}
-                          testId={`admin-facility-cancel-${slot.id}`}
-                          admin
-                        />
+                        <div className="flex flex-wrap gap-2">
+                          <BookingCancelButton
+                            bookingId={booking.id}
+                            slotId={slot.id}
+                            startsAt={slot.startsAt.toISOString()}
+                            testId={`admin-facility-cancel-${slot.id}`}
+                            admin
+                          />
+                        </div>
                       ) : null}
                     </li>
                   ))}

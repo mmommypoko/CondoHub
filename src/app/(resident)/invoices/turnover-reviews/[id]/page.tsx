@@ -1,7 +1,7 @@
 import 'server-only';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { isUuid } from '@/shared/utils/idempotency';
 import { getTurnoverReview } from '@/modules/billing-payments/application/index';
@@ -19,7 +19,7 @@ export const dynamic = 'force-dynamic';
 
 const BASE_PATH = '/invoices/turnover-reviews';
 
-function formatInstant(value: Date): string {
+function formatDay(value: Date): string {
   return value.toISOString().slice(0, 10);
 }
 
@@ -54,8 +54,8 @@ export default async function OwnerTurnoverReviewDetailPage({
       }
       return {
         tenancyId,
-        startsAt: formatInstant(period.startsAt),
-        endsAt: period.endsAt === null ? null : formatInstant(period.endsAt),
+        startsAt: formatDay(period.startsAt),
+        endsAt: period.endsAt === null ? null : formatDay(period.endsAt),
         state: period.state,
       };
     });
@@ -75,9 +75,9 @@ export default async function OwnerTurnoverReviewDetailPage({
       <Link
         data-testid="owner-turnover-review-detail-back"
         href={BASE_PATH}
-        className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline"
+        className="inline-flex w-fit items-center gap-1.5 rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
       >
-        <ChevronLeft aria-hidden="true" className="size-4" />
+        <ArrowLeft aria-hidden="true" className="size-4" />
         Back to turnover reviews
       </Link>
       <TurnoverReviewDetailCard
@@ -107,7 +107,7 @@ export default async function OwnerTurnoverReviewDetailPage({
             blocked: review.blocked,
             candidates: candidates.map((candidate) => ({
               tenancyId: candidate.tenancyId,
-              label: `Tenancy ${candidate.tenancyId.slice(0, 8)} · ${candidate.startsAt} to ${candidate.endsAt ?? 'present'}`,
+              label: `${candidate.startsAt} to ${candidate.endsAt ?? 'present'}`,
             })),
           }}
           actorIsAdmin={actor.isSystemAdmin}

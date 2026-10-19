@@ -19,15 +19,15 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div
-      className={cx("flex flex-col items-center gap-3 px-6 py-10 text-center", className)}
+      className={cx("flex flex-col items-center gap-2 px-6 py-12 text-center", className)}
       {...rest}
     >
-      <span className="flex size-12 items-center justify-center rounded-full border border-border bg-surface text-muted-foreground">
+      <span className="flex size-12 items-center justify-center rounded-full bg-secondary text-muted-foreground">
         <Icon aria-hidden="true" className="size-6" />
       </span>
-      <h2 className="text-base font-semibold text-foreground">{title}</h2>
-      <p className="max-w-sm text-sm text-muted-foreground">{description}</p>
-      {action ? <span className="mt-1">{action}</span> : null}
+      <h2 className="mt-1 text-lg font-semibold text-foreground">{title}</h2>
+      <p className="max-w-sm text-sm leading-6 text-muted-foreground">{description}</p>
+      {action ? <span className="mt-2">{action}</span> : null}
     </div>
   );
 }

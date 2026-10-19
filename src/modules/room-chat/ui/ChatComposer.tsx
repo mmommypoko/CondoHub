@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ImagePlus, SendHorizontal, X } from 'lucide-react';
-import { Button } from '@/shared/ui/Button';
+import { Button, FormField, TEXTAREA_CLASS, cx } from '@/shared/ui';
 import {
   CHAT_COMPOSER_TEXT_MAX,
   chatComposerFormSchema,
@@ -132,20 +132,24 @@ export function ChatComposer({
   );
 
   return (
-    <form data-testid={`${testIdPrefix}-composer`} onSubmit={onSubmit} noValidate className="flex min-w-0 flex-col gap-2">
-      <div className="flex min-w-0 flex-col gap-1">
-        <label htmlFor={`${testIdPrefix}-composer-text`} className="text-sm font-medium text-foreground">
-          Message
-        </label>
+    <form
+      data-testid={`${testIdPrefix}-composer`}
+      onSubmit={onSubmit}
+      noValidate
+      className="flex min-w-0 flex-col gap-2.5 rounded-xl border border-border bg-surface p-3 shadow-sm sm:p-4"
+    >
+      <FormField
+        label="Message"
+        htmlFor={`${testIdPrefix}-composer-text`}
+        {...(errors.text?.message === undefined ? {} : { error: errors.text.message })}
+        errorTestId={`${testIdPrefix}-composer-text-error`}
+      >
         <textarea
-          id={`${testIdPrefix}-composer-text`}
           data-testid={`${testIdPrefix}-composer-text`}
           rows={3}
           maxLength={CHAT_COMPOSER_TEXT_MAX}
           placeholder="Write a message to the room."
-          aria-invalid={errors.text !== undefined}
-          aria-describedby={errors.text !== undefined ? `${testIdPrefix}-composer-text-error` : undefined}
-          className="w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          className={cx(TEXTAREA_CLASS, 'resize-y leading-6')}
           {...register('text')}
           onKeyDown={(event) => {
             if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return;
@@ -153,12 +157,7 @@ export function ChatComposer({
             void onSubmit();
           }}
         />
-        {errors.text !== undefined ? (
-          <p id={`${testIdPrefix}-composer-text-error`} data-testid={`${testIdPrefix}-composer-text-error`} role="alert" className="text-sm text-danger">
-            {errors.text.message}
-          </p>
-        ) : null}
-      </div>
+      </FormField>
       <input
         ref={inputRef}
         data-testid={`${testIdPrefix}-composer-upload-input`}
@@ -174,7 +173,7 @@ export function ChatComposer({
         }}
       />
       {attachment !== null ? (
-        <div data-testid={`${testIdPrefix}-composer-attachment`} className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-border bg-surface p-2 text-sm">
+        <div data-testid={`${testIdPrefix}-composer-attachment`} className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-border bg-neutral px-3 py-2 text-sm">
           <span className="min-w-0 truncate text-foreground">{attachment.fileName}</span>
           <Button
             data-testid={`${testIdPrefix}-composer-attachment-remove`}
@@ -195,7 +194,7 @@ export function ChatComposer({
         </p>
       ) : null}
       {uploadError !== null ? (
-        <p data-testid={`${testIdPrefix}-composer-upload-error`} role="alert" className="text-sm text-danger">
+        <p data-testid={`${testIdPrefix}-composer-upload-error`} role="alert" className="text-sm font-medium text-danger-foreground">
           {uploadError}
         </p>
       ) : null}
@@ -216,8 +215,8 @@ export function ChatComposer({
           <SendHorizontal aria-hidden="true" className="size-4" />
           Send
         </Button>
+        <p className="w-full text-xs text-muted-foreground sm:ml-auto sm:w-auto">JPEG, PNG, or WebP. Up to 5 MB, 1 image per message.</p>
       </div>
-      <p className="text-xs text-muted-foreground">JPEG, PNG, or WebP. Up to 5 MB, 1 image per message.</p>
     </form>
   );
 }

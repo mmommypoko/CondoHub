@@ -2,26 +2,9 @@
 
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { Badge } from '@/shared/ui/Badge';
-import { EmptyState } from '@/shared/ui/EmptyState';
+import { Badge, EmptyState } from '@/shared/ui';
 import type { ChargeEventDto } from '@/modules/billing-payments/application/index';
-
-function formatInstant(value: string): string {
-  return new Date(value).toLocaleString('en-US', {
-    timeZone: 'Asia/Bangkok',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function statusVariant(status: string): 'success' | 'warning' | 'neutral' {
-  if (status === 'ISSUED') return 'success';
-  if (status === 'CANCELLED') return 'warning';
-  return 'neutral';
-}
+import { chargeEventStatusVariant, formatInstant } from '@/modules/billing-payments/ui/billingLabels';
 
 export function ChargeEventDetailCard({ event }: { event: ChargeEventDto }) {
   return (
@@ -30,59 +13,64 @@ export function ChargeEventDetailCard({ event }: { event: ChargeEventDto }) {
         <div className="flex min-w-0 flex-col gap-1">
           <h1
             data-testid="charge-event-detail-title"
-            className="break-words text-xl font-semibold text-foreground"
+            className="break-words text-xl font-semibold tracking-tight text-foreground sm:text-2xl"
           >
             Event {event.eventEffectiveDate}
           </h1>
-          <p className="break-all text-xs text-muted-foreground">
+          <p className="break-all text-xs leading-6 text-muted-foreground">
             <span data-testid="charge-event-detail-id">{event.id}</span>
           </p>
         </div>
-        <Badge data-testid="charge-event-detail-status" variant={statusVariant(event.status)}>
+        <Badge data-testid="charge-event-detail-status" variant={chargeEventStatusVariant(event.status)}>
           {event.status}
         </Badge>
       </div>
+      {event.configuredAmount !== null ? (
+        <div className="flex min-w-0 flex-col gap-1">
+          <p className="text-sm font-medium text-muted-foreground">Amount per room</p>
+          <p
+            data-testid="charge-event-detail-amount"
+            className="break-words text-3xl font-semibold tracking-tight text-foreground tabular-nums"
+          >
+            {event.configuredAmount.amount} {event.configuredAmount.currency}
+          </p>
+        </div>
+      ) : (
+        <p data-testid="charge-event-detail-amount" className="text-sm leading-6 text-muted-foreground">
+          Derived from the billing rule
+        </p>
+      )}
       <dl
         data-testid="charge-event-detail-facts"
-        className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-border bg-surface p-4 text-sm sm:grid-cols-2"
+        className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-4 border-t border-border pt-5 text-sm sm:grid-cols-3"
       >
-        <div className="flex min-w-0 flex-col gap-1">
-          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <dt className="text-sm font-medium text-muted-foreground">
             Effective date
           </dt>
-          <dd data-testid="charge-event-detail-date" className="break-words text-foreground">
+          <dd data-testid="charge-event-detail-date" className="break-words font-medium text-foreground tabular-nums">
             {event.eventEffectiveDate}
           </dd>
         </div>
-        <div className="flex min-w-0 flex-col gap-1">
-          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Amount
-          </dt>
-          <dd data-testid="charge-event-detail-amount" className="break-words text-foreground">
-            {event.configuredAmount === null
-              ? 'Derived from the billing rule'
-              : `${event.configuredAmount.amount} ${event.configuredAmount.currency}`}
-          </dd>
-        </div>
-        <div className="flex min-w-0 flex-col gap-1">
-          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <dt className="text-sm font-medium text-muted-foreground">
             Created
           </dt>
-          <dd data-testid="charge-event-detail-created" className="break-words text-foreground">
+          <dd data-testid="charge-event-detail-created" className="break-words font-medium text-foreground tabular-nums">
             {formatInstant(event.createdAt)}
           </dd>
         </div>
-        <div className="flex min-w-0 flex-col gap-1">
-          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <dt className="text-sm font-medium text-muted-foreground">
             Timezone
           </dt>
-          <dd data-testid="charge-event-detail-timezone" className="break-words text-foreground">
+          <dd data-testid="charge-event-detail-timezone" className="break-words font-medium text-foreground">
             {event.projectTimezone ?? 'Asia/Bangkok'}
           </dd>
         </div>
       </dl>
-      <section aria-label="Issuance" className="flex min-w-0 flex-col gap-2">
-        <h2 className="text-sm font-semibold text-foreground">Issuance</h2>
+      <section aria-label="Issuance" className="flex min-w-0 flex-col gap-3">
+        <h2 className="text-base font-semibold tracking-tight text-foreground">Issuance</h2>
         {event.status === 'OPEN' ? (
           <EmptyState
             data-testid="charge-event-detail-pending"
@@ -98,7 +86,7 @@ export function ChargeEventDetailCard({ event }: { event: ChargeEventDto }) {
               <Link
                 data-testid="charge-event-detail-invoices"
                 href="/admin/billing/invoices"
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                className="inline-flex h-8 items-center gap-2 rounded-lg border border-input-border bg-surface px-3 text-sm font-medium text-body-secondary transition-[background-color,color,border-color] duration-150 ease-out hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring motion-reduce:transition-none"
               >
                 <ArrowLeft aria-hidden="true" className="size-4" />
                 Review invoices

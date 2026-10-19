@@ -7,7 +7,7 @@ export function ChatConnectionBanner({ testIdPrefix }: { testIdPrefix: string })
     <p
       data-testid={`${testIdPrefix}-reconnecting`}
       role="status"
-      className="flex items-center justify-center gap-2 border-b border-border bg-surface px-3 py-2 text-center text-xs font-medium text-muted-foreground"
+      className="flex items-center justify-center gap-2 rounded-xl border border-warning-border bg-warning px-3 py-2 text-center text-xs font-medium text-warning-foreground"
     >
       <WifiOff aria-hidden="true" className="size-4 shrink-0" />
       Connection lost. Reconnecting and resyncing messages.

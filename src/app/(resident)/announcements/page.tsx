@@ -4,8 +4,7 @@ import { redirect } from 'next/navigation';
 import { Megaphone } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
-import { Badge } from '@/shared/ui/Badge';
-import { EmptyState } from '@/shared/ui/EmptyState';
+import { Badge, EmptyState, PageHeader, Pagination } from '@/shared/ui';
 import { listAnnouncementFeed } from '@/modules/announcements/application/index';
 
 export const revalidate = 60;
@@ -41,12 +40,10 @@ export default async function AnnouncementsFeedPage({
       data-testid="announcements-page"
       className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
     >
-      <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="text-xl font-semibold text-foreground">Announcements</h1>
-        <p className="text-sm text-muted-foreground">
-          Project-wide updates from the management team.
-        </p>
-      </div>
+      <PageHeader
+        title="Announcements"
+        description="Project-wide updates from the management team."
+      />
       {feed.rows.length === 0 ? (
         <EmptyState
           data-testid="announcements-empty"
@@ -55,21 +52,21 @@ export default async function AnnouncementsFeedPage({
           description="When the management team publishes an update, it will appear here."
         />
       ) : (
-        <ul data-testid="announcements-list" className="flex flex-col gap-3">
+        <ul data-testid="announcements-list" className="flex min-w-0 flex-col border-t border-border">
           {feed.rows.map((row) => (
             <li
               key={row.id}
-              className="flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-surface p-4"
+              className="flex min-w-0 flex-col gap-2 border-b border-border py-4"
             >
-              <div className="flex min-w-0 flex-col gap-2">
+              <div className="flex min-w-0 flex-col gap-1.5">
                 <Link
                   data-testid={`announcements-row-${row.id}`}
                   href={`/announcements/${row.id}`}
-                  className="min-w-0 break-words text-sm font-semibold text-foreground hover:underline"
+                  className="min-w-0 w-fit break-words text-sm font-semibold text-foreground underline-offset-2 hover:text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
                 >
                   {row.title}
                 </Link>
-                <p className="line-clamp-3 break-words text-sm text-muted-foreground">{row.body}</p>
+                <p className="line-clamp-3 break-words text-sm leading-6 text-muted-foreground">{row.body}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span data-testid={`announcements-date-${row.id}`}>{formatDate(row.publishAt)}</span>
@@ -88,36 +85,16 @@ export default async function AnnouncementsFeedPage({
           ))}
         </ul>
       )}
-      {totalPages > 1 ? (
-        <nav
-          aria-label="Announcement pages"
-          className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground"
-        >
-          <span>
-            Page {page} of {totalPages} ({feed.total} announcements)
-          </span>
-          <div className="flex gap-2">
-            {page > 1 ? (
-              <Link
-                data-testid="announcements-prev"
-                href={`/announcements?page=${page - 1}`}
-                className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary-foreground hover:bg-secondary"
-              >
-                Previous
-              </Link>
-            ) : null}
-            {page < totalPages ? (
-              <Link
-                data-testid="announcements-next"
-                href={`/announcements?page=${page + 1}`}
-                className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary-foreground hover:bg-secondary"
-              >
-                Next
-              </Link>
-            ) : null}
-          </div>
-        </nav>
-      ) : null}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={feed.total}
+        pagePath="/announcements"
+        testId="announcements-pages"
+        nextTestId="announcements-next"
+        prevTestId="announcements-prev"
+        hideDisabledEnds
+      />
     </main>
   );
 }

@@ -1,9 +1,9 @@
 import 'server-only';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ChevronLeft, Plus } from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
-import { EmptyState } from '@/shared/ui/EmptyState';
+import { ACTION_LINK_CLASS, EmptyState, cx } from '@/shared/ui';
 import { getCommonFeeEvent } from '@/modules/billing-payments/application/index';
 import { isUuid } from '@/shared/utils/idempotency';
 import { ChargeEventDetailCard } from '@/modules/billing-payments/ui/ChargeEventDetailCard';
@@ -32,15 +32,15 @@ export default async function AdminBillingEventDetailPage({
         <Link
           data-testid="charge-event-detail-back"
           href="/admin/billing/events"
-          className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline"
+          className="inline-flex w-fit items-center gap-1.5 rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
         >
-          <ChevronLeft aria-hidden="true" className="size-4" />
+          <ArrowLeft aria-hidden="true" className="size-4" />
           Back to billing events
         </Link>
         <Link
           data-testid="charge-event-detail-new"
           href="/admin/billing/events/new"
-          className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          className={cx(ACTION_LINK_CLASS, 'shrink-0')}
         >
           <Plus aria-hidden="true" className="size-4" />
           New event

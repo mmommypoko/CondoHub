@@ -1,7 +1,7 @@
 'use client';
 
 import { Loader2, RotateCcw } from 'lucide-react';
-import { Button } from '@/shared/ui/Button';
+import { Button } from '@/shared/ui';
 import type { ChatOutgoingEntry } from '@/modules/room-chat/ui/chatTypes';
 
 export function ChatPendingBubble({
@@ -21,7 +21,7 @@ export function ChatPendingBubble({
     <li
       data-testid={testId}
       data-client-message-id={entry.clientMessageId}
-      className="flex min-w-0 flex-col items-end gap-1"
+      className="flex min-w-0 flex-col items-end gap-1.5"
     >
       <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">
         <span data-testid={`${testId}-state`} role="status" className="inline-flex items-center gap-1 text-xs text-muted-foreground">
@@ -29,9 +29,9 @@ export function ChatPendingBubble({
           {failed ? 'Not sent' : 'Sending'}
         </span>
       </div>
-      <div className="flex min-w-0 max-w-full flex-col gap-2 rounded-xl rounded-tr-sm border border-dashed border-border bg-surface p-3">
+      <div className={`flex w-fit min-w-0 max-w-[85%] flex-col gap-2 rounded-xl rounded-tr-sm px-3.5 py-2.5 sm:max-w-[75%] ${failed ? 'border border-danger-border bg-danger text-foreground' : 'border border-dashed border-border-strong bg-surface text-foreground opacity-80'}`}>
         {entry.text !== null && entry.text !== '' ? (
-          <p data-testid={`${testId}-text`} className="min-w-0 whitespace-pre-wrap break-words text-sm text-foreground">
+          <p data-testid={`${testId}-text`} className="min-w-0 whitespace-pre-wrap break-words text-sm leading-6">
             {entry.text}
           </p>
         ) : null}
@@ -41,7 +41,7 @@ export function ChatPendingBubble({
           </p>
         ) : null}
         {failed && entry.error !== null ? (
-          <p data-testid={`${testId}-error`} role="alert" className="min-w-0 break-words text-sm text-danger">
+          <p data-testid={`${testId}-error`} role="alert" className="min-w-0 break-words text-sm font-medium text-danger-foreground">
             {entry.error}
           </p>
         ) : null}

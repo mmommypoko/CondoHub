@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { ImagePlus, X } from 'lucide-react';
-import { Button } from '@/shared/ui/Button';
+import { Button } from '@/shared/ui';
 
 export interface SlipUpload {
   imageId: string;
@@ -130,23 +130,23 @@ export function PaymentSlipUploader({
           if (file !== undefined) void uploadFile(file);
         }}
       />
-      <p className="text-xs text-muted-foreground">JPEG, PNG, or WebP. Up to 10 MB.</p>
+      <p className="text-xs leading-6 text-muted-foreground">JPEG, PNG, or WebP. Up to 10 MB.</p>
       {busy ? (
-        <p data-testid={`${testIdPrefix}-upload-progress`} role="status" className="text-sm text-muted-foreground">
+        <p data-testid={`${testIdPrefix}-upload-progress`} role="status" className="text-sm leading-6 text-muted-foreground">
           Uploading the slip image.
         </p>
       ) : null}
       {error !== null ? (
-        <p data-testid={`${testIdPrefix}-upload-error`} role="alert" className="text-sm text-danger">
+        <p data-testid={`${testIdPrefix}-upload-error`} role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
           {error}
         </p>
       ) : null}
       {slip !== null ? (
         <div
           data-testid={`${testIdPrefix}-slip-ready`}
-          className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-border bg-surface p-2 text-sm"
+          className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-border bg-surface p-2 text-sm"
         >
-          <span className="min-w-0 truncate text-foreground">{slip.fileName}</span>
+          <span className="min-w-0 truncate leading-6 text-foreground">{slip.fileName}</span>
           <Button
             data-testid={`${testIdPrefix}-remove-slip`}
             type="button"

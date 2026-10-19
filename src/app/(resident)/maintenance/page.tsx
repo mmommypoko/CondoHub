@@ -1,9 +1,9 @@
 import 'server-only';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { Plus, Wrench } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
-import { EmptyState } from '@/shared/ui/EmptyState';
+import { ACTION_LINK_CLASS, EmptyState, PageHeader } from '@/shared/ui';
 import {
   listTickets,
   type TicketDto,
@@ -51,26 +51,23 @@ export default async function MaintenancePage() {
   return (
     <main
       data-testid="maintenance-page"
-      className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
+      className="mx-auto flex w-full max-w-5xl flex-col gap-8 p-4 sm:p-6"
     >
-      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-1">
-          <h1 className="text-xl font-semibold text-foreground">My requests</h1>
-          <p className="text-sm text-muted-foreground">
-            Track the requests you reported and the rooms assigned to you. Closed requests move to
-            history.
-          </p>
-        </div>
-        <Link
-          data-testid="maintenance-new-link"
-          href="/maintenance/new"
-          className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          <Plus aria-hidden="true" className="size-4" />
-          New request
-        </Link>
-      </div>
-      <section aria-label="Open requests" className="flex min-w-0 flex-col gap-3">
+      <PageHeader
+        title="My requests"
+        description="Track the requests you reported and the rooms assigned to you. Closed requests move to history."
+        actions={
+          <Link
+            data-testid="maintenance-new-link"
+            href="/maintenance/new"
+            className={ACTION_LINK_CLASS}
+          >
+            <Plus aria-hidden="true" className="size-4" />
+            New request
+          </Link>
+        }
+      />
+      <section aria-label="Open requests" className="flex min-w-0 flex-col gap-1">
         <h2 className="text-base font-semibold text-foreground">
           Open requests ({open.length})
         </h2>
@@ -82,7 +79,7 @@ export default async function MaintenancePage() {
             description="Submit a new request when something needs fixing."
           />
         ) : (
-          <ul data-testid="maintenance-open-list" className="flex min-w-0 flex-col gap-3">
+          <ul data-testid="maintenance-open-list" className="flex min-w-0 flex-col border-t border-border">
             {open.map((row) => (
               <TicketListCard
                 key={row.id}
@@ -95,16 +92,16 @@ export default async function MaintenancePage() {
           </ul>
         )}
       </section>
-      <section aria-label="Request history" className="flex min-w-0 flex-col gap-3">
+      <section aria-label="Request history" className="flex min-w-0 flex-col gap-1">
         <h2 className="text-base font-semibold text-foreground">
           History ({history.length})
         </h2>
         {history.length === 0 ? (
-          <p data-testid="maintenance-history-empty" className="text-sm text-muted-foreground">
+          <p data-testid="maintenance-history-empty" className="text-sm leading-6 text-muted-foreground">
             Closed requests will appear here.
           </p>
         ) : (
-          <ul data-testid="maintenance-history-list" className="flex min-w-0 flex-col gap-3">
+          <ul data-testid="maintenance-history-list" className="flex min-w-0 flex-col border-t border-border">
             {history.map((row) => (
               <TicketListCard
                 key={row.id}

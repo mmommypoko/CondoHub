@@ -1,0 +1,30 @@
+import 'server-only';
+import { redirect } from 'next/navigation';
+import { getActorFromSession } from '@/shared/auth/actor';
+import { PageHeader } from '@/shared/ui';
+import { listAllBuildings } from '@/modules/property-membership/application/index';
+import { BuildingCreateForm } from '@/modules/property-membership/ui/BuildingCreateForm';
+
+export default async function AdminBuildingNewPage() {
+  const actor = await getActorFromSession();
+  if (actor === null) redirect('/login?returnUrl=/admin/buildings/new');
+  if (!actor.isSystemAdmin) redirect('/');
+  if (actor.mustChangePassword) redirect('/change-password');
+  const buildings = await listAllBuildings(actor);
+  const projectId = buildings[0]?.projectId ?? '00000000-0000-4000-8000-000000000000';
+  return (
+    <main
+      data-testid="admin-building-new-page"
+      className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-6"
+    >
+      <PageHeader
+        title="New building"
+        description="Set the code, name, and status for the new building."
+        backHref="/admin/buildings"
+        backLabel="Back to buildings"
+        backTestId="admin-building-new-back"
+      />
+      <BuildingCreateForm projectId={projectId} />
+    </main>
+  );
+}

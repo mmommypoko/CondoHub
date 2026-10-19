@@ -1,4 +1,5 @@
 import { PROJECT_TIMEZONE } from '@/config/project';
+import { deniedCopy, firstOf, rateLimitedCopy } from '@/shared/ui';
 
 export const CHAT_PROJECT_TIMEZONE = PROJECT_TIMEZONE;
 
@@ -46,13 +47,13 @@ export function formatChatExact(value: string): string {
 }
 
 export function chatSendErrorCopy(code: string | undefined, fallback: string): string {
-  if (code === 'RESOURCE_NOT_FOUND' || code === 'ACCESS_DENIED') {
-    return 'This chat is not available. You may no longer have access to this room.';
-  }
   if (code === 'FIRST_LOGIN_PASSWORD_CHANGE_REQUIRED') {
     return 'Change your temporary password before sending messages.';
   }
-  if (code === 'RATE_LIMITED') return 'Too many messages. Wait a moment, then retry.';
-  if (code === 'VALIDATION_ERROR') return fallback;
-  return fallback;
+  return firstOf(
+    code,
+    fallback,
+    deniedCopy('This chat is not available. You may no longer have access to this room.'),
+    rateLimitedCopy('Too many messages. Wait a moment, then retry.'),
+  );
 }

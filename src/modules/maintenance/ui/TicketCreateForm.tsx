@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/shared/ui/Button';
-import { useToast } from '@/shared/ui/Toast';
+import { Button, FormField, INPUT_BASE_CLASS, cx, useToast } from '@/shared/ui';
 import {
   TicketImageUploader,
   type TicketUploadedImage,
@@ -103,7 +102,7 @@ export function TicketCreateForm({
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as ErrorPayload | null;
         setServerError(
-          createErrorCopy(payload?.error?.code, payload?.error?.message ?? 'Could not submit the request.'),
+          createErrorCopy(payload?.error?.code, payload?.error?.message ?? 'Could not submit this request. Check the form and retry.'),
         );
         return;
       }
@@ -144,7 +143,7 @@ export function TicketCreateForm({
   return (
     <form data-testid="maintenance-create-form" onSubmit={onSubmit} noValidate className="flex min-w-0 flex-col gap-5">
       {serverError !== null ? (
-        <p data-testid="maintenance-create-error" role="alert" className="text-sm text-danger">
+        <p data-testid="maintenance-create-error" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
           {serverError}
         </p>
       ) : null}
@@ -153,45 +152,62 @@ export function TicketCreateForm({
         <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3">
           {maintenanceRoutingKindOptions.map((kind) => {
             const meta = KIND_META[kind] ?? { label: kind, hint: '' };
+            const selected = routingKind === kind;
             return (
               <label
                 key={kind}
-                className="flex cursor-pointer items-start gap-2 rounded-xl border border-border bg-surface p-3 text-sm"
+                className={cx(
+                  'flex cursor-pointer items-start gap-3 rounded-xl border bg-surface p-4 text-sm transition-[border-color,background-color] duration-150 ease-out motion-reduce:transition-none',
+                  selected
+                    ? 'border-primary'
+                    : 'border-border hover:border-border-strong',
+                )}
               >
                 <input
                   data-testid={`maintenance-create-kind-${kind}`}
                   type="radio"
                   value={kind}
-                  className="mt-0.5 size-4 shrink-0"
+                  aria-label={meta.label}
+                  className="peer absolute size-5 cursor-pointer opacity-0"
                   {...register('routingKind', {
                     onChange: () => setValue('roomId', '', { shouldValidate: true }),
                   })}
                 />
+                <span
+                  aria-hidden="true"
+                  className={cx(
+                    'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-[border-color,background-color] duration-150 ease-out motion-reduce:transition-none peer-focus-visible:ring-2 peer-focus-visible:ring-focus-ring peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface',
+                    selected ? 'border-primary bg-primary' : 'border-border-strong bg-surface',
+                  )}
+                >
+                  <span className={cx('size-2 rounded-full bg-primary-foreground', selected ? 'block' : 'hidden')} />
+                </span>
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="font-medium text-foreground">{meta.label}</span>
-                  <span className="text-xs text-muted-foreground">{meta.hint}</span>
+                  <span className="text-xs leading-6 text-muted-foreground">{meta.hint}</span>
                 </span>
               </label>
             );
           })}
         </div>
         {errors.routingKind !== undefined ? (
-          <p data-testid="maintenance-create-kind-error" role="alert" className="text-sm text-danger">
+          <p data-testid="maintenance-create-kind-error" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
             {errors.routingKind.message}
           </p>
         ) : null}
       </fieldset>
       {routingKind !== 'COMMON_AREA' ? (
-        <div className="flex min-w-0 flex-col gap-1">
-          <label htmlFor="maintenance-create-room" className="text-sm font-medium text-foreground">
-            Room
-          </label>
+        <FormField
+          label="Room"
+          htmlFor="maintenance-create-room"
+          {...(errors.roomId?.message === undefined ? {} : { error: errors.roomId.message })}
+          required
+          {...(roomOptions.length === 0 ? { hint: 'No eligible rooms for this category. Check your memberships first.' } : {})}
+        >
           <select
-            id="maintenance-create-room"
             data-testid="maintenance-create-room"
-            aria-invalid={errors.roomId !== undefined}
-            aria-describedby={errors.roomId !== undefined ? 'maintenance-create-room-error' : undefined}
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+            required
+            className={cx(INPUT_BASE_CLASS, 'h-10')}
             {...register('roomId')}
           >
             <option value="">Select a room</option>
@@ -201,81 +217,41 @@ export function TicketCreateForm({
               </option>
             ))}
           </select>
-          {roomOptions.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              No eligible rooms for this category. Check your memberships first.
-            </p>
-          ) : null}
-          {errors.roomId !== undefined ? (
-            <p id="maintenance-create-room-error" data-testid="maintenance-create-room-error" role="alert" className="text-sm text-danger">
-              {errors.roomId.message}
-            </p>
-          ) : null}
-        </div>
+        </FormField>
       ) : null}
-      <div className="flex min-w-0 flex-col gap-1">
-        <label htmlFor="maintenance-create-location" className="text-sm font-medium text-foreground">
-          Location
-        </label>
+      <FormField label="Location" htmlFor="maintenance-create-location" {...(errors.locationDescription?.message === undefined ? {} : { error: errors.locationDescription.message })} required>
         <input
-          id="maintenance-create-location"
           data-testid="maintenance-create-location"
           type="text"
           maxLength={1000}
+          required
           placeholder="Tower B lobby, near the lift hall"
-          aria-invalid={errors.locationDescription !== undefined}
-          aria-describedby={errors.locationDescription !== undefined ? 'maintenance-create-location-error' : undefined}
-          className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          className={cx(INPUT_BASE_CLASS, 'h-10')}
           {...register('locationDescription')}
         />
-        {errors.locationDescription !== undefined ? (
-          <p id="maintenance-create-location-error" data-testid="maintenance-create-location-error" role="alert" className="text-sm text-danger">
-            {errors.locationDescription.message}
-          </p>
-        ) : null}
-      </div>
-      <div className="flex min-w-0 flex-col gap-1">
-        <label htmlFor="maintenance-create-subject" className="text-sm font-medium text-foreground">
-          Subject
-        </label>
+      </FormField>
+      <FormField label="Subject" htmlFor="maintenance-create-subject" {...(errors.subject?.message === undefined ? {} : { error: errors.subject.message })} required>
         <input
-          id="maintenance-create-subject"
           data-testid="maintenance-create-subject"
           type="text"
           maxLength={255}
+          required
           placeholder="Flickering light in the lobby"
-          aria-invalid={errors.subject !== undefined}
-          aria-describedby={errors.subject !== undefined ? 'maintenance-create-subject-error' : undefined}
-          className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          className={cx(INPUT_BASE_CLASS, 'h-10')}
           {...register('subject')}
         />
-        {errors.subject !== undefined ? (
-          <p id="maintenance-create-subject-error" data-testid="maintenance-create-subject-error" role="alert" className="text-sm text-danger">
-            {errors.subject.message}
-          </p>
-        ) : null}
-      </div>
-      <div className="flex min-w-0 flex-col gap-1">
-        <label htmlFor="maintenance-create-description" className="text-sm font-medium text-foreground">
-          Details
-        </label>
+      </FormField>
+      <FormField label="Details" htmlFor="maintenance-create-description" {...(errors.description?.message === undefined ? {} : { error: errors.description.message })} required>
         <textarea
-          id="maintenance-create-description"
           data-testid="maintenance-create-description"
           rows={5}
           maxLength={20000}
+          required
           placeholder="Describe the problem, when it started, and anything the handler should know."
-          aria-invalid={errors.description !== undefined}
-          aria-describedby={errors.description !== undefined ? 'maintenance-create-description-error' : undefined}
-          className="w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          className={cx(INPUT_BASE_CLASS, 'py-2 leading-6')}
           {...register('description')}
         />
-        {errors.description !== undefined ? (
-          <p id="maintenance-create-description-error" data-testid="maintenance-create-description-error" role="alert" className="text-sm text-danger">
-            {errors.description.message}
-          </p>
-        ) : null}
-      </div>
+      </FormField>
       <TicketImageUploader
         images={images}
         onChange={setImages}

@@ -1,9 +1,9 @@
 import 'server-only';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { Plus } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
-import { Badge } from '@/shared/ui/Badge';
-import { EmptyState } from '@/shared/ui/EmptyState';
+import { ACTION_LINK_CLASS, Badge, DataTable, DataTableCell, DataTableRow, EmptyState, PageHeader } from '@/shared/ui';
 import { listAllBuildings } from '@/modules/property-membership/application/index';
 
 export default async function AdminBuildingsPage() {
@@ -17,12 +17,20 @@ export default async function AdminBuildingsPage() {
       data-testid="admin-buildings-page"
       className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6"
     >
-      <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold text-foreground">Buildings</h1>
-        <p className="text-sm text-muted-foreground">
-          Manage buildings, floors, rooms, and room status.
-        </p>
-      </div>
+      <PageHeader
+        title="Buildings"
+        description="Manage buildings, floors, rooms, and room status."
+        actions={
+          <Link
+            data-testid="admin-buildings-create"
+            href="/admin/buildings/new"
+            className={ACTION_LINK_CLASS}
+          >
+            <Plus aria-hidden="true" className="size-4" />
+            New building
+          </Link>
+        }
+      />
       {buildings.length === 0 ? (
         <EmptyState
           data-testid="admin-buildings-empty"
@@ -30,28 +38,27 @@ export default async function AdminBuildingsPage() {
           description="Create the first building to start onboarding rooms."
         />
       ) : (
-        <ul data-testid="admin-buildings-list" className="flex flex-col gap-3">
+        <DataTable
+          testId="admin-buildings-list"
+          caption="Buildings"
+          columns={[
+            { key: 'name', header: 'Building' },
+            { key: 'status', header: 'Status' },
+          ]}
+        >
           {buildings.map((building) => (
-            <li
-              key={building.id}
-              className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface p-4"
-            >
-              <div className="flex min-w-0 flex-col gap-1">
-                <Link
-                  data-testid={`admin-buildings-row-${building.id}`}
-                  href={`/admin/buildings/${building.id}`}
-                  className="truncate text-sm font-semibold text-foreground hover:underline"
-                >
-                  {building.name} · {building.code}
-                </Link>
-                <p className="truncate text-sm text-muted-foreground">{building.id}</p>
-              </div>
-              <Badge variant={building.status === 'ACTIVE' ? 'success' : 'neutral'}>
-                {building.status === 'ACTIVE' ? 'Active' : 'Inactive'}
-              </Badge>
-            </li>
+            <DataTableRow key={building.id} rowKey={building.id}>
+              <DataTableCell link href={`/admin/buildings/${building.id}`} linkTestId={`admin-buildings-row-${building.id}`}>
+                {building.name} · {building.code}
+              </DataTableCell>
+              <DataTableCell>
+                <Badge variant={building.status === 'ACTIVE' ? 'success' : 'neutral'}>
+                  {building.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+                </Badge>
+              </DataTableCell>
+            </DataTableRow>
           ))}
-        </ul>
+        </DataTable>
       )}
     </main>
   );

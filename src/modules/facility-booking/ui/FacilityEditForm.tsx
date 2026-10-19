@@ -5,8 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/shared/ui/Button';
-import { useToast } from '@/shared/ui/Toast';
+import { Button, FormField, useToast } from '@/shared/ui';
+import { INPUT_CLASS, TEXTAREA_CLASS } from './formControls';
 
 const editSchema = z.object({
   name: z.string().trim().min(1, 'Name is required.').max(255),
@@ -79,71 +79,59 @@ export function FacilityEditForm({
       data-testid="facility-edit-form"
       onSubmit={onSubmit}
       noValidate
-      className="flex flex-col gap-4"
+      className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4 sm:p-5"
     >
       {serverError !== null ? (
-        <p data-testid="facility-edit-error" role="alert" className="text-sm text-danger">
+        <p
+          data-testid="facility-edit-error"
+          role="alert"
+          className="text-sm font-medium text-danger-foreground"
+        >
           {serverError}
         </p>
       ) : null}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="flex min-w-0 flex-col gap-1">
-          <label htmlFor="facility-edit-name" className="text-sm font-medium text-foreground">
-            Name
-          </label>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <FormField label="Name" htmlFor="facility-edit-name" error={errors.name?.message ?? ''} required>
           <input
-            id="facility-edit-name"
             data-testid="facility-edit-name"
             type="text"
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+            required
+            className={INPUT_CLASS}
             {...register('name')}
           />
-          {errors.name !== undefined ? (
-            <p role="alert" className="text-sm text-danger">
-              {errors.name.message}
-            </p>
-          ) : null}
-        </div>
-        <div className="flex min-w-0 flex-col gap-1">
-          <label htmlFor="facility-edit-capacity" className="text-sm font-medium text-foreground">
-            Seats per slot
-          </label>
+        </FormField>
+        <FormField label="Seats per slot" htmlFor="facility-edit-capacity">
           <input
-            id="facility-edit-capacity"
             data-testid="facility-edit-capacity"
             type="number"
             min={1}
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+            className={INPUT_CLASS}
             {...register('capacity')}
           />
-        </div>
+        </FormField>
       </div>
-      <div className="flex min-w-0 flex-col gap-1">
-        <label htmlFor="facility-edit-description" className="text-sm font-medium text-foreground">
-          Description
-        </label>
+      <FormField
+        label="Description"
+        htmlFor="facility-edit-description"
+        hint="Shown to residents on the facility page."
+      >
         <textarea
-          id="facility-edit-description"
           data-testid="facility-edit-description"
           rows={3}
-          className="w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 py-2 text-sm text-foreground"
+          className={TEXTAREA_CLASS}
           {...register('description')}
         />
-      </div>
-      <div className="flex min-w-0 flex-col gap-1">
-        <label htmlFor="facility-edit-status" className="text-sm font-medium text-foreground">
-          Status
-        </label>
+      </FormField>
+      <FormField label="Status" htmlFor="facility-edit-status">
         <select
-          id="facility-edit-status"
           data-testid="facility-edit-status"
-          className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+          className={INPUT_CLASS}
           {...register('status')}
         >
           <option value="ACTIVE">Active</option>
           <option value="INACTIVE">Inactive</option>
         </select>
-      </div>
+      </FormField>
       <div>
         <Button data-testid="facility-edit-submit" type="submit" loading={isSubmitting}>
           Save facility

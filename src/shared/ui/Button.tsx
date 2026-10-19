@@ -14,15 +14,15 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const BASE_STYLES =
-  "inline-flex select-none items-center justify-center gap-2 rounded-lg font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed [&_svg]:size-5 [&_svg]:shrink-0";
+  "inline-flex select-none items-center justify-center gap-2 rounded-lg font-medium transition-[background-color,color,border-color,opacity,transform] duration-150 ease-out active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:active:scale-100 [&_svg]:size-5 [&_svg]:shrink-0";
 
 const VARIANT_STYLES: Record<ButtonVariant, string> = {
   primary:
-    "bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-disabled disabled:text-disabled-foreground",
+    "bg-primary text-primary-foreground hover:bg-primary-hover disabled:bg-disabled disabled:text-disabled-foreground",
   secondary:
     "border border-input-border bg-surface text-secondary-foreground hover:bg-secondary disabled:border-disabled-border disabled:bg-disabled disabled:text-disabled-foreground",
   destructive:
-    "bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:bg-disabled disabled:text-disabled-foreground",
+    "bg-destructive text-destructive-foreground hover:bg-destructive-hover disabled:bg-disabled disabled:text-disabled-foreground",
   ghost:
     "text-secondary-foreground hover:bg-ghost-hover hover:text-foreground disabled:text-disabled-foreground disabled:hover:bg-transparent",
 };

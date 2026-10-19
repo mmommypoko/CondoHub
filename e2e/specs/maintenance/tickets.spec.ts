@@ -4,7 +4,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { apiJson } from '../../helpers/api';
 import { readRunContext } from '../../fixtures/run-context';
-import { completeFirstLogin, loginAsAdmin, provisionUser } from '../../helpers/owner';
+import { completeFirstLogin, loginAsAdmin, loginAsUser, provisionUser, signInSuspendedActor } from '../../helpers/owner';
 import { buildValidImage } from '../../helpers/announcementFiles';
 import { completeUpload, mintIntent, putBytes, readAccess } from '../upload/uploadFlow';
 import {
@@ -1213,16 +1213,14 @@ test.describe('maintenance tickets: routing, privacy, lifecycle, concurrency', (
     const suspendedEContext = await browser.newContext({ baseURL });
     const suspendedE = await suspendedEContext.newPage();
     try {
-      const signinD = await apiJson<{ token?: string }>(suspendedD.request, {
-        method: 'POST',
-        path: '/api/auth/sign-in/username',
-        body: { username: ctx.ownD?.username ?? '', password: ctx.ownD?.password ?? '' },
+      const signinD = await signInSuspendedActor(suspendedD.request, {
+        username: ctx.ownD?.username ?? '',
+        password: ctx.ownD?.password ?? '',
       });
       expect(signinD.status).toBe(200);
-      const signinE = await apiJson<{ token?: string }>(suspendedE.request, {
-        method: 'POST',
-        path: '/api/auth/sign-in/username',
-        body: { username: ctx.ownE?.username ?? '', password: ctx.ownE?.password ?? '' },
+      const signinE = await signInSuspendedActor(suspendedE.request, {
+        username: ctx.ownE?.username ?? '',
+        password: ctx.ownE?.password ?? '',
       });
       expect(signinE.status).toBe(200);
 
@@ -1252,11 +1250,7 @@ test.describe('maintenance tickets: routing, privacy, lifecycle, concurrency', (
     }
 
     await setAccountStatus(page, ctx.ownD?.userId ?? '', 'ACTIVE');
-    await ownD.goto('/login');
-    await ownD.getByTestId('login-username').fill(ctx.ownD?.username ?? '');
-    await ownD.getByTestId('login-password').fill(ctx.ownD?.password ?? '');
-    await ownD.getByTestId('login-submit').click();
-    await expect(ownD).not.toHaveURL(/\/login/, { timeout: 15000 });
+    await loginAsUser(ownD, ctx.ownD?.username ?? '', ctx.ownD?.password ?? '');
 
     const restored = await getTicket(ownD.request, ticketId);
     expect(restored.status).toBe('PENDING');
@@ -1264,11 +1258,7 @@ test.describe('maintenance tickets: routing, privacy, lifecycle, concurrency', (
     expect(restoredMove.status).toBe(200);
 
     await setAccountStatus(page, ctx.ownE?.userId ?? '', 'ACTIVE');
-    await ownE.goto('/login');
-    await ownE.getByTestId('login-username').fill(ctx.ownE?.username ?? '');
-    await ownE.getByTestId('login-password').fill(ctx.ownE?.password ?? '');
-    await ownE.getByTestId('login-submit').click();
-    await expect(ownE).not.toHaveURL(/\/login/, { timeout: 15000 });
+    await loginAsUser(ownE, ctx.ownE?.username ?? '', ctx.ownE?.password ?? '');
     const coRestored = await getTicket(ownE.request, ticketId);
     expect(coRestored.status).toBe('IN_PROGRESS');
   });

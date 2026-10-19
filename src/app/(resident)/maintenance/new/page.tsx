@@ -1,9 +1,8 @@
 import 'server-only';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
+import { PageHeader } from '@/shared/ui';
 import { listEligibleRooms } from '@/modules/maintenance/application/index';
 import {
   TicketCreateForm,
@@ -46,21 +45,13 @@ export default async function MaintenanceNewPage() {
       data-testid="maintenance-new-page"
       className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-6"
     >
-      <Link
-        data-testid="maintenance-new-back"
-        href="/maintenance"
-        className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline"
-      >
-        <ChevronLeft aria-hidden="true" className="size-4" />
-        Back to requests
-      </Link>
-      <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="text-xl font-semibold text-foreground">New request</h1>
-        <p className="text-sm text-muted-foreground">
-          Describe the problem and attach up to 5 photos. Common-area requests skip the room
-          picker.
-        </p>
-      </div>
+      <PageHeader
+        title="New request"
+        description="Describe the problem and attach up to 5 photos. Common-area requests skip the room picker."
+        backHref="/maintenance"
+        backLabel="Back to requests"
+        backTestId="maintenance-new-back"
+      />
       <TicketCreateForm privateRooms={privateRooms} managedRooms={managedRooms} />
     </main>
   );

@@ -3,8 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { CalendarDays } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
-import { Badge } from '@/shared/ui/Badge';
-import { EmptyState } from '@/shared/ui/EmptyState';
+import { Badge, EmptyState, PageHeader, Pagination } from '@/shared/ui';
 import { listFacilityPage } from '@/modules/facility-booking/application/index';
 
 export default async function ResidentFacilitiesPage({
@@ -22,12 +21,10 @@ export default async function ResidentFacilitiesPage({
   const totalPages = Math.max(1, Math.ceil(feed.total / 20));
   return (
     <main data-testid="facilities-page" className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6">
-      <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="text-xl font-semibold text-foreground">Facilities</h1>
-        <p className="text-sm text-muted-foreground">
-          Pick a facility to see open slots, quota, and your room bookings.
-        </p>
-      </div>
+      <PageHeader
+        title="Facilities"
+        description="Pick a facility to see open slots, quota, and your room bookings."
+      />
       {feed.rows.length === 0 ? (
         <EmptyState
           data-testid="facilities-empty"
@@ -40,56 +37,36 @@ export default async function ResidentFacilitiesPage({
           {feed.rows.map((row) => (
             <li
               key={row.id}
-              className="flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-surface p-4"
+              className="flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-surface p-4 sm:p-5"
             >
               <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
                 <Link
                   data-testid={`facilities-row-${row.id}`}
                   href={`/facilities/${row.id}`}
-                  className="min-w-0 flex-1 basis-40 break-words text-sm font-semibold text-foreground hover:underline"
+                  className="min-w-0 flex-1 basis-40 break-words rounded-lg text-sm font-semibold text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
                 >
                   {row.name}
                 </Link>
                 <Badge variant="neutral">{row.capacity} {row.capacity === 1 ? 'seat' : 'seats'}</Badge>
               </div>
               {row.description !== null && row.description !== '' ? (
-                <p className="line-clamp-3 break-words text-sm text-muted-foreground">{row.description}</p>
+                <p className="line-clamp-3 break-words text-sm leading-6 text-muted-foreground">{row.description}</p>
               ) : null}
               <p className="text-xs text-muted-foreground">Code {row.code}</p>
             </li>
           ))}
         </ul>
       )}
-      {totalPages > 1 ? (
-        <nav
-          aria-label="Facility pages"
-          className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground"
-        >
-          <span>
-            Page {page} of {totalPages} ({feed.total} facilities)
-          </span>
-          <div className="flex gap-2">
-            {page > 1 ? (
-              <Link
-                data-testid="facilities-prev"
-                href={`/facilities?page=${page - 1}`}
-                className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary-foreground hover:bg-secondary"
-              >
-                Previous
-              </Link>
-            ) : null}
-            {page < totalPages ? (
-              <Link
-                data-testid="facilities-next"
-                href={`/facilities?page=${page + 1}`}
-                className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary-foreground hover:bg-secondary"
-              >
-                Next
-              </Link>
-            ) : null}
-          </div>
-        </nav>
-      ) : null}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={feed.total}
+        pagePath="/facilities"
+        testId="facilities-pages"
+        nextTestId="facilities-next"
+        prevTestId="facilities-prev"
+        hideDisabledEnds
+      />
     </main>
   );
 }

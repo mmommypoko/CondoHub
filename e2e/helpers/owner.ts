@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { apiJson } from './api';
 import { poolAdminFor, readRunContext } from '../fixtures/run-context';
 
@@ -25,16 +25,42 @@ async function paceAuthAttempts(): Promise<void> {
   lastAuthAttempt = Date.now();
 }
 
-async function submitLogin(page: Page, username: string, password: string): Promise<void> {
+async function submitLogin(page: Page, username: string, password: string): Promise<number | null> {
   await page.goto('/login');
   await page.getByTestId('login-username').fill(username);
   await page.getByTestId('login-password').fill(password);
+  const submitted = page.waitForResponse(
+    (response) => response.url().includes('/api/auth/sign-in/username'),
+    { timeout: 15000 },
+  );
   await page.getByTestId('login-submit').click();
+  const answered = await submitted.then(
+    (response) => response,
+    () => null,
+  );
+  if (answered === null) return null;
+  lastAuthAttempt = Date.now();
+  const status = answered.status();
+  if (status === 429) {
+    const retryAfter = await answered.headerValue('x-retry-after').catch(() => null);
+    const waitSeconds = retryAfter === null ? NaN : Number.parseInt(retryAfter, 10);
+    const waitMs =
+      Number.isFinite(waitSeconds) && waitSeconds > 0 ? (waitSeconds + 2) * 1000 : 15000;
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+    return 429;
+  }
+  return status;
 }
 
 async function loginWithRetry(page: Page, username: string, password: string): Promise<void> {
   await paceAuthAttempts();
-  await submitLogin(page, username, password);
+  const status = await submitLogin(page, username, password);
+  if (status === 429) {
+    await paceAuthAttempts();
+    await submitLogin(page, username, password);
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 15000 });
+    return;
+  }
   try {
     await expect(page).not.toHaveURL(/\/login/, { timeout: 8000 });
   } catch {
@@ -43,6 +69,50 @@ async function loginWithRetry(page: Page, username: string, password: string): P
     await submitLogin(page, username, password);
     await expect(page).not.toHaveURL(/\/login/, { timeout: 15000 });
   }
+}
+
+async function signInFromApi(
+  request: APIRequestContext,
+  input: { username: string; password: string },
+): Promise<{ status: number; json: unknown }> {
+  await paceAuthAttempts();
+  const first = await apiJson<unknown>(request, {
+    method: 'POST',
+    path: '/api/auth/sign-in/username',
+    body: { username: input.username, password: input.password },
+  });
+  lastAuthAttempt = Date.now();
+  if (first.status !== 429) return first;
+  await new Promise((resolve) => setTimeout(resolve, 62000));
+  lastAuthAttempt = Date.now();
+  const second = await apiJson<unknown>(request, {
+    method: 'POST',
+    path: '/api/auth/sign-in/username',
+    body: { username: input.username, password: input.password },
+  });
+  lastAuthAttempt = Date.now();
+  return second;
+}
+
+export async function submitFirstLoginStep(
+  page: Page,
+  input: { username: string; tempPassword: string },
+): Promise<void> {
+  await paceAuthAttempts();
+  const status = await submitLogin(page, input.username, input.tempPassword);
+  if (status === 429) {
+    await paceAuthAttempts();
+    await submitLogin(page, input.username, input.tempPassword);
+  }
+  await expect(page).toHaveURL(/\/change-password/, { timeout: 15000 });
+}
+
+export async function signInSuspendedActor(
+  request: APIRequestContext,
+  input: { username: string; password: string },
+): Promise<{ status: number; json: { token?: string } }> {
+  const signed = await signInFromApi(request, input);
+  return signed as { status: number; json: { token?: string } };
 }
 
 export async function loginAsAdmin(page: Page): Promise<void> {
@@ -86,9 +156,7 @@ export async function completeFirstLogin(
   page: Page,
   input: { username: string; tempPassword: string; newPassword: string },
 ): Promise<void> {
-  await paceAuthAttempts();
-  await submitLogin(page, input.username, input.tempPassword);
-  await expect(page).toHaveURL(/\/change-password/, { timeout: 15000 });
+  await submitFirstLoginStep(page, { username: input.username, tempPassword: input.tempPassword });
   await page.getByTestId('change-password-current').fill(input.tempPassword);
   await page.getByTestId('change-password-new').fill(input.newPassword);
   await page.getByTestId('change-password-confirm').fill(input.newPassword);

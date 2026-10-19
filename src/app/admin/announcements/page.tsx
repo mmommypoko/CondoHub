@@ -4,8 +4,7 @@ import { redirect } from 'next/navigation';
 import { Plus } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
-import { Badge } from '@/shared/ui/Badge';
-import { EmptyState } from '@/shared/ui/EmptyState';
+import { ACTION_LINK_CLASS, Badge, EmptyState, PageHeader, Pagination, cx } from '@/shared/ui';
 import { listAdminAnnouncements } from '@/modules/announcements/application/index';
 
 function statusVariant(
@@ -47,22 +46,20 @@ export default async function AdminAnnouncementsPage({
       data-testid="admin-announcements-page"
       className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
     >
-      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-1">
-          <h1 className="text-xl font-semibold text-foreground">Announcements</h1>
-          <p className="text-sm text-muted-foreground">
-            Draft, schedule, publish, hide, and edit project-wide announcements.
-          </p>
-        </div>
-        <Link
-          data-testid="admin-announcements-create"
-          href="/admin/announcements/new"
-          className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          <Plus aria-hidden="true" className="size-4" />
-          New announcement
-        </Link>
-      </div>
+      <PageHeader
+        title="Announcements"
+        description="Draft, schedule, publish, hide, and edit project-wide announcements."
+        actions={
+          <Link
+            data-testid="admin-announcements-create"
+            href="/admin/announcements/new"
+            className={cx(ACTION_LINK_CLASS, 'shrink-0')}
+          >
+            <Plus aria-hidden="true" className="size-4" />
+            New announcement
+          </Link>
+        }
+      />
       {feed.rows.length === 0 ? (
         <EmptyState
           data-testid="admin-announcements-empty"
@@ -70,17 +67,17 @@ export default async function AdminAnnouncementsPage({
           description="Create the first announcement to inform residents."
         />
       ) : (
-        <ul data-testid="admin-announcements-list" className="flex flex-col gap-3">
+        <ul data-testid="admin-announcements-list" className="flex min-w-0 flex-col border-t border-border">
           {feed.rows.map((row) => (
             <li
               key={row.id}
-              className="flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-surface p-4"
+              className="flex min-w-0 flex-col gap-2 border-b border-border py-4"
             >
               <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
                 <Link
                   data-testid={`admin-announcements-row-${row.id}`}
                   href={`/admin/announcements/${row.id}`}
-                  className="min-w-0 flex-1 basis-40 break-words text-sm font-semibold text-foreground hover:underline"
+                  className="min-w-0 flex-1 basis-40 break-words text-sm font-semibold text-foreground underline-offset-2 hover:text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
                 >
                   {row.title}
                 </Link>
@@ -90,46 +87,33 @@ export default async function AdminAnnouncementsPage({
               </div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 <span>Publish: {formatDate(row.publishAt)}</span>
+                <span aria-hidden="true">·</span>
                 <span>Revision {row.revision}</span>
+                <span aria-hidden="true">·</span>
                 <span>
                   {row.images.length} {row.images.length === 1 ? 'image' : 'images'}
                 </span>
-                {row.editedAt !== null ? <span>Edited</span> : null}
+                {row.editedAt !== null ? (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span>Edited</span>
+                  </>
+                ) : null}
               </div>
             </li>
           ))}
         </ul>
       )}
-      {totalPages > 1 ? (
-        <nav
-          aria-label="Announcement pages"
-          className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground"
-        >
-          <span>
-            Page {page} of {totalPages} ({feed.total} announcements)
-          </span>
-          <div className="flex gap-2">
-            {page > 1 ? (
-              <Link
-                data-testid="admin-announcements-prev"
-                href={`/admin/announcements?page=${page - 1}`}
-                className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary-foreground hover:bg-secondary"
-              >
-                Previous
-              </Link>
-            ) : null}
-            {page < totalPages ? (
-              <Link
-                data-testid="admin-announcements-next"
-                href={`/admin/announcements?page=${page + 1}`}
-                className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary-foreground hover:bg-secondary"
-              >
-                Next
-              </Link>
-            ) : null}
-          </div>
-        </nav>
-      ) : null}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={feed.total}
+        pagePath="/admin/announcements"
+        testId="admin-announcements-pages"
+        nextTestId="admin-announcements-next"
+        prevTestId="admin-announcements-prev"
+        hideDisabledEnds
+      />
     </main>
   );
 }

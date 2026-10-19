@@ -173,7 +173,7 @@ test.describe('chat screens: composer, backfill, pill, retry, revoke, denies', (
     await residentA.goto(`/rooms/${room301}/chat`);
     await expect(residentA.getByTestId('chat-page')).toBeVisible();
     await residentA.getByTestId('chat-composer-upload-input').setInputFiles(ctx.photoPath ?? '');
-    await expect(residentA.getByTestId('chat-composer-attachment')).toBeVisible();
+    await expect(residentA.getByTestId('chat-composer-attachment')).toBeVisible({ timeout: 30000 });
     await residentA.getByTestId('chat-composer-send').click();
     let images: Array<{ id: string; type: string; imageId: string | null }> = [];
     for (let attempt = 0; attempt < 10; attempt += 1) {

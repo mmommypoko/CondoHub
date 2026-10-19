@@ -8,6 +8,7 @@ import {
   createPropertyCtx,
   parseWithFieldErrors,
   removeOwnership,
+  resolveGrantTargetByUsername,
   transferOwnership,
 } from '@/modules/property-membership/application/index';
 import { ownershipAdminBody } from '@/modules/property-membership/application/routeSchemas';
@@ -23,12 +24,23 @@ export const POST = withApi(
     const body = parseWithFieldErrors(ownershipAdminBody, await request.json());
     const propertyCtx = createPropertyCtx({ requestId: ctx.requestId });
     if (body.action === 'TRANSFER') {
+      let toUserId = body.toUserId ?? null;
+      if (body.toUsername !== undefined) {
+        const resolved = await resolveGrantTargetByUsername(body.toUsername);
+        if (resolved === null) {
+          throw new AppError('VALIDATION_ERROR', 'The new owner was not found.');
+        }
+        toUserId = resolved.userId;
+      }
+      if (toUserId === null) {
+        throw new AppError('VALIDATION_ERROR', 'Provide a user to transfer to.');
+      }
       const result = await transferOwnership(
         ctx.actor,
         {
           roomId,
           fromUserId: body.fromUserId,
-          toUserId: body.toUserId,
+          toUserId,
           effectiveAt: new Date(body.effectiveAt),
         },
         propertyCtx,

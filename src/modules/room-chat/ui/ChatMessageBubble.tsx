@@ -1,6 +1,6 @@
 'use client';
 
-import { Badge } from '@/shared/ui/Badge';
+import { Badge } from '@/shared/ui';
 import { ChatDateSeparator } from '@/modules/room-chat/ui/ChatDateSeparator';
 import { ChatImageBubble } from '@/modules/room-chat/ui/ChatImageBubble';
 import { formatChatExact, formatChatTime } from '@/modules/room-chat/ui/chatLabels';
@@ -23,14 +23,14 @@ export function ChatMessageBubble({
       data-testid={testId}
       data-message-id={message.id}
       data-created-at={message.createdAt}
-      className={`flex min-w-0 flex-col gap-3 ${own ? 'items-end' : 'items-start'}`}
+      className={`flex min-w-0 flex-col gap-1.5 ${own ? 'items-end' : 'items-start'}`}
     >
       {separator !== null ? (
         <div className="w-full min-w-0" data-chat-separator="true">
           <ChatDateSeparator value={separator.value} testId={`${testIdPrefix}-day-${separator.day}`} />
         </div>
       ) : null}
-      <div className={`flex min-w-0 max-w-full flex-wrap items-center gap-2 ${own ? 'justify-end' : 'justify-start'}`}>
+      <div className={`flex min-w-0 max-w-full flex-wrap items-baseline gap-x-2 gap-y-0.5 ${own ? 'justify-end' : 'justify-start'}`}>
         <span data-testid={`${testId}-sender`} className="min-w-0 break-words text-xs font-semibold text-foreground">
           {message.senderName}
         </span>
@@ -44,18 +44,20 @@ export function ChatMessageBubble({
           data-testid={`${testId}-time`}
           dateTime={message.createdAt}
           title={formatChatExact(message.createdAt)}
-          className="shrink-0 text-xs text-muted-foreground"
+          className="shrink-0 text-xs tabular-nums text-muted-foreground"
         >
           {formatChatTime(message.createdAt)}
         </time>
       </div>
       <div
-        className={`flex min-w-0 max-w-full flex-col gap-2 rounded-xl border border-border bg-surface p-3 ${
-          own ? 'rounded-tr-sm' : 'rounded-tl-sm'
+        className={`flex w-fit min-w-0 max-w-[85%] flex-col gap-2 rounded-xl px-3.5 py-2.5 sm:max-w-[75%] ${
+          own
+            ? 'rounded-tr-sm bg-primary text-primary-foreground'
+            : 'rounded-tl-sm border border-border bg-surface-raised text-foreground shadow-sm'
         }`}
       >
         {message.text !== null && message.text !== '' ? (
-          <p data-testid={`${testId}-text`} className="min-w-0 whitespace-pre-wrap break-words text-sm text-foreground">
+          <p data-testid={`${testId}-text`} className="min-w-0 whitespace-pre-wrap break-words text-sm leading-6">
             {message.text}
           </p>
         ) : null}

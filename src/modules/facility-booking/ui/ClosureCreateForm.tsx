@@ -5,8 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/shared/ui/Button';
-import { useToast } from '@/shared/ui/Toast';
+import { Button, FormField, useToast } from '@/shared/ui';
+import { INPUT_CLASS } from './formControls';
 
 const closureSchema = z.object({
   startsAt: z.string().min(1, 'Start is required.'),
@@ -67,66 +67,53 @@ export function ClosureCreateForm({ facilityId }: { facilityId: string }) {
       data-testid="closure-create-form"
       onSubmit={onSubmit}
       noValidate
-      className="flex flex-col gap-3"
+      className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4 sm:p-5"
     >
+      <div className="flex min-w-0 flex-col gap-1">
+        <h3 className="text-sm font-semibold text-foreground">Add a closure</h3>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Closed windows remove slots from booking until the closure ends.
+        </p>
+      </div>
       {serverError !== null ? (
-        <p data-testid="closure-create-error" role="alert" className="text-sm text-danger">
+        <p
+          data-testid="closure-create-error"
+          role="alert"
+          className="text-sm font-medium text-danger-foreground"
+        >
           {serverError}
         </p>
       ) : null}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="flex min-w-0 flex-col gap-1">
-          <label htmlFor="closure-create-start" className="text-sm font-medium text-foreground">
-            Starts at
-          </label>
+        <FormField
+          label="Starts at"
+          htmlFor="closure-create-start"
+          error={errors.startsAt?.message ?? ''}
+        >
           <input
-            id="closure-create-start"
             data-testid="closure-create-start"
             type="datetime-local"
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+            className={INPUT_CLASS}
             {...register('startsAt')}
           />
-          {errors.startsAt !== undefined ? (
-            <p role="alert" className="text-sm text-danger">
-              {errors.startsAt.message}
-            </p>
-          ) : null}
-        </div>
-        <div className="flex min-w-0 flex-col gap-1">
-          <label htmlFor="closure-create-end" className="text-sm font-medium text-foreground">
-            Ends at
-          </label>
+        </FormField>
+        <FormField label="Ends at" htmlFor="closure-create-end" error={errors.endsAt?.message ?? ''}>
           <input
-            id="closure-create-end"
             data-testid="closure-create-end"
             type="datetime-local"
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+            className={INPUT_CLASS}
             {...register('endsAt')}
           />
-          {errors.endsAt !== undefined ? (
-            <p role="alert" className="text-sm text-danger">
-              {errors.endsAt.message}
-            </p>
-          ) : null}
-        </div>
+        </FormField>
       </div>
-      <div className="flex min-w-0 flex-col gap-1">
-        <label htmlFor="closure-create-reason" className="text-sm font-medium text-foreground">
-          Reason
-        </label>
+      <FormField label="Reason" htmlFor="closure-create-reason" error={errors.reason?.message ?? ''}>
         <input
-          id="closure-create-reason"
           data-testid="closure-create-reason"
           type="text"
-          className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+          className={INPUT_CLASS}
           {...register('reason')}
         />
-        {errors.reason !== undefined ? (
-          <p role="alert" className="text-sm text-danger">
-            {errors.reason.message}
-          </p>
-        ) : null}
-      </div>
+      </FormField>
       <div>
         <Button data-testid="closure-create-submit" type="submit" loading={isSubmitting}>
           Add closure

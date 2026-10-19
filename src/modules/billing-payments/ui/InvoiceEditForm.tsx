@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@/shared/ui/Button';
-import { useToast } from '@/shared/ui/Toast';
+import { Button, FormField } from '@/shared/ui';
+import { useToast } from '@/shared/ui';
+import { INPUT_CLASS } from '@/modules/billing-payments/ui/formControls';
 import {
   invoiceEditFormSchema,
   type InvoiceEditFormValues,
@@ -74,58 +75,44 @@ export function InvoiceEditForm({
     },
   );
   return (
-    <form data-testid="invoice-edit-form" onSubmit={onSubmit} noValidate className="flex min-w-0 flex-col gap-3">
+    <form data-testid="invoice-edit-form" onSubmit={onSubmit} noValidate className="flex min-w-0 flex-col gap-4">
       {serverError !== null ? (
-        <p data-testid="invoice-edit-error" role="alert" className="text-sm text-danger">
+        <p data-testid="invoice-edit-error" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
           {serverError}
         </p>
       ) : null}
       {conflict ? (
-        <p data-testid="invoice-edit-conflict" role="alert" className="text-sm text-danger">
+        <p data-testid="invoice-edit-conflict" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
           Someone changed this invoice first. Reload the page to see the latest total.
         </p>
       ) : null}
-      <div className="flex min-w-0 flex-col gap-1">
-        <label htmlFor="invoice-edit-total" className="text-sm font-medium text-foreground">
-          New total (THB)
-        </label>
+      <FormField
+        label="New total (THB)"
+        htmlFor="invoice-edit-total"
+        error={errors.total?.message ?? ''}
+      >
         <input
-          id="invoice-edit-total"
           data-testid="invoice-edit-total"
           type="text"
           inputMode="decimal"
           placeholder="3000.00"
-          aria-invalid={errors.total !== undefined}
-          aria-describedby={errors.total !== undefined ? 'invoice-edit-total-error' : undefined}
-          className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          className={INPUT_CLASS}
           {...register('total')}
         />
-        {errors.total !== undefined ? (
-          <p id="invoice-edit-total-error" data-testid="invoice-edit-total-error" role="alert" className="text-sm text-danger">
-            {errors.total.message}
-          </p>
-        ) : null}
-      </div>
-      <div className="flex min-w-0 flex-col gap-1">
-        <label htmlFor="invoice-edit-reason" className="text-sm font-medium text-foreground">
-          Reason (optional)
-        </label>
+      </FormField>
+      <FormField
+        label="Reason (optional)"
+        htmlFor="invoice-edit-reason"
+        error={errors.reason?.message ?? ''}
+      >
         <input
-          id="invoice-edit-reason"
           data-testid="invoice-edit-reason"
           type="text"
           maxLength={2000}
-          aria-invalid={errors.reason !== undefined}
-          aria-describedby={errors.reason !== undefined ? 'invoice-edit-reason-error' : undefined}
-          className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          className={INPUT_CLASS}
           {...register('reason')}
         />
-        {errors.reason !== undefined ? (
-          <p id="invoice-edit-reason-error" data-testid="invoice-edit-reason-error" role="alert" className="text-sm text-danger">
-            {errors.reason.message}
-          </p>
-        ) : null}
-      </div>
+      </FormField>
       <div>
         <Button data-testid="invoice-edit-submit" type="submit" loading={isSubmitting} size="sm">
           Update total

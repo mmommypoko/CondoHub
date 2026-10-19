@@ -5,9 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
-import { Badge } from '@/shared/ui/Badge';
-import { Button } from '@/shared/ui/Button';
-import { useToast } from '@/shared/ui/Toast';
+import { Badge, Button, FormField, useToast } from '@/shared/ui';
+import { CHECKBOX_CLASS, INPUT_CLASS } from './formControls';
 
 const DAYS = [
   { key: '1', label: 'Mon' },
@@ -202,93 +201,84 @@ export function ConfigChangeForm({
 
   return (
     <div className="flex flex-col gap-4" data-testid="config-change">
-      <form data-testid="config-change-form" onSubmit={onPreview} noValidate className="flex flex-col gap-4">
+      <form
+        data-testid="config-change-form"
+        onSubmit={onPreview}
+        noValidate
+        className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4 sm:p-5"
+      >
         {serverError !== null ? (
-          <p data-testid="config-change-error" role="alert" className="text-sm text-danger">
+          <p
+            data-testid="config-change-error"
+            role="alert"
+            className="text-sm font-medium text-danger-foreground"
+          >
             {serverError}
           </p>
         ) : null}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="flex min-w-0 flex-col gap-1">
-            <label htmlFor="config-change-slot" className="text-sm font-medium text-foreground">
-              Slot length (minutes)
-            </label>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField label="Slot length (minutes)" htmlFor="config-change-slot">
             <input
-              id="config-change-slot"
               data-testid="config-change-slot-minutes"
               type="number"
               min={5}
-              className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+              className={INPUT_CLASS}
               {...register('slotMinutes')}
             />
-          </div>
-          <div className="flex min-w-0 flex-col gap-1">
-            <label htmlFor="config-change-kind" className="text-sm font-medium text-foreground">
-              Quota period
-            </label>
+          </FormField>
+          <FormField label="Quota period" htmlFor="config-change-kind">
             <select
-              id="config-change-kind"
               data-testid="config-change-quota-kind"
-              className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+              className={INPUT_CLASS}
               {...register('quotaKind')}
             >
               <option value="DAILY">Daily</option>
               <option value="WEEKLY">Weekly</option>
               <option value="MONTHLY">Monthly</option>
             </select>
-          </div>
-          <div className="flex min-w-0 flex-col gap-1">
-            <label htmlFor="config-change-limit" className="text-sm font-medium text-foreground">
-              Quota slots per period
-            </label>
+          </FormField>
+          <FormField label="Quota slots per period" htmlFor="config-change-limit">
             <input
-              id="config-change-limit"
               data-testid="config-change-quota-limit"
               type="number"
               min={0}
-              className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+              className={INPUT_CLASS}
               {...register('quotaLimit')}
             />
-          </div>
-          <div className="flex min-w-0 flex-col gap-1">
-            <label htmlFor="config-change-advance" className="text-sm font-medium text-foreground">
-              Advance booking days
-            </label>
+          </FormField>
+          <FormField label="Advance booking days" htmlFor="config-change-advance">
             <input
-              id="config-change-advance"
               data-testid="config-change-advance-days"
               type="number"
               min={0}
-              className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+              className={INPUT_CLASS}
               {...register('advanceDays')}
             />
-          </div>
-          <div className="flex min-w-0 flex-col gap-1 sm:col-span-2">
-            <label htmlFor="config-change-effective" className="text-sm font-medium text-foreground">
-              Effective at
-            </label>
-            <input
-              id="config-change-effective"
-              data-testid="config-change-effective-at"
-              type="datetime-local"
-              className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
-              {...register('effectiveAt')}
-            />
-            {errors.effectiveAt !== undefined ? (
-              <p role="alert" className="text-sm text-danger">
-                {errors.effectiveAt.message}
-              </p>
-            ) : null}
+          </FormField>
+          <div className="sm:col-span-2">
+            <FormField
+              label="Effective at"
+              htmlFor="config-change-effective"
+              error={errors.effectiveAt?.message ?? ''}
+            >
+              <input
+                data-testid="config-change-effective-at"
+                type="datetime-local"
+                className={INPUT_CLASS}
+                {...register('effectiveAt')}
+              />
+            </FormField>
           </div>
         </div>
         <fieldset className="flex min-w-0 flex-col gap-2">
           <legend className="text-sm font-medium text-foreground">Open days</legend>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
             {DAYS.map((day) => (
               <label key={day.key} className="flex items-center gap-2 text-sm text-foreground">
                 <input
                   data-testid={`config-change-day-${day.key}`}
                   type="checkbox"
+                  className={CHECKBOX_CLASS}
                   value={day.key}
                   {...register('openDays')}
                 />
@@ -297,36 +287,28 @@ export function ConfigChangeForm({
             ))}
           </div>
           {errors.openDays !== undefined ? (
-            <p role="alert" className="text-sm text-danger">
+            <p role="alert" className="text-sm font-medium text-danger-foreground">
               {errors.openDays.message}
             </p>
           ) : null}
         </fieldset>
         <div className="grid grid-cols-2 gap-3">
-          <div className="flex min-w-0 flex-col gap-1">
-            <label htmlFor="config-change-open-start" className="text-sm font-medium text-foreground">
-              Opens
-            </label>
+          <FormField label="Opens" htmlFor="config-change-open-start" className="min-w-0">
             <input
-              id="config-change-open-start"
               data-testid="config-change-open-start"
               type="time"
-              className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+              className={INPUT_CLASS}
               {...register('openStart')}
             />
-          </div>
-          <div className="flex min-w-0 flex-col gap-1">
-            <label htmlFor="config-change-open-end" className="text-sm font-medium text-foreground">
-              Closes
-            </label>
+          </FormField>
+          <FormField label="Closes" htmlFor="config-change-open-end" className="min-w-0">
             <input
-              id="config-change-open-end"
               data-testid="config-change-open-end"
               type="time"
-              className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+              className={INPUT_CLASS}
               {...register('openEnd')}
             />
-          </div>
+          </FormField>
         </div>
         <div>
           <Button data-testid="config-change-preview" type="submit" variant="secondary" loading={working}>
@@ -338,7 +320,7 @@ export function ConfigChangeForm({
         <section
           data-testid="config-change-preview-result"
           aria-label="Config impact preview"
-          className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-surface p-4"
+          className="flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-surface p-4 sm:p-5"
         >
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={preview.quotaOnlyReduction ? 'info' : 'neutral'}>
@@ -348,7 +330,7 @@ export function ConfigChangeForm({
               Based on config version {preview.configVersion}
             </span>
           </div>
-          <div className="flex flex-col gap-1 text-sm">
+          <div className="flex flex-col gap-1 border-t border-border pt-4 text-sm">
             <p className="font-medium text-foreground">
               {preview.structuralConflicts.length} conflicting future slot
               {preview.structuralConflicts.length === 1 ? '' : 's'}
@@ -369,7 +351,7 @@ export function ConfigChangeForm({
               </ul>
             )}
           </div>
-          <div className="flex flex-col gap-1 text-sm">
+          <div className="flex flex-col gap-1 border-t border-border pt-4 text-sm">
             <p className="font-medium text-foreground">
               {preview.quotaImpacts.length} room-period{preview.quotaImpacts.length === 1 ? '' : 's'} over the new limit
             </p>

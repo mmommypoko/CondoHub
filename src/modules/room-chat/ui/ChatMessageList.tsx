@@ -23,7 +23,7 @@ export function ChatMessageList({
 }) {
   let lastDay = '';
   return (
-    <ul data-testid={`${testIdPrefix}-list`} className="flex min-w-0 flex-col gap-4">
+    <ul data-testid={`${testIdPrefix}-list`} className="flex min-w-0 flex-col gap-3">
       {messages.map((message) => {
         const day = chatDayKey(message.createdAt);
         const showSeparator = day !== lastDay;

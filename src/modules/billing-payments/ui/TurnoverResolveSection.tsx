@@ -15,8 +15,8 @@ export function TurnoverResolveSection({
 }) {
   const router = useRouter();
   return (
-    <section aria-label="Resolve review" className="flex min-w-0 flex-col gap-3">
-      <h2 className="text-base font-semibold text-foreground">Resolve this review</h2>
+    <section aria-label="Resolve review" className="flex min-w-0 flex-col gap-4">
+      <h2 className="text-base font-semibold tracking-tight text-foreground">Resolve this review</h2>
       <TurnoverResolveForm
         review={review}
         actorIsAdmin={actorIsAdmin}

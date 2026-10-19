@@ -1,6 +1,7 @@
 import 'server-only';
 import { redirect } from 'next/navigation';
 import { getActorFromSession } from '@/shared/auth/actor';
+import { PageHeader } from '@/shared/ui';
 import { listAllBuildings } from '@/modules/property-membership/application/index';
 import { FacilityCreateForm } from '@/modules/facility-booking/ui/FacilityCreateForm';
 
@@ -16,12 +17,13 @@ export default async function AdminFacilityNewPage() {
       data-testid="admin-facility-new-page"
       className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-6"
     >
-      <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="text-xl font-semibold text-foreground">New facility</h1>
-        <p className="text-sm text-muted-foreground">
-          Set the code, opening hours, slot length, seats, quota, and advance window.
-        </p>
-      </div>
+      <PageHeader
+        title="New facility"
+        description="Set the code, opening hours, slot length, seats, quota, and advance window."
+        backHref="/admin/facilities"
+        backLabel="Back to facilities"
+        backTestId="admin-facility-new-back"
+      />
       <FacilityCreateForm projectId={projectId} />
     </main>
   );

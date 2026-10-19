@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Button } from '@/shared/ui/Button';
-import { useToast } from '@/shared/ui/Toast';
+import { Button, Dialog, FormField, useToast } from '@/shared/ui';
+import { CHECKBOX_CLASS, INPUT_CLASS } from './formControls';
 
 const cancelSchema = z.object({
   reason: z.string().trim().min(1, 'A reason is required.').max(2000),
@@ -64,8 +64,10 @@ export function BookingCancelButton({
     router.refresh();
   });
 
-  if (!open) {
-    return (
+  const when = new Date(startsAt).toLocaleString('en-US', { timeZone: 'Asia/Bangkok' });
+
+  return (
+    <>
       <Button
         type="button"
         size="sm"
@@ -75,57 +77,71 @@ export function BookingCancelButton({
       >
         Cancel
       </Button>
-    );
-  }
-
-  return (
-    <form
-      data-testid={testId}
-      onSubmit={onSubmit}
-      noValidate
-      className="flex w-full min-w-0 flex-col gap-2 rounded-lg border border-border bg-surface p-3"
-    >
-      <p className="text-xs text-muted-foreground">
-        Cancelling {new Date(startsAt).toLocaleString('en-US', { timeZone: 'Asia/Bangkok' })}
-        {admin === true
-          ? ' as admin. Choose whether the room quota is refunded.'
-          : '. Resident cancellations release the seat but keep the quota used.'}
-      </p>
-      {serverError !== null ? (
-        <p data-testid={`${testId}-error`} role="alert" className="text-sm text-danger">
-          {serverError}
-        </p>
-      ) : null}
-      <label htmlFor={`${testId}-reason`} className="text-sm font-medium text-foreground">
-        Reason
-      </label>
-      <input
-        id={`${testId}-reason`}
-        data-testid={`${testId}-reason`}
-        type="text"
-        aria-invalid={errors.reason !== undefined}
-        className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
-        {...register('reason')}
-      />
-      {errors.reason !== undefined ? (
-        <p role="alert" className="text-sm text-danger">
-          {errors.reason.message}
-        </p>
-      ) : null}
-      {admin === true ? (
-        <label className="flex items-center gap-2 text-sm text-foreground">
-          <input data-testid={`${testId}-refund`} type="checkbox" {...register('refundQuota')} />
-          Refund quota for this slot
-        </label>
-      ) : null}
-      <div className="flex flex-wrap gap-2">
-        <Button data-testid={`${testId}-submit`} type="submit" size="sm" loading={isSubmitting}>
-          Confirm cancel
-        </Button>
-        <Button type="button" size="sm" variant="secondary" onClick={() => setOpen(false)}>
-          Keep slot
-        </Button>
-      </div>
-    </form>
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Cancel this slot"
+        description={
+          admin === true
+            ? `Cancelling ${when} as admin. Choose whether the room quota is refunded.`
+            : `Cancelling ${when}. Resident cancellations release the seat but keep the quota used.`
+        }
+        testId={testId}
+        size="sm"
+        actions={
+          <>
+            <Button type="button" size="sm" variant="secondary" onClick={() => setOpen(false)}>
+              Keep slot
+            </Button>
+            <Button
+              data-testid={`${testId}-submit`}
+              type="submit"
+              form={`${testId}-form`}
+              size="sm"
+              variant="destructive"
+              loading={isSubmitting}
+            >
+              Confirm cancel
+            </Button>
+          </>
+        }
+      >
+        <form
+          id={`${testId}-form`}
+          onSubmit={onSubmit}
+          noValidate
+          className="flex min-w-0 flex-col gap-3"
+        >
+          {serverError !== null ? (
+            <p
+              data-testid={`${testId}-error`}
+              role="alert"
+              className="text-sm font-medium text-danger-foreground"
+            >
+              {serverError}
+            </p>
+          ) : null}
+          <FormField label="Reason" htmlFor={`${testId}-reason`} error={errors.reason?.message ?? ''}>
+            <input
+              data-testid={`${testId}-reason`}
+              type="text"
+              className={INPUT_CLASS}
+              {...register('reason')}
+            />
+          </FormField>
+          {admin === true ? (
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                data-testid={`${testId}-refund`}
+                type="checkbox"
+                className={CHECKBOX_CLASS}
+                {...register('refundQuota')}
+              />
+              Refund quota for this slot
+            </label>
+          ) : null}
+        </form>
+      </Dialog>
+    </>
   );
 }

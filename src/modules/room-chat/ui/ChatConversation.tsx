@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { EmptyState } from '@/shared/ui/EmptyState';
-import { useToast } from '@/shared/ui/Toast';
+import { EmptyState, useToast } from '@/shared/ui';
 import { ChatComposer, type ChatComposerAttachment } from '@/modules/room-chat/ui/ChatComposer';
 import { ChatConnectionBanner } from '@/modules/room-chat/ui/ChatConnectionBanner';
 import { ChatMessageList } from '@/modules/room-chat/ui/ChatMessageList';
@@ -397,11 +396,11 @@ export function ChatConversation({
         <ChatConnectionBanner testIdPrefix={testIdPrefix} />
       ) : null}
       {revoked ? (
-        <p data-testid={`${testIdPrefix}-revoked`} role="alert" className="border-b border-border bg-surface px-3 py-2 text-center text-sm text-danger">
+        <p data-testid={`${testIdPrefix}-revoked`} role="alert" className="rounded-xl border border-danger-border bg-danger px-3 py-2 text-center text-sm font-medium text-danger-foreground">
           Chat access for this room has ended. Returning to My Rooms.
         </p>
       ) : null}
-      <div className="relative flex h-[55vh] min-h-80 w-full flex-col sm:h-[60vh]">
+      <div className="relative flex min-h-80 w-full flex-1 flex-col">
         {cursor !== null ? (
           <div className="mb-2 flex justify-center">
             <button
@@ -409,7 +408,7 @@ export function ChatConversation({
               type="button"
               disabled={loadingOlder}
               onClick={() => void loadOlder()}
-              className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary-foreground hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring disabled:cursor-not-allowed"
+              className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-body-secondary transition-[background-color,color,opacity] duration-150 ease-out hover:bg-secondary focus-visible:outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-focus-ring disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loadingOlder ? 'Loading older messages.' : 'Load older messages'}
             </button>
@@ -419,11 +418,11 @@ export function ChatConversation({
           ref={scrollRef}
           data-testid={`${testIdPrefix}-scroll`}
           onScroll={handleScroll}
-          className="h-full min-h-0 w-full overflow-y-auto rounded-xl border border-border bg-surface p-4 [overflow-anchor:none]"
+          className="h-[55vh] min-h-0 w-full overflow-y-auto rounded-xl border border-border bg-background p-4 [overflow-anchor:none] sm:h-[60vh]"
           aria-label={`Messages in ${roomLabel}`}
         >
           {olderError !== null ? (
-            <p data-testid={`${testIdPrefix}-older-error`} role="alert" className="mb-3 text-center text-sm text-danger">
+            <p data-testid={`${testIdPrefix}-older-error`} role="alert" className="mb-3 text-center text-sm font-medium text-danger-foreground">
               {olderError}
             </p>
           ) : null}
@@ -449,8 +448,8 @@ export function ChatConversation({
         ) : null}
       </div>
       {revoked ? (
-        <p data-testid={`${testIdPrefix}-composer-disabled`} className="text-sm text-muted-foreground">
-          Sending is disabled because chat access ended. <a href={backHref} className="font-medium text-link hover:underline">{backLabel}</a>
+        <p data-testid={`${testIdPrefix}-composer-disabled`} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm text-muted-foreground">
+          Sending is disabled because chat access ended. <a href={backHref} className="rounded-lg font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring">{backLabel}</a>
         </p>
       ) : (
         <ChatComposer onSend={(input) => void handleSend(input)} sending={sending} testIdPrefix={testIdPrefix} />

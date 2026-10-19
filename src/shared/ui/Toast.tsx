@@ -16,9 +16,15 @@ import { cx } from "./cx";
 
 export type ToastVariant = "success" | "error" | "warning" | "info";
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 export interface ToastOptions {
   description?: string;
   durationMs?: number;
+  action?: ToastAction;
 }
 
 export interface ToastInput extends ToastOptions {
@@ -32,6 +38,7 @@ interface ToastRecord {
   description?: string | undefined;
   variant: ToastVariant;
   durationMs: number;
+  action?: ToastAction | undefined;
 }
 
 export interface ToastFn {
@@ -49,7 +56,8 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-const DEFAULT_DURATION_MS = 5000;
+const DEFAULT_DURATION_MS = 4000;
+const MAX_VISIBLE_TOASTS = 3;
 
 const TOAST_ICONS = {
   success: STATUS_ICONS.success,
@@ -83,8 +91,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         description: input.description,
         variant: input.variant ?? "info",
         durationMs: input.durationMs ?? DEFAULT_DURATION_MS,
+        action: input.action,
       };
-      setToasts((current) => [...current, record]);
+      setToasts((current) => [...current.slice(-(MAX_VISIBLE_TOASTS - 1)), record]);
       return id;
     };
     const preset =
@@ -130,7 +139,7 @@ function ToastViewport({
   return (
     <div
       data-testid="toast-viewport"
-      className="fixed bottom-4 left-4 right-4 z-50 flex flex-col gap-2 sm:left-auto sm:w-96"
+      className="fixed bottom-4 right-4 left-4 z-50 flex flex-col gap-2 sm:left-auto sm:w-96"
     >
       {toasts.map((item) => (
         <ToastItem key={item.id} record={item} onDismiss={onDismiss} />
@@ -147,6 +156,9 @@ function ToastItem({
   onDismiss: (id: string) => void;
 }) {
   useEffect(() => {
+    if (record.durationMs <= 0) {
+      return;
+    }
     const timer = window.setTimeout(() => onDismiss(record.id), record.durationMs);
     return () => window.clearTimeout(timer);
   }, [record.id, record.durationMs, onDismiss]);
@@ -157,20 +169,32 @@ function ToastItem({
     <div
       data-testid={`toast-${record.variant}`}
       role={record.variant === "error" ? "alert" : "status"}
-      className="pointer-events-auto flex items-start gap-3 rounded-lg border border-border bg-surface-raised p-4 shadow-lg"
+      className="animate-ui-toast pointer-events-auto flex items-start gap-3 rounded-lg border border-border bg-surface-raised p-4 shadow-lg"
     >
       <Icon aria-hidden="true" className={cx("size-5 shrink-0", TOAST_ICON_STYLES[record.variant])} />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <p className="text-sm font-medium text-foreground">{record.title}</p>
         {record.description ? (
-          <p className="text-sm text-muted-foreground">{record.description}</p>
+          <p className="text-sm leading-6 text-muted-foreground">{record.description}</p>
+        ) : null}
+        {record.action ? (
+          <button
+            type="button"
+            onClick={() => {
+              record.action?.onClick();
+              onDismiss(record.id);
+            }}
+            className="mt-1 self-start rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          >
+            {record.action.label}
+          </button>
         ) : null}
       </div>
       <button
         type="button"
         aria-label="Dismiss notification"
         onClick={() => onDismiss(record.id)}
-        className="rounded-lg p-1 text-muted-foreground transition-colors duration-150 hover:bg-ghost-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+        className="rounded-lg p-1 text-muted-foreground transition-[background-color,color] duration-150 ease-out hover:bg-ghost-hover hover:text-foreground focus-visible:outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-focus-ring"
       >
         <X aria-hidden="true" className="size-4" />
       </button>

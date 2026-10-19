@@ -1,31 +1,12 @@
 import 'server-only';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
-import { Badge } from '@/shared/ui/Badge';
-import { EmptyState } from '@/shared/ui/EmptyState';
+import { Badge, DataTable, DataTableCell, DataTableRow, EmptyState, PageHeader, Pagination } from '@/shared/ui';
 import { listInvoices } from '@/modules/billing-payments/application/index';
+import { invoiceStateLabel, invoiceStateVariant, kindLabel } from '@/modules/billing-payments/ui/billingLabels';
 
 export const dynamic = 'force-dynamic';
-
-function kindLabel(kind: string): string {
-  if (kind === 'PRIVATE_RENT') return 'Private rent';
-  if (kind === 'PROJECT_MANAGED_RENT') return 'Project rent';
-  return 'Common fee';
-}
-
-function stateLabel(state: string): string {
-  if (state === 'PAID') return 'Paid';
-  if (state === 'PARTIALLY_PAID') return 'Partially paid';
-  return 'Unpaid';
-}
-
-function stateVariant(state: string): 'success' | 'info' | 'warning' {
-  if (state === 'PAID') return 'success';
-  if (state === 'PARTIALLY_PAID') return 'info';
-  return 'warning';
-}
 
 export default async function InvoicesPage({
   searchParams,
@@ -48,12 +29,10 @@ export default async function InvoicesPage({
       data-testid="invoice-list-page"
       className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
     >
-      <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="text-xl font-semibold text-foreground">My invoices</h1>
-        <p className="text-sm text-muted-foreground">
-          Only invoices issued for your rooms appear here. Open an invoice to pay or review slips.
-        </p>
-      </div>
+      <PageHeader
+        title="My invoices"
+        description="Only invoices issued for your rooms appear here. Open an invoice to pay or review slips."
+      />
       {feed.rows.length === 0 ? (
         <EmptyState
           data-testid="invoice-list-empty"
@@ -61,80 +40,66 @@ export default async function InvoicesPage({
           description="When the billing job issues invoices for your rooms, they appear here."
         />
       ) : (
-        <ul data-testid="invoice-list" className="flex flex-col gap-3">
+        <DataTable
+          testId="invoice-list"
+          caption="Invoices issued for your rooms"
+          columns={[
+            { key: 'invoice', header: 'Invoice' },
+            { key: 'state', header: 'State' },
+            { key: 'total', header: 'Total', numeric: true },
+            { key: 'outstanding', header: 'Outstanding', numeric: true },
+            { key: 'due', header: 'Due', numeric: true },
+          ]}
+        >
           {feed.rows.map((row) => (
-            <li
-              key={row.id}
-              className="flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-surface p-4"
-            >
-              <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                <Link
-                  data-testid={`invoice-row-${row.id}`}
-                  href={`/invoices/${row.id}`}
-                  className="min-w-0 flex-1 basis-40 break-words text-sm font-semibold text-foreground hover:underline"
-                >
-                  {kindLabel(row.kind)} · {row.periodStart}
-                </Link>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge data-testid={`invoice-state-${row.id}`} variant={stateVariant(row.state)}>
-                    {stateLabel(row.state)}
+            <DataTableRow key={row.id} rowKey={row.id}>
+              <DataTableCell link href={`/invoices/${row.id}`} linkTestId={`invoice-row-${row.id}`}>
+                {kindLabel(row.kind)} · {row.periodStart}
+              </DataTableCell>
+              <DataTableCell>
+                <span className="inline-flex flex-wrap items-center gap-2">
+                  <Badge data-testid={`invoice-state-${row.id}`} variant={invoiceStateVariant(row.state)}>
+                    {invoiceStateLabel(row.state)}
                   </Badge>
-                  <Badge data-testid={`invoice-total-${row.id}`} variant="neutral">
-                    {row.total.amount} {row.total.currency}
-                  </Badge>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                <span>Due {row.dueDate}</span>
-                <span>Period {row.periodStart} to {row.periodEnd}</span>
+                  {row.overdue ? (
+                    <Badge data-testid={`invoice-overdue-${row.id}`} variant="danger">
+                      Overdue
+                    </Badge>
+                  ) : null}
+                  {row.pendingOnPaid ? (
+                    <Badge data-testid={`invoice-pending-on-paid-${row.id}`} variant="warning">
+                      Paid, slips pending
+                    </Badge>
+                  ) : null}
+                </span>
+              </DataTableCell>
+              <DataTableCell numeric>
+                <span data-testid={`invoice-total-${row.id}`}>
+                  {row.total.amount} {row.total.currency}
+                </span>
+              </DataTableCell>
+              <DataTableCell numeric>
                 <span data-testid={`invoice-outstanding-${row.id}`}>
                   Outstanding {row.outstanding.amount} {row.outstanding.currency}
                 </span>
-                {row.overdue ? (
-                  <Badge data-testid={`invoice-overdue-${row.id}`} variant="danger">
-                    Overdue
-                  </Badge>
-                ) : null}
-                {row.pendingOnPaid ? (
-                  <Badge data-testid={`invoice-pending-on-paid-${row.id}`} variant="warning">
-                    Paid, slips pending
-                  </Badge>
-                ) : null}
-              </div>
-            </li>
+              </DataTableCell>
+              <DataTableCell numeric>
+                <span>Due {row.dueDate}</span>
+              </DataTableCell>
+            </DataTableRow>
           ))}
-        </ul>
+        </DataTable>
       )}
-      {totalPages > 1 ? (
-        <nav
-          aria-label="Invoice pages"
-          className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground"
-        >
-          <span>
-            Page {page} of {totalPages} ({feed.total} invoices)
-          </span>
-          <div className="flex gap-2">
-            {page > 1 ? (
-              <Link
-                data-testid="invoice-list-prev"
-                href={`/invoices?page=${page - 1}`}
-                className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary-foreground hover:bg-secondary"
-              >
-                Previous
-              </Link>
-            ) : null}
-            {page < totalPages ? (
-              <Link
-                data-testid="invoice-list-next"
-                href={`/invoices?page=${page + 1}`}
-                className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary-foreground hover:bg-secondary"
-              >
-                Next
-              </Link>
-            ) : null}
-          </div>
-        </nav>
-      ) : null}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={feed.total}
+        pagePath="/invoices"
+        testId="invoice-list-pages"
+        nextTestId="invoice-list-next"
+        prevTestId="invoice-list-prev"
+        hideDisabledEnds
+      />
     </main>
   );
 }

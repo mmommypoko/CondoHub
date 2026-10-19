@@ -1,11 +1,10 @@
 import 'server-only';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ChevronLeft, CalendarDays } from 'lucide-react';
+import { ArrowLeft, CalendarDays } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
-import { Badge } from '@/shared/ui/Badge';
-import { EmptyState } from '@/shared/ui/EmptyState';
+import { Badge, EmptyState } from '@/shared/ui';
 import { canActInRoom } from '@/modules/property-membership/application/index';
 import { findRoomById, findBuildingById } from '@/modules/property-membership/infrastructure/structureRepository';
 import { db } from '@/shared/db/client';
@@ -47,6 +46,7 @@ export default async function RoomBookingsPage({
       <main data-testid="room-bookings-page" className="mx-auto w-full max-w-5xl p-4 sm:p-6">
         <EmptyState
           data-testid="room-bookings-forbidden"
+          icon={CalendarDays}
           title="Bookings not available"
           description="You do not have booking access to this room, or it does not exist."
         />
@@ -74,21 +74,23 @@ export default async function RoomBookingsPage({
       data-testid="room-bookings-page"
       className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
     >
-      <Link
-        data-testid="room-bookings-back"
-        href={`/rooms/${roomId}`}
-        className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline"
-      >
-        <ChevronLeft aria-hidden="true" className="size-4" />
-        Back to room
-      </Link>
-      <div className="flex min-w-0 flex-col gap-1">
-        <h1 data-testid="room-bookings-title" className="break-words text-xl font-semibold text-foreground">
-          Bookings · {building?.name ?? 'Building'} {room.roomCode}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Quota is shared by the whole room. Resident cancellations release the seat but keep quota used.
-        </p>
+      <div className="flex min-w-0 flex-col gap-3">
+        <Link
+          data-testid="room-bookings-back"
+          href={`/rooms/${roomId}`}
+          className="inline-flex items-center gap-1.5 self-start rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+        >
+          <ArrowLeft aria-hidden="true" className="size-4" />
+          Back to room
+        </Link>
+        <div className="flex min-w-0 flex-col gap-1">
+          <h1 data-testid="room-bookings-title" className="break-words text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+            Bookings · {building?.name ?? 'Building'} {room.roomCode}
+          </h1>
+          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+            Quota is shared by the whole room. Resident cancellations release the seat but keep quota used.
+          </p>
+        </div>
       </div>
       {quotas.length > 0 ? (
         <ul data-testid="room-bookings-quotas" className="flex flex-wrap gap-2">
@@ -114,7 +116,7 @@ export default async function RoomBookingsPage({
             <Link
               data-testid="room-bookings-browse"
               href="/facilities"
-              className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline"
+              className="inline-flex items-center gap-1.5 rounded-lg text-sm font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
             >
               Browse facilities
             </Link>
@@ -125,21 +127,21 @@ export default async function RoomBookingsPage({
           {bookings.map((booking) => (
             <li
               key={booking.id}
-              className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-surface p-4"
+              className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-surface p-4 sm:p-5"
             >
               <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
                 <Link
                   data-testid={`room-bookings-facility-${booking.id}`}
                   href={`/facilities/${booking.facilityId}?roomId=${roomId}`}
-                  className="min-w-0 flex-1 basis-40 break-words text-sm font-semibold text-foreground hover:underline"
+                  className="min-w-0 flex-1 basis-40 break-words rounded-lg text-sm font-semibold text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
                 >
                   {facilityNames.get(booking.facilityId) ?? 'Facility'}
                 </Link>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs tabular-nums text-muted-foreground">
                   Booked {formatInstant(booking.createdAt)}
                 </span>
               </div>
-              <ul className="flex flex-col gap-2">
+              <ul className="flex flex-col gap-2 border-t border-border pt-3">
                 {booking.slots.map((slot) => (
                   <li
                     key={slot.id}
@@ -147,18 +149,20 @@ export default async function RoomBookingsPage({
                     className="flex min-w-0 flex-col gap-2 rounded-lg border border-border p-3"
                   >
                     <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                      <span className="min-w-0 break-words text-sm text-foreground">
+                      <span className="min-w-0 break-words text-sm tabular-nums text-foreground">
                         {formatInstant(slot.startsAt)}
                       </span>
                       <Badge variant={slotVariant(slot.state)}>{slot.state}</Badge>
                     </div>
                     {slot.state === 'CONFIRMED' && new Date(slot.startsAt).getTime() > now.getTime() ? (
-                      <BookingCancelButton
-                        bookingId={booking.id}
-                        slotId={slot.id}
-                        startsAt={slot.startsAt}
-                        testId={`room-bookings-cancel-${slot.id}`}
-                      />
+                      <div className="flex flex-wrap gap-2">
+                        <BookingCancelButton
+                          bookingId={booking.id}
+                          slotId={slot.id}
+                          startsAt={slot.startsAt}
+                          testId={`room-bookings-cancel-${slot.id}`}
+                        />
+                      </div>
                     ) : null}
                   </li>
                 ))}

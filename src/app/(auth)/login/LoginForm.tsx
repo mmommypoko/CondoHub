@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button } from '@/shared/ui/Button';
+import { Button, FormField, INPUT_CLASS } from '@/shared/ui';
 import { authClient } from '@/modules/identity-access/ui/authClient';
 
 const loginSchema = z.object({
@@ -14,6 +14,7 @@ const loginSchema = z.object({
 });
 
 type LoginValues = z.infer<typeof loginSchema>;
+
 
 function safeReturnUrl(value: string | null): string {
   if (value === null || value === '') return '/';
@@ -53,53 +54,52 @@ export default function LoginForm() {
   });
 
   return (
-    <form data-testid="login-form" onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold text-foreground">Sign in</h2>
+    <form data-testid="login-form" onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">Sign in</h2>
+        <p className="text-sm leading-6 text-muted-foreground">Use your username and password.</p>
+      </div>
       {serverError !== null ? (
-        <p data-testid="login-error" role="alert" className="text-sm text-danger">
+        <p
+          data-testid="login-error"
+          role="alert"
+          className="rounded-lg border border-danger-border bg-danger px-3 py-2 text-sm font-medium text-danger-foreground"
+        >
           {serverError}
         </p>
       ) : null}
-      <div className="flex flex-col gap-1">
-        <label htmlFor="login-username" className="text-sm font-medium text-foreground">
-          Username
-        </label>
+      <FormField
+        label="Username"
+        htmlFor="login-username"
+        required
+        {...(errors.username?.message !== undefined ? { error: errors.username.message } : {})}
+      >
         <input
-          id="login-username"
           data-testid="login-username"
           type="text"
           autoComplete="username"
-          aria-invalid={errors.username !== undefined}
-          aria-describedby={errors.username !== undefined ? 'login-username-error' : undefined}
-          className="h-10 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          required
+          placeholder="Your username"
+          className={INPUT_CLASS}
           {...register('username')}
         />
-        {errors.username !== undefined ? (
-          <p id="login-username-error" role="alert" className="text-sm text-danger">
-            {errors.username.message}
-          </p>
-        ) : null}
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="login-password" className="text-sm font-medium text-foreground">
-          Password
-        </label>
+      </FormField>
+      <FormField
+        label="Password"
+        htmlFor="login-password"
+        required
+        {...(errors.password?.message !== undefined ? { error: errors.password.message } : {})}
+      >
         <input
-          id="login-password"
           data-testid="login-password"
           type="password"
           autoComplete="current-password"
-          aria-invalid={errors.password !== undefined}
-          aria-describedby={errors.password !== undefined ? 'login-password-error' : undefined}
-          className="h-10 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          required
+          placeholder="Your password"
+          className={INPUT_CLASS}
           {...register('password')}
         />
-        {errors.password !== undefined ? (
-          <p id="login-password-error" role="alert" className="text-sm text-danger">
-            {errors.password.message}
-          </p>
-        ) : null}
-      </div>
+      </FormField>
       <Button data-testid="login-submit" type="submit" loading={isSubmitting}>
         Sign in
       </Button>

@@ -2,78 +2,60 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, CalendarDays, Home, KeyRound, Megaphone, ReceiptText, Users, Wrench, Zap } from 'lucide-react';
-import { cx } from '@/shared/ui/cx';
-
-const WORKSPACE_LINKS = [
-  { href: '/rooms', label: 'My Rooms', icon: Home, testId: 'nav-my-rooms' },
-  { href: '/facilities', label: 'Facilities', icon: CalendarDays, testId: 'nav-facilities' },
-  { href: '/maintenance', label: 'My Requests', icon: Wrench, testId: 'nav-maintenance' },
-];
-
-const ADMIN_LINKS = [
-  { href: '/admin/buildings', label: 'Buildings', icon: Building2, testId: 'nav-buildings' },
-  { href: '/admin/facilities', label: 'Facilities', icon: CalendarDays, testId: 'nav-admin-facilities' },
-  { href: '/admin/ownership', label: 'Ownership', icon: KeyRound, testId: 'nav-ownership' },
-  { href: '/admin/users', label: 'Users', icon: Users, testId: 'nav-users' },
-  { href: '/admin/announcements', label: 'Announcements', icon: Megaphone, testId: 'nav-announcements' },
-  { href: '/admin/billing/events', label: 'Billing Events', icon: Zap, testId: 'nav-billing-events' },
-  { href: '/admin/billing/turnover-reviews', label: 'Turnover Reviews', icon: ReceiptText, testId: 'nav-billing-turnover-reviews' },
-  { href: '/admin/billing/job-runs', label: 'Job Runs', icon: CalendarDays, testId: 'nav-billing-job-runs' },
-  { href: '/admin/billing/invoices', label: 'Invoices', icon: ReceiptText, testId: 'nav-billing-invoices' },
-  { href: '/admin/maintenance', label: 'Maintenance', icon: Wrench, testId: 'nav-maintenance-inbox' },
-];
+import { Home } from 'lucide-react';
+import { cx } from '@/shared/ui';
+import { ADMIN_LINKS, ADMIN_WORKSPACE_LINKS, matchNavHref } from './shellNav';
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const sections = [
+    { title: 'Workspace', links: ADMIN_WORKSPACE_LINKS },
+    { title: 'Administration', links: ADMIN_LINKS },
+  ];
   return (
     <nav
       data-testid="admin-sidebar"
-      aria-label="Workspace navigation"
-      className="flex w-full flex-col gap-6 border-b border-border bg-surface p-4 md:w-60 md:shrink-0 md:border-b-0 md:border-r"
+      aria-label="Admin navigation"
+      className="hidden w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-border bg-surface px-4 py-6 md:flex"
     >
-      <div className="flex flex-col gap-1">
-        <h2 className="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Workspace
-        </h2>
-        {WORKSPACE_LINKS.map((link) => (
-          <Link
-            key={link.href}
-            data-testid={link.testId}
-            href={link.href}
-            aria-current={pathname === link.href ? 'page' : undefined}
-            className={cx(
-              'flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium',
-              pathname === link.href
-                ? 'bg-neutral text-foreground'
-                : 'text-secondary-foreground hover:bg-ghost-hover hover:text-foreground',
-            )}
-          >
-            <link.icon aria-hidden="true" className="size-4 shrink-0" />
-            {link.label}
-          </Link>
-        ))}
-      </div>
-      <div className="flex flex-col gap-1">
-        <h2 className="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Administration
-        </h2>
-        {ADMIN_LINKS.map((link) => (
-          <Link
-            key={link.href}
-            data-testid={link.testId}
-            href={link.href}
-            aria-current={pathname === link.href ? 'page' : undefined}
-            className={cx(
-              'flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium',
-              pathname === link.href
-                ? 'bg-neutral text-foreground'
-                : 'text-secondary-foreground hover:bg-ghost-hover hover:text-foreground',
-            )}
-          >
-            <link.icon aria-hidden="true" className="size-4 shrink-0" />
-            {link.label}
-          </Link>
+      <Link
+        data-testid="shell-brand"
+        href="/admin/buildings"
+        className="flex items-center gap-2 rounded-lg px-2 py-1 text-base font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+      >
+        <Home aria-hidden="true" className="size-5 text-primary" />
+        CondoHub
+      </Link>
+      <div className="flex flex-col gap-6">
+        {sections.map((section) => (
+          <section key={section.title} aria-label={section.title} className="flex flex-col gap-1">
+            <h2 className="px-3 text-xs font-semibold tracking-wide text-muted-foreground">
+              {section.title}
+            </h2>
+            <ul className="flex flex-col gap-1">
+              {section.links.map((link) => {
+                const active = matchNavHref(pathname, link.href);
+                return (
+                  <li key={link.testId}>
+                    <Link
+                      data-testid={link.testId}
+                      href={link.href}
+                      aria-current={active ? 'page' : undefined}
+                      className={cx(
+                        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring motion-reduce:transition-none',
+                        active
+                          ? 'bg-secondary text-foreground'
+                          : 'text-body-secondary hover:bg-ghost-hover hover:text-foreground',
+                      )}
+                    >
+                      <link.icon aria-hidden="true" className="size-4 shrink-0" />
+                      {link.label}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
         ))}
       </div>
     </nav>

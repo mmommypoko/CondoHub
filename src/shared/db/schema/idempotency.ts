@@ -9,6 +9,7 @@ export const idempotencyScope = pgEnum('idempotency_scope', [
   'CONFIG_COMMIT',
   'USER_PROVISION',
   'CO_OWNER_GRANT',
+  'OWNER_ASSIGN',
 ]);
 
 export type IdempotencyScope = (typeof idempotencyScope.enumValues)[number];

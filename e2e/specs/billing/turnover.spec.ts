@@ -11,6 +11,7 @@ import {
   loginAsUser,
   provisionUser,
   roomOwnerAt,
+  signInSuspendedActor,
 } from '../../helpers/owner';
 import { provisionResidentWithRetry } from '../../helpers/resident';
 import {
@@ -853,10 +854,9 @@ test.describe('billing turnover: queue, resolve, concealment, ms-bill-08', () =>
     const suspendedContext = await browser.newContext({ baseURL });
     const suspendedPage = await suspendedContext.newPage();
     try {
-      const signin = await apiJson<{ token?: string }>(suspendedPage.request, {
-        method: 'POST',
-        path: '/api/auth/sign-in/username',
-        body: { username: freshA?.username ?? '', password: freshA?.password ?? '' },
+      const signin = await signInSuspendedActor(suspendedPage.request, {
+        username: freshA?.username ?? '',
+        password: freshA?.password ?? '',
       });
       expect(signin.status).toBe(200);
       const queue = await apiJson<ErrorEnvelope>(suspendedPage.request, {

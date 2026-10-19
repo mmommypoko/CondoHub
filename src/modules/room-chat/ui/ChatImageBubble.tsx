@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Expand, ImageOff, X } from 'lucide-react';
-import { Button } from '@/shared/ui/Button';
+import { Expand, ImageOff } from 'lucide-react';
+import { Lightbox, Skeleton } from '@/shared/ui';
 
 interface AccessEnvelope {
   data: { url: string; expiresAt: string };
@@ -42,20 +42,11 @@ export function ChatImageBubble({
     };
   }, [imageId]);
 
-  useEffect(() => {
-    if (!previewOpen) return;
-    function onKey(event: KeyboardEvent): void {
-      if (event.key === 'Escape') setPreviewOpen(false);
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [previewOpen]);
-
   if (failed) {
     return (
       <p
         data-testid={`${testId}-unavailable`}
-        className="flex h-44 w-full max-w-xs items-center justify-center gap-2 rounded-lg border border-border bg-surface text-sm text-muted-foreground"
+        className="flex h-44 w-full max-w-60 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-3 text-center text-sm text-muted-foreground"
       >
         <ImageOff aria-hidden="true" className="size-4 shrink-0" />
         Image unavailable.
@@ -65,11 +56,10 @@ export function ChatImageBubble({
 
   if (url === null) {
     return (
-      <div
+      <Skeleton
         data-testid={`${testId}-loading`}
-        role="status"
         aria-label="Loading image"
-        className="h-44 w-full max-w-xs animate-pulse rounded-lg bg-skeleton"
+        className="h-44 w-full max-w-60"
       />
     );
   }
@@ -81,7 +71,7 @@ export function ChatImageBubble({
         type="button"
         onClick={() => setPreviewOpen(true)}
         aria-label="Open image preview"
-        className="block h-44 w-full max-w-xs overflow-hidden rounded-lg border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+        className="block h-44 w-full max-w-60 overflow-hidden rounded-lg border border-border bg-surface transition-[opacity,transform] duration-150 ease-out hover:opacity-90 focus-visible:outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-focus-ring"
       >
         <img
           data-testid={testId}
@@ -91,41 +81,15 @@ export function ChatImageBubble({
           className="h-full w-full object-cover"
         />
       </button>
-      {previewOpen ? (
-        <div
-          data-testid={`${testId}-preview`}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Image preview"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4"
-          onClick={() => setPreviewOpen(false)}
-        >
-          <div
-            className="flex max-h-full min-w-0 max-w-3xl flex-col gap-3"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-end">
-              <Button
-                data-testid={`${testId}-preview-close`}
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => setPreviewOpen(false)}
-              >
-                <X aria-hidden="true" className="size-4" />
-                Close preview
-              </Button>
-            </div>
-            <img
-              data-testid={`${testId}-preview-image`}
-              src={url}
-              alt={alt}
-              className="max-h-[75vh] w-auto max-w-full rounded-lg border border-border object-contain"
-            />
-          </div>
-        </div>
-      ) : null}
-      <span className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+      <Lightbox
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        src={url}
+        alt={alt}
+        title="Image preview"
+        testId={`${testId}-preview`}
+      />
+      <span className="mt-1 inline-flex items-center gap-1 text-xs opacity-80">
         <Expand aria-hidden="true" className="size-3" />
         Select the image to preview it.
       </span>

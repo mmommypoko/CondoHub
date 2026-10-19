@@ -6,8 +6,7 @@ import { getActorFromSession } from '@/shared/auth/actor';
 import { db } from '@/shared/db/client';
 import { listOpenChargeEvents } from '@/modules/billing-payments/infrastructure/billingRepository';
 import { satangToDecimalString } from '@/shared/utils/money';
-import { Badge } from '@/shared/ui/Badge';
-import { EmptyState } from '@/shared/ui/EmptyState';
+import { ACTION_LINK_CLASS, Badge, DataTable, DataTableCell, DataTableRow, EmptyState, PageHeader } from '@/shared/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,23 +26,20 @@ export default async function AdminBillingEventsPage() {
       data-testid="charge-event-list-page"
       className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
     >
-      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-1">
-          <h1 className="text-xl font-semibold text-foreground">One-time billing events</h1>
-          <p className="text-sm text-muted-foreground">
-            Open events waiting for invoice issuance. Issued and cancelled events stay out of this
-            list.
-          </p>
-        </div>
-        <Link
-          data-testid="charge-event-list-new"
-          href="/admin/billing/events/new"
-          className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          <Plus aria-hidden="true" className="size-4" />
-          New event
-        </Link>
-      </div>
+      <PageHeader
+        title="One-time billing events"
+        description="Open events waiting for invoice issuance. Issued and cancelled events stay out of this list."
+        actions={
+          <Link
+            data-testid="charge-event-list-new"
+            href="/admin/billing/events/new"
+            className={ACTION_LINK_CLASS}
+          >
+            <Plus aria-hidden="true" className="size-4" />
+            New event
+          </Link>
+        }
+      />
       {rows.length === 0 ? (
         <EmptyState
           data-testid="charge-event-list-empty"
@@ -53,7 +49,7 @@ export default async function AdminBillingEventsPage() {
             <Link
               data-testid="charge-event-list-empty-new"
               href="/admin/billing/events/new"
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              className={ACTION_LINK_CLASS}
             >
               <Plus aria-hidden="true" className="size-4" />
               New event
@@ -61,31 +57,35 @@ export default async function AdminBillingEventsPage() {
           }
         />
       ) : (
-        <ul data-testid="charge-event-list" className="flex flex-col gap-3">
+        <DataTable
+          testId="charge-event-list"
+          caption="Open one-time billing events"
+          columns={[
+            { key: 'event', header: 'Event' },
+            { key: 'status', header: 'Status' },
+            { key: 'amount', header: 'Amount', numeric: true },
+            { key: 'created', header: 'Created', numeric: true },
+          ]}
+        >
           {rows.map((row) => (
-            <li
-              key={row.id}
-              className="flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-surface p-4"
-            >
-              <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                <Link
-                  data-testid={`charge-event-row-${row.id}`}
-                  href={`/admin/billing/events/${row.id}`}
-                  className="min-w-0 flex-1 basis-40 break-words text-sm font-semibold text-foreground hover:underline"
-                >
-                  Event {row.eventEffectiveDate}
-                </Link>
+            <DataTableRow key={row.id} rowKey={row.id}>
+              <DataTableCell link href={`/admin/billing/events/${row.id}`} linkTestId={`charge-event-row-${row.id}`}>
+                Event {row.eventEffectiveDate}
+              </DataTableCell>
+              <DataTableCell>
                 <Badge data-testid={`charge-event-status-${row.id}`} variant="neutral">
                   {row.status}
                 </Badge>
-              </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              </DataTableCell>
+              <DataTableCell numeric>
                 <span data-testid={`charge-event-amount-${row.id}`}>{formatAmount(row.configuredAmount)}</span>
+              </DataTableCell>
+              <DataTableCell numeric>
                 <span>Created {row.createdAt.toISOString().slice(0, 10)}</span>
-              </div>
-            </li>
+              </DataTableCell>
+            </DataTableRow>
           ))}
-        </ul>
+        </DataTable>
       )}
     </main>
   );

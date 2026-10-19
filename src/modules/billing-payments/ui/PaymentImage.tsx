@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Skeleton } from '@/shared/ui';
 
 interface AccessEnvelope {
   data: { url: string; expiresAt: string };
@@ -41,18 +42,17 @@ export function PaymentImage({
 
   if (failed) {
     return (
-      <p data-testid={`${testId}-unavailable`} className="text-sm text-muted-foreground">
+      <p data-testid={`${testId}-unavailable`} className="text-sm leading-6 text-muted-foreground">
         Image unavailable.
       </p>
     );
   }
   if (url === null) {
     return (
-      <div
+      <Skeleton
         data-testid={`${testId}-loading`}
-        role="status"
         aria-label="Loading image"
-        className="h-40 w-full max-w-sm animate-pulse rounded-lg bg-skeleton"
+        className="h-40 w-full max-w-sm"
       />
     );
   }
@@ -62,7 +62,7 @@ export function PaymentImage({
       src={url}
       alt={alt}
       loading="lazy"
-      className="h-auto w-full max-w-sm rounded-lg border border-border object-contain"
+      className="h-auto w-full max-w-sm rounded-xl border border-border object-contain"
     />
   );
 }

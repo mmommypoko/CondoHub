@@ -49,7 +49,8 @@ export const ownershipAdminBody = z.discriminatedUnion('action', [
     .object({
       action: z.literal('TRANSFER'),
       fromUserId: z.string().min(1),
-      toUserId: z.string().min(1),
+      toUserId: z.string().min(1).optional(),
+      toUsername: z.string().min(1).max(30).optional(),
       effectiveAt: z.string().datetime({ offset: true }),
     })
     .strict(),
@@ -73,6 +74,19 @@ export const ownershipAdminBody = z.discriminatedUnion('action', [
 
 export type OwnershipAdminBody = z.infer<typeof ownershipAdminBody>;
 
+export const ownerAssignBody = z
+  .object({
+    userId: z.string().min(1).optional(),
+    username: z.string().min(1).max(30).optional(),
+    email: z.string().email().max(255).optional(),
+    name: z.string().min(1).max(255).optional(),
+    phone: z.string().max(32).optional(),
+    effectiveAt: z.string().datetime({ offset: true }).optional(),
+  })
+  .strict();
+
+export type OwnerAssignBody = z.infer<typeof ownerAssignBody>;
+
 export const buildingBody = z
   .object({
     projectId: z.string().uuid(),
@@ -93,6 +107,23 @@ export const floorBody = z
   .strict();
 
 export type FloorBody = z.infer<typeof floorBody>;
+
+export const floorPatchBody = z
+  .object({
+    code: z.string().trim().min(1).max(64).optional(),
+    label: z.string().trim().min(1).max(255).optional(),
+  })
+  .strict();
+
+export type FloorPatchBody = z.infer<typeof floorPatchBody>;
+
+export const buildingPatchBody = z
+  .object({
+    status: z.enum(['ACTIVE', 'INACTIVE']),
+  })
+  .strict();
+
+export type BuildingPatchBody = z.infer<typeof buildingPatchBody>;
 
 export const roomBody = z
   .object({
@@ -124,6 +155,15 @@ export const tenancyBody = z
   .strict();
 
 export type TenancyBody = z.infer<typeof tenancyBody>;
+
+export const tenancyPatchBody = z
+  .object({
+    action: z.literal('END'),
+    endsAt: z.string().datetime({ offset: true }).optional(),
+  })
+  .strict();
+
+export type TenancyPatchBody = z.infer<typeof tenancyPatchBody>;
 
 export function parseWithFieldErrors<T>(schema: z.ZodType<T>, value: unknown): T {
   return sharedParseWithFieldErrors(schema, value);

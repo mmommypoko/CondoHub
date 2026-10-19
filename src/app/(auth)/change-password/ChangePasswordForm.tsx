@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/shared/ui/Button';
+import { Button, FormField, INPUT_CLASS } from '@/shared/ui';
 import { authClient } from '@/modules/identity-access/ui/authClient';
 
 const changePasswordSchema = z
@@ -20,6 +20,7 @@ const changePasswordSchema = z
   });
 
 type ChangePasswordValues = z.infer<typeof changePasswordSchema>;
+
 
 export default function ChangePasswordForm() {
   const router = useRouter();
@@ -54,76 +55,74 @@ export default function ChangePasswordForm() {
   });
 
   return (
-    <form data-testid="change-password-form" onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold text-foreground">Change password</h2>
-      <p className="text-sm text-muted-foreground">
-        Your password must be at least 12 characters and differ from your username and temporary password.
-      </p>
+    <form data-testid="change-password-form" onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">Change password</h2>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Your password must be at least 12 characters and differ from your username and temporary password.
+        </p>
+      </div>
       {serverError !== null ? (
-        <p data-testid="change-password-error" role="alert" className="text-sm text-danger">
+        <p
+          data-testid="change-password-error"
+          role="alert"
+          className="rounded-lg border border-danger-border bg-danger px-3 py-2 text-sm font-medium text-danger-foreground"
+        >
           {serverError}
         </p>
       ) : null}
-      <div className="flex flex-col gap-1">
-        <label htmlFor="change-current" className="text-sm font-medium text-foreground">
-          Current password
-        </label>
+      <FormField
+        label="Current password"
+        htmlFor="change-current"
+        required
+        {...(errors.currentPassword?.message !== undefined
+          ? { error: errors.currentPassword.message }
+          : {})}
+      >
         <input
-          id="change-current"
           data-testid="change-password-current"
           type="password"
           autoComplete="current-password"
-          aria-invalid={errors.currentPassword !== undefined}
-          aria-describedby={errors.currentPassword !== undefined ? 'change-current-error' : undefined}
-          className="h-10 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          required
+          placeholder="Current password"
+          className={INPUT_CLASS}
           {...register('currentPassword')}
         />
-        {errors.currentPassword !== undefined ? (
-          <p id="change-current-error" role="alert" className="text-sm text-danger">
-            {errors.currentPassword.message}
-          </p>
-        ) : null}
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="change-new" className="text-sm font-medium text-foreground">
-          New password
-        </label>
+      </FormField>
+      <FormField
+        label="New password"
+        htmlFor="change-new"
+        required
+        {...(errors.newPassword?.message !== undefined ? { error: errors.newPassword.message } : {})}
+      >
         <input
-          id="change-new"
           data-testid="change-password-new"
           type="password"
           autoComplete="new-password"
-          aria-invalid={errors.newPassword !== undefined}
-          aria-describedby={errors.newPassword !== undefined ? 'change-new-error' : undefined}
-          className="h-10 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          required
+          placeholder="At least 12 characters"
+          className={INPUT_CLASS}
           {...register('newPassword')}
         />
-        {errors.newPassword !== undefined ? (
-          <p id="change-new-error" role="alert" className="text-sm text-danger">
-            {errors.newPassword.message}
-          </p>
-        ) : null}
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="change-confirm" className="text-sm font-medium text-foreground">
-          Confirm new password
-        </label>
+      </FormField>
+      <FormField
+        label="Confirm new password"
+        htmlFor="change-confirm"
+        required
+        {...(errors.confirmPassword?.message !== undefined
+          ? { error: errors.confirmPassword.message }
+          : {})}
+      >
         <input
-          id="change-confirm"
           data-testid="change-password-confirm"
           type="password"
           autoComplete="new-password"
-          aria-invalid={errors.confirmPassword !== undefined}
-          aria-describedby={errors.confirmPassword !== undefined ? 'change-confirm-error' : undefined}
-          className="h-10 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          required
+          placeholder="Repeat the new password"
+          className={INPUT_CLASS}
           {...register('confirmPassword')}
         />
-        {errors.confirmPassword !== undefined ? (
-          <p id="change-confirm-error" role="alert" className="text-sm text-danger">
-            {errors.confirmPassword.message}
-          </p>
-        ) : null}
-      </div>
+      </FormField>
       <Button data-testid="change-password-submit" type="submit" loading={isSubmitting}>
         Change password
       </Button>

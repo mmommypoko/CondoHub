@@ -1,2 +1,87 @@
 @import "tailwindcss";
 @import "../styles/tokens.css";
+
+@layer base {
+  body {
+    font-variant-numeric: tabular-nums;
+    line-height: 1.6;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    line-height: 1.4;
+  }
+}
+
+@layer utilities {
+  .animate-ui-fade {
+    animation: ui-fade 200ms ease-out;
+  }
+
+  .animate-ui-dialog {
+    animation: ui-dialog 200ms ease-out;
+  }
+
+  .animate-ui-sheet {
+    animation: ui-sheet 250ms ease-out;
+  }
+
+  .animate-ui-toast {
+    animation: ui-toast 200ms ease-out;
+  }
+}
+
+@keyframes ui-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ui-dialog {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ui-sheet {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes ui-toast {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-ui-fade,
+  .animate-ui-dialog,
+  .animate-ui-sheet,
+  .animate-ui-toast {
+    animation: none;
+  }
+}

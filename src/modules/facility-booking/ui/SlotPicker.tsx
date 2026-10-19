@@ -3,10 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CalendarDays } from 'lucide-react';
-import { Button } from '@/shared/ui/Button';
-import { Badge } from '@/shared/ui/Badge';
-import { EmptyState } from '@/shared/ui/EmptyState';
-import { useToast } from '@/shared/ui/Toast';
+import { Badge, Button, cx, EmptyState, FormField, Skeleton, useToast } from '@/shared/ui';
+import { INPUT_CLASS } from './formControls';
 
 interface SlotRow {
   startsAt: string;
@@ -147,12 +145,11 @@ export function SlotPicker({
   return (
     <div className="flex flex-col gap-4" data-testid="slot-picker">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="flex min-w-0 flex-col gap-1 text-sm">
-          <span className="font-medium text-foreground">Room</span>
+        <FormField label="Room" htmlFor="slot-picker-room">
           <select
             data-testid="slot-picker-room"
             aria-label="Room"
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+            className={INPUT_CLASS}
             value={roomId}
             onChange={(event) => setRoomId(event.target.value)}
           >
@@ -162,36 +159,39 @@ export function SlotPicker({
               </option>
             ))}
           </select>
-        </label>
-        <label className="flex min-w-0 flex-col gap-1 text-sm">
-          <span className="font-medium text-foreground">Date</span>
+        </FormField>
+        <FormField label="Date" htmlFor="slot-picker-date">
           <input
             data-testid="slot-picker-date"
             type="date"
             aria-label="Date"
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground"
+            className={INPUT_CLASS}
             value={date}
             onChange={(event) => setDate(event.target.value)}
           />
-        </label>
+        </FormField>
       </div>
       {payload !== null ? (
         <div className="flex flex-wrap items-center gap-2" data-testid="slot-picker-quota">
-          <Badge variant="info">
+          <Badge variant={payload.quotaUsed >= payload.quotaLimit ? 'warning' : 'info'}>
             Quota {payload.quotaUsed}/{payload.quotaLimit} {payload.quotaKind}
           </Badge>
           <span className="text-xs text-muted-foreground">Period {payload.periodKey}</span>
         </div>
       ) : null}
       {loadError !== null ? (
-        <p data-testid="slot-picker-load-error" role="alert" className="text-sm text-danger">
+        <p
+          data-testid="slot-picker-load-error"
+          role="alert"
+          className="text-sm font-medium text-danger-foreground"
+        >
           {loadError}
         </p>
       ) : null}
       {loading ? (
-        <p data-testid="slot-picker-loading" className="text-sm text-muted-foreground">
-          Loading slots…
-        </p>
+        <div className="flex flex-col gap-3">
+          <Skeleton variant="table-row" lines={4} data-testid="slot-picker-loading" aria-label="Loading slots" />
+        </div>
       ) : null}
       {!loading && payload !== null && payload.slots.length === 0 ? (
         <EmptyState
@@ -222,18 +222,19 @@ export function SlotPicker({
                 aria-pressed={active}
                 disabled={!slot.available}
                 onClick={() => toggle(slot.startsAt, slot.available)}
-                className={`flex min-w-0 flex-col gap-1 rounded-xl border p-3 text-left text-sm transition-colors ${
+                className={cx(
+                  'flex min-w-0 flex-col gap-1 rounded-xl border p-3 text-left text-sm transition-[background-color,border-color,transform] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring motion-reduce:transition-none',
                   active
-                    ? 'border-primary bg-primary/10 text-foreground'
+                    ? 'border-primary bg-primary/10 text-foreground active:scale-[0.98] motion-reduce:active:scale-100'
                     : slot.available
-                      ? 'border-border bg-surface text-foreground hover:border-primary'
-                      : 'cursor-not-allowed border-border bg-neutral text-muted-foreground'
-                }`}
+                      ? 'border-border bg-surface text-foreground hover:border-primary active:scale-[0.98] motion-reduce:active:scale-100'
+                      : 'cursor-not-allowed border-border bg-neutral text-muted-foreground',
+                )}
               >
-                <span className="font-semibold">
+                <span className="font-semibold tabular-nums">
                   {formatTime(slot.startsAt)} – {formatTime(slot.endsAt)}
                 </span>
-                <span className="text-xs">
+                <span className="text-xs tabular-nums">
                   {slot.available
                     ? `${slot.remaining} of ${slot.capacity} seats left`
                     : slot.startsAt <= new Date().toISOString()
@@ -247,7 +248,11 @@ export function SlotPicker({
         </div>
       ) : null}
       {submitError !== null ? (
-        <p data-testid="slot-picker-submit-error" role="alert" className="text-sm text-danger">
+        <p
+          data-testid="slot-picker-submit-error"
+          role="alert"
+          className="text-sm font-medium text-danger-foreground"
+        >
           {submitError}
         </p>
       ) : null}

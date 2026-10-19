@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Building2 } from 'lucide-react';
+import { INPUT_BASE_CLASS, cx } from '@/shared/ui';
 
 export interface RoomSwitcherRoom {
   id: string;
@@ -25,7 +26,7 @@ export function RoomSwitcher({
       <select
         data-testid="room-switcher"
         aria-label="Current room"
-        className="h-9 w-full min-w-0 max-w-36 rounded-lg border border-input-border bg-surface px-2 text-sm text-foreground sm:max-w-56"
+        className={cx(INPUT_BASE_CLASS, 'h-9 max-w-40 px-2 font-medium sm:max-w-56')}
         value={currentRoomId ?? ''}
         onChange={(event) => {
           const next = event.target.value;

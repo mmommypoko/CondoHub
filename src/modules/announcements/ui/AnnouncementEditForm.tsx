@@ -5,9 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/shared/ui/Button';
-import { Badge } from '@/shared/ui/Badge';
-import { useToast } from '@/shared/ui/Toast';
+import { Badge, Button, FormField, INPUT_BASE_CLASS, cx, useToast } from '@/shared/ui';
 import {
   AnnouncementImageUploader,
   type UploadedImage,
@@ -111,7 +109,7 @@ export function AnnouncementEditForm({
     });
     if (!response.ok) {
       const payload = (await response.json().catch(() => null)) as ErrorPayload | null;
-      setServerError(payload?.error?.message ?? 'Could not save the announcement.');
+      setServerError(payload?.error?.message ?? 'Could not save this announcement. Check the form and retry.');
       return;
     }
     toast.success('Announcement saved.');
@@ -130,7 +128,7 @@ export function AnnouncementEditForm({
       });
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as ErrorPayload | null;
-        setServerError(payload?.error?.message ?? 'Could not update visibility.');
+        setServerError(payload?.error?.message ?? 'Could not update visibility. Retry in a moment.');
         return;
       }
       setHiddenAt(nextHidden);
@@ -142,19 +140,19 @@ export function AnnouncementEditForm({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-8">
       <form
         data-testid="announcement-edit-form"
         onSubmit={onSubmit}
         noValidate
-        className="flex flex-col gap-4"
+        className="flex min-w-0 flex-col gap-4"
       >
         {serverError !== null ? (
-          <p data-testid="announcement-edit-error" role="alert" className="text-sm text-danger">
+          <p data-testid="announcement-edit-error" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
             {serverError}
           </p>
         ) : null}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface p-3">
           <span className="text-sm text-muted-foreground">Visibility:</span>
           {hiddenAt === null ? (
             <Badge data-testid="announcement-edit-visible" variant="success">
@@ -165,6 +163,7 @@ export function AnnouncementEditForm({
               Hidden
             </Badge>
           )}
+          <span className="flex-1" />
           {hiddenAt === null ? (
             <Button
               data-testid="announcement-edit-hide-btn"
@@ -189,56 +188,32 @@ export function AnnouncementEditForm({
             </Button>
           )}
         </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="announcement-edit-title" className="text-sm font-medium text-foreground">
-            Title
-          </label>
+        <FormField label="Title" htmlFor="announcement-edit-title" {...(errors.title?.message === undefined ? {} : { error: errors.title.message })} required>
           <input
-            id="announcement-edit-title"
             data-testid="announcement-edit-title"
             type="text"
-            aria-invalid={errors.title !== undefined}
-            aria-describedby={errors.title !== undefined ? 'announcement-edit-title-error' : undefined}
-            className="h-10 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+            required
+            className={cx(INPUT_BASE_CLASS, 'h-10')}
             {...register('title')}
           />
-          {errors.title !== undefined ? (
-            <p id="announcement-edit-title-error" role="alert" className="text-sm text-danger">
-              {errors.title.message}
-            </p>
-          ) : null}
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="announcement-edit-body" className="text-sm font-medium text-foreground">
-            Body
-          </label>
+        </FormField>
+        <FormField label="Body" htmlFor="announcement-edit-body" {...(errors.body?.message === undefined ? {} : { error: errors.body.message })} required>
           <textarea
-            id="announcement-edit-body"
             data-testid="announcement-edit-body"
             rows={6}
-            aria-invalid={errors.body !== undefined}
-            aria-describedby={errors.body !== undefined ? 'announcement-edit-body-error' : undefined}
-            className="rounded-lg border border-input-border bg-surface px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+            required
+            className={cx(INPUT_BASE_CLASS, 'py-2 leading-6')}
             {...register('body')}
           />
-          {errors.body !== undefined ? (
-            <p id="announcement-edit-body-error" role="alert" className="text-sm text-danger">
-              {errors.body.message}
-            </p>
-          ) : null}
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="announcement-edit-publish-at" className="text-sm font-medium text-foreground">
-            Publish at (empty means draft)
-          </label>
+        </FormField>
+        <FormField label="Publish at (empty means draft)" htmlFor="announcement-edit-publish-at">
           <input
-            id="announcement-edit-publish-at"
             data-testid="announcement-edit-publish-at"
             type="datetime-local"
-            className="h-10 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+            className={cx(INPUT_BASE_CLASS, 'h-10')}
             {...register('publishAt')}
           />
-        </div>
+        </FormField>
         <AnnouncementImageUploader
           images={images}
           onChange={setImages}
@@ -258,25 +233,25 @@ export function AnnouncementEditForm({
           </Button>
         </div>
       </form>
-      <section className="flex flex-col gap-2" aria-label="Revision history">
+      <section className="flex min-w-0 flex-col gap-2 border-t border-border pt-6" aria-label="Revision history">
         <h2 className="text-sm font-semibold text-foreground">
           Revision history ({revisions.length})
         </h2>
         {revisions.length === 0 ? (
-          <p data-testid="announcement-edit-no-revisions" className="text-sm text-muted-foreground">
+          <p data-testid="announcement-edit-no-revisions" className="text-sm leading-6 text-muted-foreground">
             No revisions yet. Editing after publish creates a revision snapshot.
           </p>
         ) : (
-          <ul data-testid="announcement-edit-revisions" className="flex flex-col gap-2">
+          <ul data-testid="announcement-edit-revisions" className="flex min-w-0 flex-col">
             {revisions.map((revision) => (
               <li
                 key={revision.version}
-                className="flex min-w-0 flex-col gap-1 rounded-lg border border-border bg-surface p-3 text-sm"
+                className="flex min-w-0 flex-col gap-0.5 border-b border-border py-3 text-sm last:border-b-0"
               >
-                <span className="font-medium text-foreground">
+                <span className="font-medium leading-6 text-foreground">
                   Version {revision.version} · {new Date(revision.createdAt).toLocaleString('en-US', { timeZone: 'Asia/Bangkok' })}
                 </span>
-                <span className="break-words text-muted-foreground">
+                <span className="break-words leading-6 text-muted-foreground">
                   {snapshotSummary(revision.snapshot)}
                 </span>
               </li>

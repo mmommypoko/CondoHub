@@ -4,7 +4,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { apiJson } from '../../helpers/api';
 import { readRunContext } from '../../fixtures/run-context';
-import { completeFirstLogin, loginAsPoolAdmin, provisionUser } from '../../helpers/owner';
+import { completeFirstLogin, loginAsPoolAdmin, provisionUser, submitFirstLoginStep } from '../../helpers/owner';
 import { buildValidImage } from '../../helpers/announcementFiles';
 import { completeUpload, mintIntent, putBytes, readAccess } from '../upload/uploadFlow';
 import {
@@ -160,11 +160,10 @@ test.describe('chat send: content, snapshot, replay, denies, rate limit', () => 
     });
     const freshContext = await browser.newContext({ baseURL });
     const freshPage = await freshContext.newPage();
-    await freshPage.goto('/login');
-    await freshPage.getByTestId('login-username').fill(freshUsername);
-    await freshPage.getByTestId('login-password').fill(freshProvisioned.tempPassword);
-    await freshPage.getByTestId('login-submit').click();
-    await expect(freshPage).toHaveURL(/\/change-password/, { timeout: 15000 });
+    await submitFirstLoginStep(freshPage, {
+      username: freshUsername,
+      tempPassword: freshProvisioned.tempPassword,
+    });
     ctx.firstLogin = {
       username: freshUsername,
       tempPassword: freshProvisioned.tempPassword,

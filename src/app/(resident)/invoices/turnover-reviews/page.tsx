@@ -2,10 +2,11 @@ import 'server-only';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getActorFromSession } from '@/shared/auth/actor';
-import { Badge } from '@/shared/ui/Badge';
-import { EmptyState } from '@/shared/ui/EmptyState';
+import { Badge, DataTable, DataTableCell, DataTableRow, EmptyState, PageHeader, Pagination, cx } from '@/shared/ui';
 import { listTurnoverReviews } from '@/modules/billing-payments/application/index';
 import { getRoomDetail } from '@/modules/property-membership/application/index';
+import { turnoverStateLabel, turnoverStateVariant } from '@/modules/billing-payments/ui/billingLabels';
+import { FILTER_LINK_ACTIVE, FILTER_LINK_BASE, FILTER_LINK_IDLE } from '@/modules/billing-payments/ui/formControls';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,18 +17,6 @@ const BASE_PATH = '/invoices/turnover-reviews';
 function stateFilter(value: string | undefined): ReviewState | undefined {
   if (value === 'UNRESOLVED' || value === 'RESOLVED' || value === 'NO_CHARGE') return value;
   return undefined;
-}
-
-function stateLabel(state: ReviewState): string {
-  if (state === 'RESOLVED') return 'Resolved';
-  if (state === 'NO_CHARGE') return 'No charge';
-  return 'Unresolved';
-}
-
-function stateVariant(state: ReviewState): 'warning' | 'success' | 'neutral' {
-  if (state === 'RESOLVED') return 'success';
-  if (state === 'NO_CHARGE') return 'neutral';
-  return 'warning';
 }
 
 function filterHref(state: ReviewState | undefined): string {
@@ -66,29 +55,27 @@ export default async function OwnerTurnoverReviewsPage({
     }
   }
   const totalPages = Math.max(1, Math.ceil(feed.total / 20));
+  const suffix = state === undefined ? '' : `&state=${state}`;
   return (
     <main
       data-testid="owner-turnover-review-list-page"
       className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
     >
-      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-1">
-          <h1 className="text-xl font-semibold text-foreground">Turnover reviews</h1>
-          <p className="text-sm text-muted-foreground">
-            Rent decisions for months when your room changed tenancy. Unresolved reviews stay here
-            until someone issues invoices or records no charge.
-          </p>
-        </div>
-        <Badge data-testid="owner-turnover-review-unresolved-indicator" variant="warning">
-          {feed.unresolvedCount} unresolved
-        </Badge>
-      </div>
+      <PageHeader
+        title="Turnover reviews"
+        description="Rent decisions for months when your room changed tenancy. Unresolved reviews stay here until someone issues invoices or records no charge."
+        actions={
+          <Badge data-testid="owner-turnover-review-unresolved-indicator" variant="warning">
+            {feed.unresolvedCount} unresolved
+          </Badge>
+        }
+      />
       <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter by state">
         <Link
           data-testid="owner-turnover-review-filter-all"
           href={filterHref(undefined)}
           aria-current={state === undefined ? 'page' : undefined}
-          className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary-foreground hover:bg-secondary"
+          className={cx(FILTER_LINK_BASE, state === undefined ? FILTER_LINK_ACTIVE : FILTER_LINK_IDLE)}
         >
           All
         </Link>
@@ -96,7 +83,7 @@ export default async function OwnerTurnoverReviewsPage({
           data-testid="owner-turnover-review-filter-unresolved"
           href={filterHref('UNRESOLVED')}
           aria-current={state === 'UNRESOLVED' ? 'page' : undefined}
-          className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary-foreground hover:bg-secondary"
+          className={cx(FILTER_LINK_BASE, state === 'UNRESOLVED' ? FILTER_LINK_ACTIVE : FILTER_LINK_IDLE)}
         >
           Unresolved
         </Link>
@@ -104,7 +91,7 @@ export default async function OwnerTurnoverReviewsPage({
           data-testid="owner-turnover-review-filter-resolved"
           href={filterHref('RESOLVED')}
           aria-current={state === 'RESOLVED' ? 'page' : undefined}
-          className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary-foreground hover:bg-secondary"
+          className={cx(FILTER_LINK_BASE, state === 'RESOLVED' ? FILTER_LINK_ACTIVE : FILTER_LINK_IDLE)}
         >
           Resolved
         </Link>
@@ -112,7 +99,7 @@ export default async function OwnerTurnoverReviewsPage({
           data-testid="owner-turnover-review-filter-no-charge"
           href={filterHref('NO_CHARGE')}
           aria-current={state === 'NO_CHARGE' ? 'page' : undefined}
-          className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary-foreground hover:bg-secondary"
+          className={cx(FILTER_LINK_BASE, state === 'NO_CHARGE' ? FILTER_LINK_ACTIVE : FILTER_LINK_IDLE)}
         >
           No charge
         </Link>
@@ -124,69 +111,54 @@ export default async function OwnerTurnoverReviewsPage({
           description="When a month in one of your rooms needs a rent decision, the review appears here."
         />
       ) : (
-        <ul data-testid="owner-turnover-review-list" className="flex flex-col gap-3">
+        <DataTable
+          testId="owner-turnover-review-list"
+          caption="Turnover reviews for your rooms"
+          columns={[
+            { key: 'review', header: 'Review' },
+            { key: 'state', header: 'State' },
+            { key: 'candidates', header: 'Candidates', numeric: true },
+            { key: 'version', header: 'Version', numeric: true },
+          ]}
+        >
           {feed.rows.map((row) => (
-            <li
-              key={row.id}
-              className="flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-surface p-4"
-            >
-              <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                <Link
-                  data-testid={`owner-turnover-review-row-${row.id}`}
-                  href={`${BASE_PATH}/${row.id}`}
-                  className="min-w-0 flex-1 basis-40 break-words text-sm font-semibold text-foreground hover:underline"
-                >
-                  {roomCodes.get(row.roomId) ?? row.roomId} · {row.calendarMonth}
-                </Link>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge data-testid={`owner-turnover-review-state-${row.id}`} variant={stateVariant(row.state)}>
-                    {stateLabel(row.state)}
+            <DataTableRow key={row.id} rowKey={row.id}>
+              <DataTableCell link href={`${BASE_PATH}/${row.id}`} linkTestId={`owner-turnover-review-row-${row.id}`}>
+                {roomCodes.get(row.roomId) ?? row.roomId} · {row.calendarMonth}
+              </DataTableCell>
+              <DataTableCell>
+                <span className="inline-flex flex-wrap items-center gap-2">
+                  <Badge data-testid={`owner-turnover-review-state-${row.id}`} variant={turnoverStateVariant(row.state)}>
+                    {turnoverStateLabel(row.state)}
                   </Badge>
                   {row.blocked ? (
                     <Badge data-testid={`owner-turnover-review-blocked-${row.id}`} variant="danger">
                       Blocked
                     </Badge>
                   ) : null}
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                </span>
+              </DataTableCell>
+              <DataTableCell numeric>
                 <span>{row.candidateTenancyIds.length} candidate tenancies</span>
+              </DataTableCell>
+              <DataTableCell numeric>
                 <span>Version {row.version}</span>
-              </div>
-            </li>
+              </DataTableCell>
+            </DataTableRow>
           ))}
-        </ul>
+        </DataTable>
       )}
-      {totalPages > 1 ? (
-        <nav
-          aria-label="Turnover review pages"
-          className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground"
-        >
-          <span>
-            Page {page} of {totalPages} ({feed.total} reviews)
-          </span>
-          <div className="flex gap-2">
-            {page > 1 ? (
-              <Link
-                data-testid="owner-turnover-review-list-prev"
-                href={`${BASE_PATH}?page=${page - 1}${state === undefined ? '' : `&state=${state}`}`}
-                className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary-foreground hover:bg-secondary"
-              >
-                Previous
-              </Link>
-            ) : null}
-            {page < totalPages ? (
-              <Link
-                data-testid="owner-turnover-review-list-next"
-                href={`${BASE_PATH}?page=${page + 1}${state === undefined ? '' : `&state=${state}`}`}
-                className="rounded-lg border border-input-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary-foreground hover:bg-secondary"
-              >
-                Next
-              </Link>
-            ) : null}
-          </div>
-        </nav>
-      ) : null}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={feed.total}
+        pagePath={BASE_PATH}
+        querySuffix={suffix}
+        testId="owner-turnover-review-list-pages"
+        nextTestId="owner-turnover-review-list-next"
+        prevTestId="owner-turnover-review-list-prev"
+        hideDisabledEnds
+      />
     </main>
   );
 }

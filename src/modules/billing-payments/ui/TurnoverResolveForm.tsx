@@ -3,8 +3,8 @@
 import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@/shared/ui/Button';
-import { useToast } from '@/shared/ui/Toast';
+import { Button, useToast } from '@/shared/ui';
+import { CHECKBOX_CLASS, INPUT_CLASS } from '@/modules/billing-payments/ui/formControls';
 import {
   PER_INVOICE_FIELD_IDS,
   turnoverResolveFormSchema,
@@ -217,19 +217,19 @@ export function TurnoverResolveForm({
   }[];
 
   return (
-    <form data-testid="turnover-resolve-form" onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
+    <form data-testid="turnover-resolve-form" onSubmit={onSubmit} noValidate className="flex min-w-0 flex-col gap-5">
       {serverError !== null ? (
-        <p data-testid="turnover-resolve-error" role="alert" className="text-sm text-danger">
+        <p data-testid="turnover-resolve-error" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
           {serverError}
         </p>
       ) : null}
       {conflict ? (
-        <p data-testid="turnover-resolve-conflict" role="alert" className="text-sm text-danger">
+        <p data-testid="turnover-resolve-conflict" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
           Someone resolved this review first. Reload the page to see the latest state.
         </p>
       ) : null}
       {pastRejected ? (
-        <p data-testid="turnover-resolve-past-rejected" role="alert" className="text-sm text-danger">
+        <p data-testid="turnover-resolve-past-rejected" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
           A backdated due date needs an explicit confirmation per invoice before submitting.
         </p>
       ) : null}
@@ -239,24 +239,24 @@ export function TurnoverResolveForm({
           control={control}
           name="decision"
           render={({ field }) => (
-            <div className="flex flex-col gap-2">
-              <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-border bg-surface p-3 text-sm">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-border bg-surface p-3 text-sm transition-[border-color] duration-150 ease-out hover:border-border-strong motion-reduce:transition-none">
                 <input
                   data-testid="turnover-resolve-decision-issue"
                   type="radio"
                   value="ISSUE_INVOICES"
                   checked={field.value === 'ISSUE_INVOICES'}
                   onChange={() => field.onChange('ISSUE_INVOICES')}
-                  className="mt-0.5 size-4 shrink-0"
+                  className={`${CHECKBOX_CLASS} mt-1`}
                 />
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="font-medium text-foreground">Issue invoices</span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs leading-6 text-muted-foreground">
                     Bill at least one tenancy in this review. Each invoice needs its own due date.
                   </span>
                 </span>
               </label>
-              <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-border bg-surface p-3 text-sm">
+              <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-border bg-surface p-3 text-sm transition-[border-color] duration-150 ease-out hover:border-border-strong motion-reduce:transition-none">
                 <input
                   data-testid="turnover-resolve-decision-no-charge"
                   type="radio"
@@ -267,11 +267,11 @@ export function TurnoverResolveForm({
                     setValue('selectedTenancyIds', [] as never);
                     setValue('perInvoice', [] as never);
                   }}
-                  className="mt-0.5 size-4 shrink-0"
+                  className={`${CHECKBOX_CLASS} mt-1`}
                 />
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="font-medium text-foreground">No charge</span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs leading-6 text-muted-foreground">
                     Waive rent for every tenancy in this cycle, with a reason. No invoices are
                     created and the job will not bill this cycle later.
                   </span>
@@ -285,11 +285,11 @@ export function TurnoverResolveForm({
         <div className="flex min-w-0 flex-col gap-3">
           <h2 className="text-sm font-semibold text-foreground">Tenancies to bill</h2>
           {(errors as { selectedTenancyIds?: { message?: string } }).selectedTenancyIds !== undefined ? (
-            <p data-testid="turnover-resolve-selection-error" role="alert" className="text-sm text-danger">
+            <p data-testid="turnover-resolve-selection-error" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
               {(errors as { selectedTenancyIds?: { message?: string } }).selectedTenancyIds?.message}
             </p>
           ) : null}
-          <ul className="flex flex-col gap-3">
+          <ul className="flex min-w-0 flex-col gap-0 divide-y divide-border rounded-xl border border-border bg-surface">
             {review.candidates.map((candidate) => {
               const checked = selectedSet.has(candidate.tenancyId);
               const entryIndex = entries.findIndex((entry) => entry.tenancyId === candidate.tenancyId);
@@ -307,7 +307,7 @@ export function TurnoverResolveForm({
               return (
                 <li
                   key={candidate.tenancyId}
-                  className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-surface p-4"
+                  className="flex min-w-0 flex-col gap-3 p-4"
                 >
                   <label className="flex cursor-pointer items-start gap-2 text-sm">
                     <input
@@ -316,15 +316,15 @@ export function TurnoverResolveForm({
                       type="checkbox"
                       checked={checked}
                       onChange={(event) => toggleTenancy(candidate.tenancyId, event.target.checked)}
-                      className="mt-0.5 size-4 shrink-0"
+                      className={`${CHECKBOX_CLASS} mt-1`}
                     />
                     <span className="min-w-0 break-words font-medium text-foreground">
                       {candidate.label}
                     </span>
                   </label>
                   {checked && entryIndex >= 0 ? (
-                    <div className="flex min-w-0 flex-col gap-3">
-                      <div className="flex min-w-0 flex-col gap-1">
+                    <div className="flex min-w-0 flex-col gap-3 pl-6">
+                      <div className="flex min-w-0 max-w-xs flex-col gap-1.5">
                         <label htmlFor={PER_INVOICE_FIELD_IDS.dueDate(candidate.tenancyId)} className="text-sm font-medium text-foreground">
                           Due date
                         </label>
@@ -338,18 +338,18 @@ export function TurnoverResolveForm({
                               ? PER_INVOICE_FIELD_IDS.dueDateError(candidate.tenancyId)
                               : undefined
                           }
-                          className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                          className={INPUT_CLASS}
                           {...register(`perInvoice.${entryIndex}.dueDate` as never)}
                         />
                         {entryErrors?.dueDate !== undefined ? (
-                          <p id={PER_INVOICE_FIELD_IDS.dueDateError(candidate.tenancyId)} role="alert" className="text-sm text-danger">
+                          <p id={PER_INVOICE_FIELD_IDS.dueDateError(candidate.tenancyId)} role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
                             {entryErrors.dueDate.message}
                           </p>
                         ) : null}
                       </div>
                       {past ? (
                         <div className="flex min-w-0 flex-col gap-2 rounded-xl border border-warning-border bg-warning p-3">
-                          <p data-testid={`turnover-resolve-past-warning-${candidate.tenancyId}`} role="alert" className="text-sm text-warning-foreground">
+                          <p data-testid={`turnover-resolve-past-warning-${candidate.tenancyId}`} role="alert" className="text-sm leading-6 text-warning-foreground">
                             This due date is before today. If the balance stays unpaid, the invoice
                             becomes overdue right after it is issued. Confirming only acknowledges
                             the date, not a payment.
@@ -359,10 +359,10 @@ export function TurnoverResolveForm({
                               id={PER_INVOICE_FIELD_IDS.confirm(candidate.tenancyId)}
                               data-testid={`turnover-resolve-confirm-${candidate.tenancyId}`}
                               type="checkbox"
-                              className="mt-0.5 size-4 shrink-0"
+                              className={`${CHECKBOX_CLASS} mt-1`}
                               {...register(`perInvoice.${entryIndex}.confirmPastDueDate` as never)}
                             />
-                            <span className="min-w-0 text-warning-foreground">
+                            <span className="min-w-0 leading-6 text-warning-foreground">
                               I confirm this backdated due date for this invoice.
                             </span>
                           </label>
@@ -370,7 +370,7 @@ export function TurnoverResolveForm({
                       ) : null}
                       {actorIsAdmin ? (
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          <div className="flex min-w-0 flex-col gap-1">
+                          <div className="flex min-w-0 flex-col gap-1.5">
                             <label htmlFor={PER_INVOICE_FIELD_IDS.override(candidate.tenancyId)} className="text-sm font-medium text-foreground">
                               Amount override (THB, optional)
                             </label>
@@ -386,16 +386,16 @@ export function TurnoverResolveForm({
                                   ? PER_INVOICE_FIELD_IDS.overrideError(candidate.tenancyId)
                                   : undefined
                               }
-                              className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                              className={INPUT_CLASS}
                               {...register(`perInvoice.${entryIndex}.amountOverride` as never)}
                             />
                             {entryErrors?.amountOverride !== undefined ? (
-                              <p id={PER_INVOICE_FIELD_IDS.overrideError(candidate.tenancyId)} role="alert" className="text-sm text-danger">
+                              <p id={PER_INVOICE_FIELD_IDS.overrideError(candidate.tenancyId)} role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
                                 {entryErrors.amountOverride.message}
                               </p>
                             ) : null}
                           </div>
-                          <div className="flex min-w-0 flex-col gap-1">
+                          <div className="flex min-w-0 flex-col gap-1.5">
                             <label htmlFor={PER_INVOICE_FIELD_IDS.overrideReason(candidate.tenancyId)} className="text-sm font-medium text-foreground">
                               Override reason
                             </label>
@@ -410,11 +410,11 @@ export function TurnoverResolveForm({
                                   ? PER_INVOICE_FIELD_IDS.overrideReasonError(candidate.tenancyId)
                                   : undefined
                               }
-                              className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                              className={INPUT_CLASS}
                               {...register(`perInvoice.${entryIndex}.overrideReason` as never)}
                             />
                             {entryErrors?.overrideReason !== undefined ? (
-                              <p id={PER_INVOICE_FIELD_IDS.overrideReasonError(candidate.tenancyId)} role="alert" className="text-sm text-danger">
+                              <p id={PER_INVOICE_FIELD_IDS.overrideReasonError(candidate.tenancyId)} role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
                                 {entryErrors.overrideReason.message}
                               </p>
                             ) : null}
@@ -429,7 +429,7 @@ export function TurnoverResolveForm({
           </ul>
         </div>
       ) : (
-        <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex min-w-0 flex-col gap-1.5">
           <label htmlFor="turnover-resolve-no-charge-reason" className="text-sm font-medium text-foreground">
             No-charge reason
           </label>
@@ -444,11 +444,11 @@ export function TurnoverResolveForm({
                 ? 'turnover-resolve-no-charge-reason-error'
                 : undefined
             }
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+            className={INPUT_CLASS}
             {...register('noChargeReason' as never)}
           />
           {(errors as { noChargeReason?: { message?: string } }).noChargeReason !== undefined ? (
-            <p id="turnover-resolve-no-charge-reason-error" role="alert" className="text-sm text-danger">
+            <p id="turnover-resolve-no-charge-reason-error" role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
               {(errors as { noChargeReason?: { message?: string } }).noChargeReason?.message}
             </p>
           ) : null}

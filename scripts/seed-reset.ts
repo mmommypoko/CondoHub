@@ -123,6 +123,26 @@ function resetTargets(): ResetTarget[] {
       pattern: 'normalized',
     },
     {
+      label: 'payment_review_idempotency_onetime_by_run_event',
+      sql: `DELETE FROM "idempotency_key" WHERE "scope" = 'PAYMENT_REVIEW' AND "result_ref_id" IN (SELECT "id" FROM "payment_submission" WHERE "invoice_id" IN (SELECT "id" FROM "invoice" WHERE "one_time_charge_event_id" IN (SELECT "id" FROM "common_fee_charge_event" WHERE "charge_context"->>'runId' = $1 OR "charge_context"->>'note' LIKE '%' || $1 || '%' ESCAPE '\\')))`,
+      pattern: 'raw',
+    },
+    {
+      label: 'payment_submission_onetime_by_run_event',
+      sql: `DELETE FROM "payment_submission" WHERE "invoice_id" IN (SELECT "id" FROM "invoice" WHERE "one_time_charge_event_id" IN (SELECT "id" FROM "common_fee_charge_event" WHERE "charge_context"->>'runId' = $1 OR "charge_context"->>'note' LIKE '%' || $1 || '%' ESCAPE '\\'))`,
+      pattern: 'raw',
+    },
+    {
+      label: 'invoice_revision_onetime_by_run_event',
+      sql: `DELETE FROM "invoice_revision" WHERE "invoice_id" IN (SELECT "id" FROM "invoice" WHERE "one_time_charge_event_id" IN (SELECT "id" FROM "common_fee_charge_event" WHERE "charge_context"->>'runId' = $1 OR "charge_context"->>'note' LIKE '%' || $1 || '%' ESCAPE '\\'))`,
+      pattern: 'raw',
+    },
+    {
+      label: 'common_fee_responsible_onetime_by_run_event',
+      sql: `DELETE FROM "common_fee_invoice_responsible_owner" WHERE "invoice_id" IN (SELECT "id" FROM "invoice" WHERE "one_time_charge_event_id" IN (SELECT "id" FROM "common_fee_charge_event" WHERE "charge_context"->>'runId' = $1 OR "charge_context"->>'note' LIKE '%' || $1 || '%' ESCAPE '\\'))`,
+      pattern: 'raw',
+    },
+    {
       label: 'payment_review_idempotency',
       sql: `DELETE FROM "idempotency_key" WHERE "scope" = 'PAYMENT_REVIEW' AND "result_ref_id" IN (SELECT "id" FROM "payment_submission" WHERE "invoice_id" IN (SELECT "id" FROM "invoice" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\')))`,
       pattern: 'raw',
@@ -160,6 +180,11 @@ function resetTargets(): ResetTarget[] {
     {
       label: 'turnover_review_responsible_owner',
       sql: `DELETE FROM "turnover_review_responsible_owner" WHERE "review_id" IN (SELECT "id" FROM "turnover_billing_review" WHERE "room_id" IN (SELECT "id" FROM "room" WHERE "room_code" LIKE '%' || $1 || '%' ESCAPE '\\'))`,
+      pattern: 'raw',
+    },
+    {
+      label: 'invoice_onetime_by_run_event',
+      sql: `DELETE FROM "invoice" WHERE "one_time_charge_event_id" IN (SELECT "id" FROM "common_fee_charge_event" WHERE "charge_context"->>'runId' = $1 OR "charge_context"->>'note' LIKE '%' || $1 || '%' ESCAPE '\\')`,
       pattern: 'raw',
     },
     {

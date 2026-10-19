@@ -3,34 +3,28 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@/shared/ui/Button';
-import { useToast } from '@/shared/ui/Toast';
+import { Button, FormField, INPUT_BASE_CLASS, cx, deniedCopy, rateLimitedCopy, useToast } from '@/shared/ui';
 import {
   ticketTransitionFormSchema,
   type TicketTransitionFormValues,
 } from '@/modules/maintenance/ui/maintenanceFormSchemas';
 import { isTerminalTicketStatus, statusLabel } from '@/modules/maintenance/ui/ticketLabels';
+import { handlerTransitionsFrom, type TicketStatus } from '@/modules/maintenance/domain/stateMachine';
 
 interface ErrorPayload {
   error?: { code?: string; message?: string };
 }
 
 function transitionErrorCopy(code: string | undefined, fallback: string): string {
-  if (code === 'RESOURCE_NOT_FOUND' || code === 'ACCESS_DENIED') {
-    return 'This request is not available.';
-  }
+  const denied = deniedCopy('This request is not available.')(code);
+  if (denied !== null) return denied;
   if (code === 'VERSION_CONFLICT') {
     return 'Someone changed this request first. Reload the page and retry.';
   }
-  if (code === 'RATE_LIMITED') return 'Too many requests. Please wait a moment and retry.';
+  const limited = rateLimitedCopy('Too many requests. Please wait a moment and retry.')(code);
+  if (limited !== null) return limited;
   return fallback;
 }
-
-const HANDLER_OPTIONS: Record<string, readonly string[]> = {
-  PENDING: ['IN_PROGRESS', 'WAITING_FOR_INFO', 'COMPLETED', 'REJECTED', 'CANCELLED'],
-  IN_PROGRESS: ['WAITING_FOR_INFO', 'COMPLETED', 'REJECTED', 'CANCELLED'],
-  WAITING_FOR_INFO: ['IN_PROGRESS', 'COMPLETED', 'REJECTED', 'CANCELLED'],
-};
 
 export type TicketTransitionAction =
   | 'handler'
@@ -56,7 +50,7 @@ export function TicketTransitionForm({
   const options =
     mode === 'reporter-cancel'
       ? (['CANCELLED'] as const)
-      : ((HANDLER_OPTIONS[currentStatus] ?? []) as readonly string[]);
+      : (handlerTransitionsFrom(currentStatus as TicketStatus) as readonly string[]);
   const {
     register,
     handleSubmit,
@@ -99,7 +93,7 @@ export function TicketTransitionForm({
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as ErrorPayload | null;
         setServerError(
-          transitionErrorCopy(payload?.error?.code, payload?.error?.message ?? 'Could not update the request.'),
+          transitionErrorCopy(payload?.error?.code, payload?.error?.message ?? 'Could not update this request. Reload the page and retry.'),
         );
         return;
       }
@@ -118,21 +112,16 @@ export function TicketTransitionForm({
   return (
     <form data-testid={`${testIdPrefix}-transition-form`} onSubmit={onSubmit} noValidate className="flex min-w-0 flex-col gap-3">
       {serverError !== null ? (
-        <p data-testid={`${testIdPrefix}-transition-error`} role="alert" className="text-sm text-danger">
+        <p data-testid={`${testIdPrefix}-transition-error`} role="alert" className="text-sm leading-6 font-medium text-danger-foreground">
           {serverError}
         </p>
       ) : null}
       {mode === 'handler' ? (
-        <div className="flex min-w-0 flex-col gap-1">
-          <label htmlFor={`${testIdPrefix}-transition-status`} className="text-sm font-medium text-foreground">
-            New status
-          </label>
+        <FormField label="New status" htmlFor={`${testIdPrefix}-transition-status`} {...(errors.status?.message === undefined ? {} : { error: errors.status.message })} required>
           <select
-            id={`${testIdPrefix}-transition-status`}
             data-testid={`${testIdPrefix}-transition-status`}
-            aria-invalid={errors.status !== undefined}
-            aria-describedby={errors.status !== undefined ? `${testIdPrefix}-transition-status-error` : undefined}
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+            required
+            className={cx(INPUT_BASE_CLASS, 'h-10')}
             {...register('status')}
           >
             {options.map((option) => (
@@ -141,37 +130,22 @@ export function TicketTransitionForm({
               </option>
             ))}
           </select>
-          {errors.status !== undefined ? (
-            <p id={`${testIdPrefix}-transition-status-error`} data-testid={`${testIdPrefix}-transition-status-error`} role="alert" className="text-sm text-danger">
-              {errors.status.message}
-            </p>
-          ) : null}
-        </div>
+        </FormField>
       ) : (
         <input type="hidden" data-testid={`${testIdPrefix}-transition-status`} {...register('status')} />
       )}
       {mode === 'handler' && status === 'REJECTED' ? (
-        <div className="flex min-w-0 flex-col gap-1">
-          <label htmlFor={`${testIdPrefix}-transition-reason`} className="text-sm font-medium text-foreground">
-            Rejection reason
-          </label>
+        <FormField label="Rejection reason" htmlFor={`${testIdPrefix}-transition-reason`} {...(errors.reason?.message === undefined ? {} : { error: errors.reason.message })} required>
           <input
-            id={`${testIdPrefix}-transition-reason`}
             data-testid={`${testIdPrefix}-transition-reason`}
             type="text"
             maxLength={2000}
+            required
             placeholder="Explain why this request cannot proceed."
-            aria-invalid={errors.reason !== undefined}
-            aria-describedby={errors.reason !== undefined ? `${testIdPrefix}-transition-reason-error` : undefined}
-            className="h-10 w-full min-w-0 rounded-lg border border-input-border bg-surface px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+            className={cx(INPUT_BASE_CLASS, 'h-10')}
             {...register('reason')}
           />
-          {errors.reason !== undefined ? (
-            <p id={`${testIdPrefix}-transition-reason-error`} data-testid={`${testIdPrefix}-transition-reason-error`} role="alert" className="text-sm text-danger">
-              {errors.reason.message}
-            </p>
-          ) : null}
-        </div>
+        </FormField>
       ) : null}
       <div>
         <Button

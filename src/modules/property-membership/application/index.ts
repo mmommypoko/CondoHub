@@ -34,11 +34,14 @@ export {
   createBuilding,
   createFloor,
   createRoom,
+  deleteFloor,
   disableBuilding,
   disableRoom,
+  enableBuilding,
   listAllBuildings,
   listBuildingStructures,
   previewRoomImpact,
+  updateFloor,
   updateRoomDetails,
 } from './structures';
 export type { RoomImpactPreview } from './structures';
@@ -46,11 +49,12 @@ export { grantCoOwner, resolveGrantTargetByUsername } from './grantCoOwner';
 export type { GrantCoOwnerInput, GrantCoOwnerResult } from './grantCoOwner';
 export { seedOwnership } from './seedOwnership';
 export {
+  assignOwner,
   correctOwnershipInterval,
   removeOwnership,
   transferOwnership,
 } from './ownershipAdmin';
-export type { TransferOwnershipInput, TransferOwnershipResult } from './ownershipAdmin';
+export type { AssignOwnerInput, AssignOwnerResult, TransferOwnershipInput, TransferOwnershipResult } from './ownershipAdmin';
 export {
   createTenancy,
   endTenancyAt,
@@ -73,13 +77,17 @@ export {
 export { parseWithFieldErrors } from './routeSchemas';
 export type {
   BuildingBody,
+  BuildingPatchBody,
   CoOwnerGrantBody,
   FloorBody,
+  FloorPatchBody,
   MemberAddBody,
   MemberPatchBody,
+  OwnerAssignBody,
   OwnershipAdminBody,
   RoomBody,
   RoomListQuery,
   RoomPatchBody,
   TenancyBody,
+  TenancyPatchBody,
 } from './routeSchemas';

@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { ImageOff } from 'lucide-react';
+import { Lightbox, Skeleton } from '@/shared/ui';
 
 interface AccessEnvelope {
   data: { url: string; expiresAt: string };
@@ -15,6 +17,7 @@ export function AnnouncementImage({
 }) {
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,28 +42,49 @@ export function AnnouncementImage({
 
   if (failed) {
     return (
-      <p data-testid={`${testId}-unavailable`} className="text-sm text-muted-foreground">
+      <p
+        data-testid={`${testId}-unavailable`}
+        className="flex items-center gap-2 text-sm text-muted-foreground"
+      >
+        <ImageOff aria-hidden="true" className="size-4 shrink-0" />
         Image unavailable.
       </p>
     );
   }
   if (url === null) {
     return (
-      <div
+      <Skeleton
         data-testid={`${testId}-loading`}
-        role="status"
         aria-label="Loading image"
-        className="h-40 w-full animate-pulse rounded-lg bg-skeleton"
+        className="h-40"
       />
     );
   }
   return (
-    <img
-      data-testid={testId}
-      src={url}
-      alt="Announcement attachment"
-      loading="lazy"
-      className="h-auto w-full rounded-lg border border-border object-contain"
-    />
+    <>
+      <button
+        type="button"
+        data-testid={`${testId}-open`}
+        onClick={() => setPreviewOpen(true)}
+        aria-label="Enlarge announcement attachment"
+        className="block w-full cursor-zoom-in overflow-hidden rounded-lg border border-border bg-surface transition-[border-color,opacity] duration-150 ease-out hover:border-border-strong hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring motion-reduce:transition-none"
+      >
+        <img
+          data-testid={testId}
+          src={url}
+          alt="Announcement attachment"
+          loading="lazy"
+          className="h-auto max-h-96 w-full object-contain"
+        />
+      </button>
+      <Lightbox
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        src={url}
+        alt="Announcement attachment"
+        title="Announcement attachment"
+        testId={`${testId}-preview`}
+      />
+    </>
   );
 }
