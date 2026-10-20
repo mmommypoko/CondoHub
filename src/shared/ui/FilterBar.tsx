@@ -19,7 +19,11 @@ export function FilterBar({
   activeValue: string;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2" role="group" aria-label={label}>
+    <div
+      className="flex w-fit max-w-full flex-wrap items-center gap-1 rounded-lg bg-secondary p-1"
+      role="group"
+      aria-label={label}
+    >
       {options.map((option) => {
         const active = option.value === activeValue;
         return (

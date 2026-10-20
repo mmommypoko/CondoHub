@@ -5,6 +5,7 @@ import { AppError } from '@/shared/utils/errors';
 import { RATE_LIMIT_PRESETS } from '@/shared/utils/rateLimit';
 import {
   createPropertyCtx,
+  updateBuildingDetails,
   disableBuilding,
   enableBuilding,
   parseWithFieldErrors,
@@ -21,6 +22,8 @@ export const PATCH = withApi(
     }
     const body = parseWithFieldErrors(buildingPatchBody, await request.json());
     const propertyCtx = createPropertyCtx({ requestId: ctx.requestId });
+    if (body.name !== undefined)
+      return updateBuildingDetails(ctx.actor, buildingId, body, propertyCtx);
     if (body.status === 'INACTIVE') {
       return disableBuilding(ctx.actor, buildingId, propertyCtx);
     }

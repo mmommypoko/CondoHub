@@ -1,5 +1,8 @@
 'use client';
 
+import { Select } from '@/shared/ui/Select';
+import { DoorOpen as SelectIconDoorOpen } from 'lucide-react';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CalendarDays } from 'lucide-react';
@@ -58,7 +61,7 @@ export function SlotPicker({
   initialDate,
 }: {
   facilityId: string;
-  rooms: Array<{ id: string; roomCode: string; buildingCode: string }>;
+  rooms: Array<{ id: string; name: string; buildingName: string }>;
   initialRoomId: string | null;
   initialDate?: string | undefined;
 }) {
@@ -146,19 +149,26 @@ export function SlotPicker({
     <div className="flex flex-col gap-4" data-testid="slot-picker">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <FormField label="Room" htmlFor="slot-picker-room">
-          <select
+          <Select
+            icon={SelectIconDoorOpen}
             data-testid="slot-picker-room"
             aria-label="Room"
             className={INPUT_CLASS}
             value={roomId}
-            onChange={(event) => setRoomId(event.target.value)}
+            onChange={(event) => {
+              setRoomId(event.target.value);
+              router.replace(
+                `/facilities/${facilityId}?${new URLSearchParams({ roomId: event.target.value, date })}`,
+                { scroll: false },
+              );
+            }}
           >
             {rooms.map((room) => (
               <option key={room.id} value={room.id}>
-                {room.buildingCode} · {room.roomCode}
+                {room.buildingName} · {room.name}
               </option>
             ))}
-          </select>
+          </Select>
         </FormField>
         <FormField label="Date" htmlFor="slot-picker-date">
           <input
@@ -176,7 +186,9 @@ export function SlotPicker({
           <Badge variant={payload.quotaUsed >= payload.quotaLimit ? 'warning' : 'info'}>
             Quota {payload.quotaUsed}/{payload.quotaLimit} {payload.quotaKind}
           </Badge>
-          <span className="text-small ui-tabular text-muted-foreground">Period {payload.periodKey}</span>
+          <span className="text-small ui-tabular text-muted-foreground">
+            Period {payload.periodKey}
+          </span>
         </div>
       ) : null}
       {loadError !== null ? (
@@ -190,7 +202,12 @@ export function SlotPicker({
       ) : null}
       {loading ? (
         <div className="flex flex-col gap-3">
-          <Skeleton variant="table-row" lines={4} data-testid="slot-picker-loading" aria-label="Loading slots" />
+          <Skeleton
+            variant="table-row"
+            lines={4}
+            data-testid="slot-picker-loading"
+            aria-label="Loading slots"
+          />
         </div>
       ) : null}
       {!loading && payload !== null && payload.slots.length === 0 ? (
@@ -206,7 +223,7 @@ export function SlotPicker({
           data-testid="slot-picker-grid"
           role="group"
           aria-label="Available slots"
-          className="grid grid-cols-1 gap-2 sm:grid-cols-2"
+          className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3"
         >
           {payload.slots.map((slot) => {
             const active = selectedSet.has(slot.startsAt);
@@ -223,7 +240,7 @@ export function SlotPicker({
                 disabled={!slot.available}
                 onClick={() => toggle(slot.startsAt, slot.available)}
                 className={cx(
-                  'flex min-w-0 flex-col gap-1 rounded-lg border p-3 text-left text-body transition-[background-color,border-color,transform] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring motion-reduce:transition-none',
+                  'flex min-w-0 flex-col gap-1 rounded-xl border p-4 text-left text-body transition-[background-color,border-color,transform] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring motion-reduce:transition-none',
                   active
                     ? 'border-primary bg-primary/10 text-foreground active:scale-[0.98] motion-reduce:active:scale-100'
                     : slot.available
@@ -264,7 +281,9 @@ export function SlotPicker({
           onClick={() => void submit()}
           fullWidthOnMobile
         >
-          {selected.length === 0 ? 'Select slots' : `Confirm ${selected.length} slot${selected.length === 1 ? '' : 's'}`}
+          {selected.length === 0
+            ? 'Select slots'
+            : `Confirm ${selected.length} slot${selected.length === 1 ? '' : 's'}`}
         </Button>
         {selected.length > 0 ? (
           <Button type="button" variant="secondary" onClick={() => setSelected([])}>

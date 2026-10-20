@@ -1,4 +1,7 @@
 'use client';
+import { FormActions } from '@/shared/ui/FormActions';
+
+import { useFormDialog } from '@/shared/ui/FormDialog';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -86,6 +89,8 @@ export function AnnouncementEditForm({
     },
   });
 
+  const dialog = useFormDialog(isSubmitting || busyAction);
+
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
     let publishAt: string | null = null;
@@ -109,10 +114,13 @@ export function AnnouncementEditForm({
     });
     if (!response.ok) {
       const payload = (await response.json().catch(() => null)) as ErrorPayload | null;
-      setServerError(payload?.error?.message ?? 'Could not save this announcement. Check the form and retry.');
+      setServerError(
+        payload?.error?.message ?? 'Could not save this announcement. Check the form and retry.',
+      );
       return;
     }
     toast.success('Announcement saved.');
+    dialog?.complete();
     router.push('/admin/announcements');
     router.refresh();
   });
@@ -128,12 +136,16 @@ export function AnnouncementEditForm({
       });
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as ErrorPayload | null;
-        setServerError(payload?.error?.message ?? 'Could not update visibility. Retry in a moment.');
+        setServerError(
+          payload?.error?.message ?? 'Could not update visibility. Retry in a moment.',
+        );
         return;
       }
       setHiddenAt(nextHidden);
       toast.success(nextHidden === null ? 'Announcement restored.' : 'Announcement hidden.');
       router.refresh();
+    } catch {
+      setServerError('Could not connect. Please try again.');
     } finally {
       setBusyAction(false);
     }
@@ -148,7 +160,11 @@ export function AnnouncementEditForm({
         className="flex min-w-0 flex-col gap-4"
       >
         {serverError !== null ? (
-          <p data-testid="announcement-edit-error" role="alert" className="text-body leading-body font-medium text-danger-foreground">
+          <p
+            data-testid="announcement-edit-error"
+            role="alert"
+            className="text-body leading-body font-medium text-danger-foreground"
+          >
             {serverError}
           </p>
         ) : null}
@@ -188,7 +204,12 @@ export function AnnouncementEditForm({
             </Button>
           )}
         </div>
-        <FormField label="Title" htmlFor="announcement-edit-title" {...(errors.title?.message === undefined ? {} : { error: errors.title.message })} required>
+        <FormField
+          label="Title"
+          htmlFor="announcement-edit-title"
+          {...(errors.title?.message === undefined ? {} : { error: errors.title.message })}
+          required
+        >
           <input
             data-testid="announcement-edit-title"
             type="text"
@@ -197,7 +218,12 @@ export function AnnouncementEditForm({
             {...register('title')}
           />
         </FormField>
-        <FormField label="Body" htmlFor="announcement-edit-body" {...(errors.body?.message === undefined ? {} : { error: errors.body.message })} required>
+        <FormField
+          label="Body"
+          htmlFor="announcement-edit-body"
+          {...(errors.body?.message === undefined ? {} : { error: errors.body.message })}
+          required
+        >
           <textarea
             data-testid="announcement-edit-body"
             rows={6}
@@ -216,29 +242,34 @@ export function AnnouncementEditForm({
         </FormField>
         <AnnouncementImageUploader
           images={images}
-          onChange={setImages}
+          onChange={(next) => {
+            setImages(next);
+            dialog?.markDirty();
+          }}
           testIdPrefix="announcement-edit"
         />
-        <div className="flex flex-wrap gap-2">
+        <FormActions
+          onCancel={() => (dialog ? dialog.requestClose() : router.push('/admin/announcements'))}
+          pending={isSubmitting}
+          cancelTestId="announcement-edit-cancel"
+        >
           <Button data-testid="announcement-edit-submit" type="submit" loading={isSubmitting}>
             Save changes
           </Button>
-          <Button
-            data-testid="announcement-edit-cancel"
-            type="button"
-            variant="secondary"
-            onClick={() => router.push('/admin/announcements')}
-          >
-            Cancel
-          </Button>
-        </div>
+        </FormActions>
       </form>
-      <section className="flex min-w-0 flex-col gap-2 border-t border-border pt-6" aria-label="Revision history">
+      <section
+        className="flex min-w-0 flex-col gap-2 border-t border-border pt-6"
+        aria-label="Revision history"
+      >
         <h2 className="text-heading leading-heading font-semibold text-foreground">
           Revision history ({revisions.length})
         </h2>
         {revisions.length === 0 ? (
-          <p data-testid="announcement-edit-no-revisions" className="text-small leading-small text-muted-foreground">
+          <p
+            data-testid="announcement-edit-no-revisions"
+            className="text-small leading-small text-muted-foreground"
+          >
             No revisions yet. Editing after publish creates a revision snapshot.
           </p>
         ) : (
@@ -249,7 +280,10 @@ export function AnnouncementEditForm({
                 className="flex min-w-0 flex-col gap-0.5 border-b border-border py-3 text-body leading-body last:border-b-0"
               >
                 <span className="font-medium leading-6 text-foreground">
-                  Version {revision.version} · {new Date(revision.createdAt).toLocaleString('en-US', { timeZone: 'Asia/Bangkok' })}
+                  Version {revision.version} ·{' '}
+                  {new Date(revision.createdAt).toLocaleString('en-US', {
+                    timeZone: 'Asia/Bangkok',
+                  })}
                 </span>
                 <span className="break-words leading-6 text-muted-foreground">
                   {snapshotSummary(revision.snapshot)}

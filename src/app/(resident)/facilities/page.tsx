@@ -1,67 +1,77 @@
 import 'server-only';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { CalendarDays } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
-import { Badge, EmptyState, PageHeader, Pagination } from '@/shared/ui';
+import { Badge, EmptyState, PageHeader, Pagination, ResourceCard, SearchField } from '@/shared/ui';
 import { listFacilityPage } from '@/modules/facility-booking/application/index';
 
-export default async function ResidentFacilitiesPage({
+export default async function FacilitiesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; query?: string }>;
 }) {
   const actor = await getActorFromSession();
-  if (actor === null) redirect('/login?returnUrl=/facilities');
+  if (actor === null) redirect('/login');
   if (actor.mustChangePassword) redirect('/change-password');
-  if (actor.accountStatus !== 'ACTIVE') redirect('/login?returnUrl=/facilities');
   const params = await searchParams;
-  const page = Math.max(1, Number(params.page ?? '1') || 1);
-  const feed = await listFacilityPage(actor, { status: 'ACTIVE', page, pageSize: 20 });
-  const totalPages = Math.max(1, Math.ceil(feed.total / 20));
+  const page = Math.max(1, Math.floor(Number(params.page) || 1));
+  const query = (params.query ?? '').slice(0, 255);
+  const feed = await listFacilityPage(actor, { page, pageSize: 12, query, status: 'ACTIVE' });
   return (
-    <main data-testid="facilities-page" className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6">
-      <PageHeader
-        title="Facilities"
-        description="Pick a facility to see open slots, quota, and your room bookings."
-      />
+    <main
+      data-testid="facilities-page"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
+    >
+      <PageHeader title="Facilities" description="Make time for your favourite shared spaces." />
+      <SearchField query={query} label="Search facilities" total={feed.total} />
       {feed.rows.length === 0 ? (
         <EmptyState
           data-testid="facilities-empty"
           icon={CalendarDays}
-          title="No facilities open"
-          description="When the management team opens a facility for booking, it will appear here."
+          title={query ? 'No matching facilities' : 'No facilities yet'}
+          description={
+            query
+              ? 'Try a different facility name.'
+              : 'Shared spaces will appear here when they are available.'
+          }
         />
       ) : (
-        <ul data-testid="facilities-list" className="flex flex-col gap-3">
+        <ul
+          data-testid="facilities-list"
+          className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3"
+        >
           {feed.rows.map((row) => (
-            <li
-              key={row.id}
-              className="flex min-w-0 flex-col gap-2 rounded-lg border border-border bg-surface p-4 sm:p-5"
-            >
-              <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                <Link
-                  data-testid={`facilities-row-${row.id}`}
-                  href={`/facilities/${row.id}`}
-                  className="min-w-0 flex-1 basis-40 break-words rounded-md text-body font-semibold text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
-                >
-                  {row.name}
-                </Link>
-                <Badge variant="neutral">{row.capacity} {row.capacity === 1 ? 'seat' : 'seats'}</Badge>
-              </div>
-              {row.description !== null && row.description !== '' ? (
-                <p className="line-clamp-3 break-words text-small leading-small text-muted-foreground">{row.description}</p>
-              ) : null}
-              <p className="text-small ui-tabular text-muted-foreground">Code {row.code}</p>
+            <li key={row.id}>
+              <ResourceCard
+                href={`/facilities/${row.id}`}
+                title={row.name}
+                description={row.description}
+                icon={CalendarDays}
+                testId={`facilities-row-${row.id}`}
+                status={
+                  <Badge variant={row.status === 'ACTIVE' ? 'success' : 'neutral'}>
+                    {row.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+                  </Badge>
+                }
+                metadata={
+                  <>
+                    <span>
+                      {row.capacity} {row.capacity === 1 ? 'space' : 'spaces'} per slot
+                    </span>
+                    <span className="ml-auto font-medium text-link">View availability</span>
+                  </>
+                }
+              />
             </li>
           ))}
         </ul>
       )}
       <Pagination
         page={page}
-        totalPages={totalPages}
+        totalPages={Math.ceil(feed.total / 12)}
         totalItems={feed.total}
         pagePath="/facilities"
+        querySuffix={query ? `&query=${encodeURIComponent(query)}` : ''}
         testId="facilities-pages"
         nextTestId="facilities-next"
         prevTestId="facilities-prev"

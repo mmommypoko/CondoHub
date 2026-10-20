@@ -47,6 +47,7 @@ export const facility = pgTable(
     description: text('description'),
     status: facilityStatus('status').notNull(),
     capacity: integer('capacity').notNull(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (table) => [
     unique('facility_project_code_uq').on(table.projectId, table.code),

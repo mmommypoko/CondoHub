@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { MessageCircle, History, Loader2 } from 'lucide-react';
 import { EmptyState, useToast } from '@/shared/ui';
 import { ChatComposer, type ChatComposerAttachment } from '@/modules/room-chat/ui/ChatComposer';
 import { ChatConnectionBanner } from '@/modules/room-chat/ui/ChatConnectionBanner';
@@ -81,7 +82,7 @@ export function ChatConversation({
   const atBottomRef = useRef(true);
   const messagesRef = useRef(initialMessages);
   messagesRef.current = messages;
-  const restoreRef = useRef<{ key: string; offset: number; height: number; top: number; separator: number } | null>(null);
+  const restoreRef = useRef<{ key: string; offset: number } | null>(null);
 
   function isNearBottom(): boolean {
     const node = scrollRef.current;
@@ -167,7 +168,8 @@ export function ChatConversation({
           if (fresh.length === 0) return;
           setOutgoing((current) =>
             current.filter(
-              (entry) => !envelope.data.some((row) => row.clientMessageId === entry.clientMessageId),
+              (entry) =>
+                !envelope.data.some((row) => row.clientMessageId === entry.clientMessageId),
             ),
           );
           setMessages((current) => mergeMessages(current, fresh));
@@ -184,7 +186,10 @@ export function ChatConversation({
     [handleRevoked, roomId],
   );
 
-  const { connected, connectFailed, everConnected } = useChatSocket({ roomId, onSignal: handleSignal });
+  const { connected, connectFailed, everConnected } = useChatSocket({
+    roomId,
+    onSignal: handleSignal,
+  });
 
   useEffect(() => {
     liveRef.current = true;
@@ -197,6 +202,16 @@ export function ChatConversation({
     scrollToBottom();
   }, []);
 
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (node === null) return;
+    const observer = new ResizeObserver(() => {
+      if (atBottomRef.current && restoreRef.current === null) scrollToBottom();
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   useLayoutEffect(() => {
     const pending = restoreRef.current;
     if (pending === null) return;
@@ -205,8 +220,7 @@ export function ChatConversation({
     const anchor = target.querySelector(`[data-message-id="${pending.key}"]`);
     if (anchor === null) return;
     restoreRef.current = null;
-    const grown = target.scrollHeight - pending.height;
-    target.scrollTop = Math.max(0, Math.round(pending.top + grown));
+    target.scrollTop += anchor.getBoundingClientRect().top - pending.offset;
   });
 
   useEffect(() => {
@@ -253,15 +267,7 @@ export function ChatConversation({
     const list = node.querySelector('[data-testid$="-list"]');
     const anchorChild = list === null ? null : list.querySelector(':scope > li');
     const anchorKey = anchorChild === null ? null : anchorChild.getAttribute('data-message-id');
-    const anchorOffset =
-      anchorChild === null
-        ? null
-        : anchorChild.getBoundingClientRect().top - node.getBoundingClientRect().top + node.scrollTop;
-    const previousHeight = node.scrollHeight;
-    const previousTop = node.scrollTop;
-    const separatorBefore =
-      anchorChild === null ? null : anchorChild.querySelector('[data-chat-separator="true"]');
-    const separatorHeight = separatorBefore === null ? 0 : separatorBefore.getBoundingClientRect().height + 12;
+    const anchorOffset = anchorChild === null ? null : anchorChild.getBoundingClientRect().top;
     setLoadingOlder(true);
     setOlderError(null);
     try {
@@ -284,9 +290,6 @@ export function ChatConversation({
         restoreRef.current = {
           key: anchorKey,
           offset: anchorOffset,
-          height: previousHeight,
-          top: previousTop,
-          separator: separatorHeight,
         };
       }
       setMessages((current) => mergeMessages(chronological, current));
@@ -331,7 +334,10 @@ export function ChatConversation({
         upsertOutgoing({
           ...entry,
           status: 'failed',
-          error: chatSendErrorCopy(payload?.error.code, payload?.error.message ?? 'The message was not sent.'),
+          error: chatSendErrorCopy(
+            payload?.error.code,
+            payload?.error.message ?? 'The message was not sent.',
+          ),
         });
         return;
       }
@@ -346,11 +352,18 @@ export function ChatConversation({
       setUnseen(0);
     } catch {
       if (!liveRef.current) return;
-      upsertOutgoing({ ...entry, status: 'failed', error: 'The message was not sent. Check your connection and retry.' });
+      upsertOutgoing({
+        ...entry,
+        status: 'failed',
+        error: 'The message was not sent. Check your connection and retry.',
+      });
     }
   }
 
-  async function handleSend(input: { text: string; attachment: ChatComposerAttachment | null }): Promise<void> {
+  async function handleSend(input: {
+    text: string;
+    attachment: ChatComposerAttachment | null;
+  }): Promise<void> {
     if (revokedRef.current) return;
     const entry: ChatOutgoingEntry = {
       clientMessageId: crypto.randomUUID(),
@@ -391,25 +404,57 @@ export function ChatConversation({
   const empty = historyChecked && messages.length === 0 && outgoing.length === 0;
 
   return (
-    <div data-testid={`${testIdPrefix}-conversation`} className="flex min-h-0 flex-1 flex-col gap-3">
+    <div
+      data-testid={`${testIdPrefix}-conversation`}
+      className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-raised"
+    >
+      <div className="flex min-w-0 shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-6">
+        <span className="text-small font-medium text-body-secondary">Room conversation</span>
+        <span
+          data-testid={`${testIdPrefix}-connection`}
+          role="status"
+          className="inline-flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground"
+        >
+          <span
+            aria-hidden="true"
+            className={`size-1.5 rounded-full ${connected && !revoked ? 'bg-success-foreground' : 'bg-muted-foreground'}`}
+          />
+          {revoked
+            ? 'Access ended'
+            : connected
+              ? 'Connected'
+              : everConnected || connectFailed
+                ? 'Reconnecting'
+                : 'Connecting'}
+        </span>
+      </div>
       {(connectFailed || (!connected && everConnected)) && !revoked ? (
         <ChatConnectionBanner testIdPrefix={testIdPrefix} />
       ) : null}
       {revoked ? (
-        <p data-testid={`${testIdPrefix}-revoked`} role="alert" className="rounded-lg border border-danger-border bg-danger px-3 py-2 text-center text-body leading-body font-medium text-danger-foreground">
+        <p
+          data-testid={`${testIdPrefix}-revoked`}
+          role="alert"
+          className="rounded-lg border border-danger-border bg-danger px-3 py-2 text-center text-body leading-body font-medium text-danger-foreground"
+        >
           Chat access for this room has ended. Returning to Rooms.
         </p>
       ) : null}
-      <div className="relative flex min-h-80 w-full flex-1 flex-col">
+      <div className="relative flex min-h-0 w-full flex-1 flex-col bg-background">
         {cursor !== null ? (
-          <div className="mb-2 flex justify-center">
+          <div className="flex shrink-0 justify-center border-b border-border bg-surface/80 px-3 py-1.5">
             <button
               data-testid={`${testIdPrefix}-load-older`}
               type="button"
               disabled={loadingOlder}
               onClick={() => void loadOlder()}
-              className="rounded-md border border-input-border bg-surface px-3 py-1.5 text-body leading-body font-medium text-body-secondary transition-[background-color,color,opacity] duration-150 ease-out hover:bg-secondary focus-visible:outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-focus-ring disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex min-h-8 items-center gap-2 rounded-lg px-3 text-xs font-medium text-muted-foreground transition-colors duration-150 hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring motion-reduce:transition-none disabled:cursor-wait disabled:opacity-60"
             >
+              {loadingOlder ? (
+                <Loader2 aria-hidden="true" className="size-3.5 motion-safe:animate-spin" />
+              ) : (
+                <History aria-hidden="true" className="size-3.5" />
+              )}
               {loadingOlder ? 'Loading older messages.' : 'Load older messages'}
             </button>
           </div>
@@ -418,17 +463,24 @@ export function ChatConversation({
           ref={scrollRef}
           data-testid={`${testIdPrefix}-scroll`}
           onScroll={handleScroll}
-          className="h-[55vh] min-h-0 w-full overflow-y-auto rounded-lg border border-border bg-background p-4 [overflow-anchor:none] sm:h-[60vh]"
+          className="min-h-0 w-full flex-1 overflow-y-auto overscroll-contain p-4 [overflow-anchor:none] sm:px-6 sm:py-5"
+          tabIndex={0}
           aria-label={`Messages in ${roomLabel}`}
         >
           {olderError !== null ? (
-            <p data-testid={`${testIdPrefix}-older-error`} role="alert" className="mb-3 text-center text-body leading-body font-medium text-danger-foreground">
+            <p
+              data-testid={`${testIdPrefix}-older-error`}
+              role="alert"
+              className="mb-3 text-center text-body leading-body font-medium text-danger-foreground"
+            >
               {olderError}
             </p>
           ) : null}
           {empty ? (
             <EmptyState
               data-testid={`${testIdPrefix}-empty`}
+              icon={MessageCircle}
+              className="flex min-h-full justify-center py-8"
               title="No messages yet"
               description="Start the conversation with the first message to this room."
             />
@@ -448,11 +500,24 @@ export function ChatConversation({
         ) : null}
       </div>
       {revoked ? (
-        <p data-testid={`${testIdPrefix}-composer-disabled`} className="rounded-lg border border-border bg-surface px-3 py-2 text-small leading-small text-muted-foreground">
-          Sending is disabled because chat access ended. <a href={backHref} className="rounded-lg font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring">{backLabel}</a>
+        <p
+          data-testid={`${testIdPrefix}-composer-disabled`}
+          className="rounded-lg border border-border bg-surface px-3 py-2 text-small leading-small text-muted-foreground"
+        >
+          Sending is disabled because chat access ended.{' '}
+          <a
+            href={backHref}
+            className="rounded-lg font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          >
+            {backLabel}
+          </a>
         </p>
       ) : (
-        <ChatComposer onSend={(input) => void handleSend(input)} sending={sending} testIdPrefix={testIdPrefix} />
+        <ChatComposer
+          onSend={(input) => void handleSend(input)}
+          sending={sending}
+          testIdPrefix={testIdPrefix}
+        />
       )}
     </div>
   );

@@ -1,17 +1,18 @@
 import 'server-only';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ArrowRight, CalendarDays, Megaphone, ReceiptText, Wrench } from 'lucide-react';
+import { ArrowRight, CalendarDays, ReceiptText, Wrench } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
 import { decimalStringToSatang, satangToDecimalString } from '@/shared/utils/money';
-import { ACTION_LINK_CLASS, Badge, EmptyState, PageHeader, cx } from '@/shared/ui';
+import { ACTION_LINK_CLASS, Badge, EmptyState, PageHeader, SectionCard, cx } from '@/shared/ui';
 import { resolveActorRooms } from '@/modules/property-membership/application/index';
 import { listInvoices } from '@/modules/billing-payments/application/index';
 import { kindLabel } from '@/modules/billing-payments/ui/billingLabels';
 import { listTickets } from '@/modules/maintenance/application/index';
 import { formatInstant, isTerminalTicketStatus } from '@/modules/maintenance/ui/ticketLabels';
 import { listFacilityPage, listRoomBookings } from '@/modules/facility-booking/application/index';
+import { AnnouncementPreview } from '@/modules/announcements/ui/AnnouncementPreview';
 import { listAnnouncementFeed } from '@/modules/announcements/application/index';
 import { countUnresolvedTurnoverReviews } from '@/modules/billing-payments/application/index';
 
@@ -36,8 +37,8 @@ export default async function HomePage() {
   const [rooms, invoices, tickets, announcements, facilities] = await Promise.all([
     resolveActorRooms(actor, now),
     listInvoices(actor, { page: 1, pageSize: 100, at: now }),
-    listTickets(actor, { page: 1, pageSize: 100 }),
-    listAnnouncementFeed(actor, { page: 1, pageSize: 1 }, now),
+    listTickets(actor, { page: 1, pageSize: 4, view: 'open' }),
+    listAnnouncementFeed(actor, { page: 1, pageSize: 3 }, now),
     listFacilityPage(actor, { status: 'ACTIVE', page: 1, pageSize: 100 }),
   ]);
   let turnoverUnresolved = 0;
@@ -47,9 +48,7 @@ export default async function HomePage() {
     turnoverUnresolved = 0;
   }
   const bookingsByRoom = await Promise.all(
-    rooms.map((room) =>
-      listRoomBookings(actor, { roomId: room.id }, now).catch(() => []),
-    ),
+    rooms.map((room) => listRoomBookings(actor, { roomId: room.id }, now).catch(() => [])),
   );
   const upcoming = bookingsByRoom
     .flatMap((bookings, index) =>
@@ -57,7 +56,7 @@ export default async function HomePage() {
         booking.slots
           .filter((slot) => slot.state === 'CONFIRMED' && slot.startsAt > now.toISOString())
           .map((slot) => ({
-            roomCode: rooms[index]?.roomCode ?? '',
+            roomCode: rooms[index]?.name ?? '',
             roomId: rooms[index]?.id ?? '',
             facilityId: booking.facilityId,
             startsAt: slot.startsAt,
@@ -67,7 +66,7 @@ export default async function HomePage() {
     .sort((a, b) => (a.startsAt < b.startsAt ? -1 : 1))
     .slice(0, 4);
   const facilityNames = new Map(facilities.rows.map((facility) => [facility.id, facility.name]));
-  const roomCodes = new Map(rooms.map((room) => [room.id, room.roomCode]));
+  const roomCodes = new Map(rooms.map((room) => [room.id, room.name]));
   const owedInvoices = invoices.rows.filter(
     (row) => decimalStringToSatang(row.outstanding.amount) > 0n,
   );
@@ -80,24 +79,24 @@ export default async function HomePage() {
   return (
     <main
       data-testid="home-page"
-      className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-6 px-4 py-6 sm:px-6"
     >
-      <PageHeader
-        title="Home"
-        description="What needs attention across your rooms."
-      />
+      <PageHeader title="Home" description="What needs attention across your rooms." />
       {urgentInvoice !== undefined ? (
         <section
           data-testid="home-hero"
           aria-label="Most urgent bill"
-          className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4 sm:p-6"
+          className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-5 sm:p-7"
         >
           <div className="flex min-w-0 flex-col gap-1">
             <p className="text-small text-muted-foreground">
               Most urgent bill
               {owedInvoices.length > 1 ? ` · plus ${owedInvoices.length - 1} more unpaid` : ''}
             </p>
-            <p data-testid="home-owed-total" className="ui-tabular text-display font-semibold tracking-tight text-foreground">
+            <p
+              data-testid="home-owed-total"
+              className="ui-tabular text-display font-semibold tracking-tight text-foreground"
+            >
               {satangToDecimalString(decimalStringToSatang(urgentInvoice.outstanding.amount))} THB
             </p>
             <p className="text-small text-muted-foreground">
@@ -130,7 +129,7 @@ export default async function HomePage() {
       {turnoverUnresolved > 0 ? (
         <section
           aria-label="Turnover reviews"
-          className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4 sm:p-6"
+          className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-5 sm:p-7"
         >
           <Link
             data-testid="nav-turnover-reviews-badge"
@@ -155,11 +154,10 @@ export default async function HomePage() {
         />
       ) : null}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <section aria-label="Open requests" className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-heading font-semibold text-foreground">
-              Open requests ({openTickets.length})
-            </h2>
+        <SectionCard
+          title={`Open requests (${tickets.total})`}
+          description="Track the issues you have reported."
+          action={
             <Link
               data-testid="home-requests-all"
               href="/maintenance"
@@ -168,7 +166,8 @@ export default async function HomePage() {
               View all
               <ArrowRight aria-hidden="true" className="size-4" />
             </Link>
-          </div>
+          }
+        >
           {openTickets.length === 0 ? (
             <p data-testid="home-requests-empty" className="text-small text-muted-foreground">
               No open requests. Report an issue to start one.
@@ -198,7 +197,10 @@ export default async function HomePage() {
                         {ticket.subject}
                       </span>
                       <span className="truncate text-small text-muted-foreground">
-                        {ticket.roomId !== null ? `${roomCodes.get(ticket.roomId) ?? 'Room'} · ` : 'Common area · '}{formatInstant(ticket.createdAt)}
+                        {ticket.roomId !== null
+                          ? `${roomCodes.get(ticket.roomId) ?? 'Room'} · `
+                          : 'Common area · '}
+                        {formatInstant(ticket.createdAt)}
                       </span>
                     </span>
                   </Link>
@@ -206,12 +208,11 @@ export default async function HomePage() {
               ))}
             </ul>
           )}
-        </section>
-        <section aria-label="Upcoming bookings" className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-heading font-semibold text-foreground">
-              Upcoming bookings ({upcoming.length})
-            </h2>
+        </SectionCard>
+        <SectionCard
+          title={'Upcoming bookings'}
+          description="Your next reservations across shared spaces."
+          action={
             <Link
               data-testid="home-bookings-browse"
               href="/facilities"
@@ -220,7 +221,8 @@ export default async function HomePage() {
               Book a facility
               <ArrowRight aria-hidden="true" className="size-4" />
             </Link>
-          </div>
+          }
+        >
           {upcoming.length === 0 ? (
             <p data-testid="home-bookings-empty" className="text-small text-muted-foreground">
               No upcoming bookings. Pick a facility to reserve a slot.
@@ -239,7 +241,10 @@ export default async function HomePage() {
                     href={`/rooms/${booking.roomId}/bookings`}
                     className="flex items-center gap-3 px-4 py-3 transition-[background-color] duration-150 ease-out hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring motion-reduce:transition-none"
                   >
-                    <CalendarDays aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+                    <CalendarDays
+                      aria-hidden="true"
+                      className="size-4 shrink-0 text-muted-foreground"
+                    />
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span className="truncate text-body font-medium text-foreground">
                         {facilityNames.get(booking.facilityId) ?? 'Facility'}
@@ -253,11 +258,11 @@ export default async function HomePage() {
               ))}
             </ul>
           )}
-        </section>
+        </SectionCard>
       </div>
       <section aria-label="Latest announcement" className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-heading font-semibold text-foreground">Latest announcement</h2>
+          <h2 className="text-heading font-semibold text-foreground">Community updates</h2>
           <Link
             data-testid="home-announcements-all"
             href="/announcements"
@@ -272,23 +277,17 @@ export default async function HomePage() {
             No announcements published yet.
           </p>
         ) : (
-          <Link
-            data-testid="home-announcement-latest"
-            href={`/announcements/${latestAnnouncement.id}`}
-            className="flex items-start gap-3 rounded-lg border border-border bg-surface px-4 py-3 transition-[background-color] duration-150 ease-out hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring motion-reduce:transition-none"
-          >
-            <Megaphone aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="truncate text-body font-medium text-foreground">
-                {latestAnnouncement.title}
-              </span>
-              {latestAnnouncement.publishAt !== null ? (
-                <span className="text-small text-muted-foreground">
-                  {formatInstant(latestAnnouncement.publishAt)}
-                </span>
-              ) : null}
-            </span>
-          </Link>
+          <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-3">
+            {announcements.rows.map((announcement, index) => (
+              <AnnouncementPreview
+                key={announcement.id}
+                announcement={announcement}
+                linkTestId={
+                  index === 0 ? 'home-announcement-latest' : `home-announcement-${announcement.id}`
+                }
+              />
+            ))}
+          </div>
         )}
       </section>
     </main>

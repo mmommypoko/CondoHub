@@ -1,12 +1,19 @@
 import 'server-only';
 import type { Actor } from '@/shared/auth/actor';
 import { db } from '@/shared/db/client';
+import type { Db } from '@/shared/db/transaction';
 import { mapPgError, AppError } from '@/shared/utils/errors';
 import { getIdempotencyRecord, upsertIdempotencyRecord } from './idempotencyStore';
 import { hashRequestBody } from '@/shared/utils/idempotency';
 import { writeAudit } from '@/shared/observability/audit';
-import { createIdentityCtx, resolveOrCreateGrantUser } from '@/modules/identity-access/application/index';
-import { findUserById, findUserByUsername } from '@/modules/identity-access/infrastructure/userRepository';
+import {
+  createIdentityCtx,
+  resolveOrCreateGrantUser,
+} from '@/modules/identity-access/application/index';
+import {
+  findUserById,
+  findUserByUsername,
+} from '@/modules/identity-access/infrastructure/userRepository';
 import { isOwnerAt, type OwnershipInterval } from '../domain/ownershipPolicy';
 import { findRoomById } from '../infrastructure/structureRepository';
 import { insertOwnership, listOwnershipsByRoom } from '../infrastructure/ownershipRepository';
@@ -38,8 +45,8 @@ export async function grantCoOwner(
   if (actor.mustChangePassword) throw new AppError('FIRST_LOGIN_PASSWORD_CHANGE_REQUIRED');
   const room = await findRoomById(db, input.roomId);
   if (room === null) throw new AppError('RESOURCE_NOT_FOUND');
-  if (input.userId === undefined && (input.username === undefined || input.email === undefined || input.name === undefined)) {
-    throw new AppError('VALIDATION_ERROR', 'Provide a userId or new-user details.');
+  if (input.userId === undefined && input.username === undefined) {
+    throw new AppError('VALIDATION_ERROR', 'Provide a userId or username.');
   }
   const now = ctx.clock.now();
   const ownerships = await listOwnershipsByRoom(db, input.roomId);
@@ -67,7 +74,10 @@ export async function grantCoOwner(
     });
     if (existing !== null) {
       if (existing.requestHash !== requestHash) {
-        throw new AppError('VALIDATION_ERROR', 'The Idempotency-Key was already used with a different request.');
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'The Idempotency-Key was already used with a different request.',
+        );
       }
       if (existing.resultRefId !== null) {
         const replay = ownerships.find((row) => row.id === existing.resultRefId);
@@ -83,7 +93,17 @@ export async function grantCoOwner(
       const identityCtx = createIdentityCtx({ requestId: ctx.requestId });
       let targetUserId = input.userId ?? null;
       let tempPassword: string | undefined;
+      if (targetUserId === null && input.username !== undefined) {
+        const existing = await resolveGrantTargetByUsername(input.username, tx);
+        if (existing !== null) targetUserId = existing.userId;
+      }
       if (targetUserId === null) {
+        if (input.email === undefined || input.name === undefined) {
+          throw new AppError(
+            'VALIDATION_ERROR',
+            'The user was not found. Provide an email and name to create an account.',
+          );
+        }
         const resolved = await resolveOrCreateGrantUser(
           tx,
           {
@@ -98,7 +118,8 @@ export async function grantCoOwner(
         if (resolved.created) tempPassword = resolved.tempPassword;
       } else {
         const target = await findUserById(tx, targetUserId);
-        if (target === null) throw new AppError('VALIDATION_ERROR', 'The target user was not found.');
+        if (target === null)
+          throw new AppError('VALIDATION_ERROR', 'The target user was not found.');
         if (target.accountStatus !== 'ACTIVE') {
           throw new AppError('VALIDATION_ERROR', 'The target user cannot receive ownership.');
         }
@@ -125,7 +146,11 @@ export async function grantCoOwner(
         resourceType: 'room_ownership',
         resourceId: created.id,
         requestId: ctx.requestId,
-        after: { roomId: input.roomId, userId: targetUserId, startAt: created.startAt.toISOString() },
+        after: {
+          roomId: input.roomId,
+          userId: targetUserId,
+          startAt: created.startAt.toISOString(),
+        },
       });
       if (input.idempotencyKey !== undefined) {
         await upsertIdempotencyRecord(tx, {
@@ -155,7 +180,8 @@ export async function grantCoOwner(
 
 export async function resolveGrantTargetByUsername(
   username: string,
+  conn: Db = db,
 ): Promise<{ userId: string } | null> {
-  const found = await findUserByUsername(db, username.trim().toLowerCase());
+  const found = await findUserByUsername(conn, username.trim().toLowerCase());
   return found === null ? null : { userId: found.id };
 }

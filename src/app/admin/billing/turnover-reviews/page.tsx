@@ -36,22 +36,19 @@ export default async function AdminTurnoverReviewsPage({
   const params = await searchParams;
   const page = Math.max(1, Number(params.page ?? '1') || 1);
   const state = stateFilter(params.state);
-  const feed = await listTurnoverReviews(
-    actor,
-    {
-      page,
-      pageSize: 20,
-      ...(state === undefined ? {} : { state }),
-    },
-  );
-  const roomCodes = new Map<string, string>();
+  const feed = await listTurnoverReviews(actor, {
+    page,
+    pageSize: 20,
+    ...(state === undefined ? {} : { state }),
+  });
+  const roomNames = new Map<string, string>();
   for (const row of feed.rows) {
-    if (roomCodes.has(row.roomId)) continue;
+    if (roomNames.has(row.roomId)) continue;
     try {
       const room = await getRoomDetail(row.roomId);
-      roomCodes.set(row.roomId, room.roomCode);
+      roomNames.set(row.roomId, room.name);
     } catch {
-      roomCodes.set(row.roomId, row.roomId);
+      roomNames.set(row.roomId, row.roomId);
     }
   }
   const totalPages = Math.max(1, Math.ceil(feed.total / 20));
@@ -59,7 +56,7 @@ export default async function AdminTurnoverReviewsPage({
   return (
     <main
       data-testid="turnover-review-list-page"
-      className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
     >
       <PageHeader
         title="Turnover reviews"
@@ -75,10 +72,30 @@ export default async function AdminTurnoverReviewsPage({
         label="Filter by state"
         activeValue={state ?? 'ALL'}
         options={[
-          { value: 'ALL', testId: 'turnover-review-filter-all', href: filterHref(undefined), label: 'All' },
-          { value: 'UNRESOLVED', testId: 'turnover-review-filter-unresolved', href: filterHref('UNRESOLVED'), label: 'Unresolved' },
-          { value: 'RESOLVED', testId: 'turnover-review-filter-resolved', href: filterHref('RESOLVED'), label: 'Resolved' },
-          { value: 'NO_CHARGE', testId: 'turnover-review-filter-no-charge', href: filterHref('NO_CHARGE'), label: 'No charge' },
+          {
+            value: 'ALL',
+            testId: 'turnover-review-filter-all',
+            href: filterHref(undefined),
+            label: 'All',
+          },
+          {
+            value: 'UNRESOLVED',
+            testId: 'turnover-review-filter-unresolved',
+            href: filterHref('UNRESOLVED'),
+            label: 'Unresolved',
+          },
+          {
+            value: 'RESOLVED',
+            testId: 'turnover-review-filter-resolved',
+            href: filterHref('RESOLVED'),
+            label: 'Resolved',
+          },
+          {
+            value: 'NO_CHARGE',
+            testId: 'turnover-review-filter-no-charge',
+            href: filterHref('NO_CHARGE'),
+            label: 'No charge',
+          },
         ]}
       />
       {feed.rows.length === 0 ? (
@@ -90,7 +107,7 @@ export default async function AdminTurnoverReviewsPage({
       ) : (
         <TurnoverTable
           rows={feed.rows}
-          roomCodes={roomCodes}
+          roomNames={roomNames}
           basePath={BASE_PATH}
           prefix="turnover-review"
           caption="Turnover reviews awaiting a rent decision"

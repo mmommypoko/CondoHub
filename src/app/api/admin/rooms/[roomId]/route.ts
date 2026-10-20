@@ -20,7 +20,12 @@ export const PATCH = withApi(
     }
     const body = parseWithFieldErrors(roomPatchBody, await request.json());
     const propertyCtx = createPropertyCtx({ requestId: ctx.requestId });
-    return updateRoomDetails(ctx.actor, roomId, { areaSqm: body.areaSqm, status: body.status }, propertyCtx);
+    return updateRoomDetails(
+      ctx.actor,
+      roomId,
+      { name: body.name, areaSqm: body.areaSqm, status: body.status },
+      propertyCtx,
+    );
   },
   { rateLimit: RATE_LIMIT_PRESETS.generalApi ?? { capacity: 300, windowMs: 60_000 } },
 );

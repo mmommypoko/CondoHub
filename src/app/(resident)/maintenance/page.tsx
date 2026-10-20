@@ -1,136 +1,107 @@
 import 'server-only';
 import { redirect } from 'next/navigation';
-import Link from 'next/link';
-import { Plus, Wrench } from 'lucide-react';
+import { Wrench } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
-import { ACTION_LINK_CLASS, EmptyState, PageHeader } from '@/shared/ui';
-import {
-  listTickets,
-  type TicketDto,
-} from '@/modules/maintenance/application/index';
-import { isTerminalTicketStatus } from '@/modules/maintenance/ui/ticketLabels';
+import { EmptyState, FilterBar, PageHeader, Pagination } from '@/shared/ui';
+import { listTickets } from '@/modules/maintenance/application/index';
+import { getRoomLabels } from '@/modules/property-membership/application/index';
 import { TicketListCard } from '@/modules/maintenance/ui/TicketListCard';
-import {
-  findBuildingById,
-  findRoomById,
-} from '@/modules/property-membership/infrastructure/structureRepository';
-import { db } from '@/shared/db/client';
+import { CreateRequestAction } from './CreateRequestAction';
 
 export const dynamic = 'force-dynamic';
 
-async function roomLabel(roomId: string | null): Promise<string | null> {
-  if (roomId === null) return null;
-  const room = await findRoomById(db, roomId);
-  if (room === null) return 'Room unavailable';
-  const building = await findBuildingById(db, room.buildingId);
-  return `${building?.code ?? 'Building'} · ${room.roomCode}`;
-}
-
-function openRows(rows: TicketDto[]): TicketDto[] {
-  return rows.filter((row) => !isTerminalTicketStatus(row.status));
-}
-
-function historyRows(rows: TicketDto[]): TicketDto[] {
-  return rows.filter((row) => isTerminalTicketStatus(row.status));
-}
-
-export default async function MaintenancePage() {
+export default async function MaintenancePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string; page?: string }>;
+}) {
   const actor = await getActorFromSession();
-  if (actor === null) redirect('/login?returnUrl=/maintenance');
+  if (actor === null || actor.accountStatus !== 'ACTIVE') redirect('/login?returnUrl=/maintenance');
   if (actor.mustChangePassword) redirect('/change-password');
-  if (actor.accountStatus !== 'ACTIVE') redirect('/login?returnUrl=/maintenance');
-  const now = systemClock.now();
-  const feed = await listTickets(actor, { page: 1, pageSize: 100 });
-  const open = openRows(feed.rows);
-  const history = historyRows(feed.rows);
-  const labels = new Map<string, string | null>();
-  for (const row of [...open, ...history]) {
-    if (row.roomId !== null && !labels.has(row.roomId)) {
-      labels.set(row.roomId, await roomLabel(row.roomId));
-    }
-  }
-  const nowIso = now.toISOString();
+  const params = await searchParams;
+  const view = params.view === 'history' ? 'history' : 'open';
+  const page = Math.max(1, Math.floor(Number(params.page) || 1));
+  const feed = await listTickets(actor, { view, page, pageSize: 20 });
+  const labels = new Map(
+    (
+      await getRoomLabels([
+        ...new Set(feed.rows.flatMap((row) => (row.roomId ? [row.roomId] : []))),
+      ])
+    ).map((row) => [row.id, row.label]),
+  );
   return (
     <main
       data-testid="maintenance-page"
-      className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
     >
       <PageHeader
         title="Maintenance"
-        description="Track the requests you reported. Closed requests move to history."
-        actions={
-          <Link
-            data-testid="maintenance-new-link"
-            href="/maintenance/new"
-            className={ACTION_LINK_CLASS}
-          >
-            <Plus aria-hidden="true" className="size-4" />
-            New request
-          </Link>
-        }
+        description="Report a problem and follow its progress, all in one place."
+        actions={<CreateRequestAction actor={actor} />}
       />
-      <section aria-label="Open requests" className="flex min-w-0 flex-col gap-2">
-        <h2 className="text-heading leading-heading font-semibold text-foreground">
-          Open requests ({open.length})
-        </h2>
-        {open.length === 0 ? (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <FilterBar
+          label="Request view"
+          activeValue={view}
+          options={[
+            {
+              value: 'open',
+              label: 'Open requests',
+              href: '/maintenance?view=open',
+              testId: 'maintenance-view-open',
+            },
+            {
+              value: 'history',
+              label: 'History',
+              href: '/maintenance?view=history',
+              testId: 'maintenance-view-history',
+            },
+          ]}
+        />
+        <span className="text-small text-muted-foreground">
+          {feed.total} {feed.total === 1 ? 'request' : 'requests'}
+        </span>
+      </div>
+      <section aria-label={view === 'open' ? 'Open requests' : 'Request history'}>
+        {feed.rows.length === 0 ? (
           <EmptyState
-            data-testid="maintenance-open-empty"
+            data-testid={`maintenance-${view}-empty`}
             icon={Wrench}
-            title="No open requests"
-            description="Nothing is waiting on you. Report a problem and it shows up here."
-            action={
-              <Link
-                data-testid="maintenance-open-new"
-                href="/maintenance/new"
-                className="inline-flex items-center gap-1 text-body leading-body font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
-              >
-                <Plus aria-hidden="true" className="size-4" />
-                Report a request
-              </Link>
+            title={view === 'open' ? 'No open requests' : 'No request history yet'}
+            description={
+              view === 'open'
+                ? 'Your active requests will appear here.'
+                : 'Completed, cancelled, and rejected requests will appear here.'
             }
           />
         ) : (
-          <ul data-testid="maintenance-open-list" className="flex min-w-0 flex-col border-t border-border">
-            {open.map((row) => (
+          <ul
+            data-testid={view === 'open' ? 'maintenance-open-list' : 'maintenance-history-list'}
+            className="flex min-w-0 flex-col divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface"
+          >
+            {feed.rows.map((row) => (
               <TicketListCard
                 key={row.id}
                 ticket={row}
-                roomLabel={row.roomId === null ? null : (labels.get(row.roomId) ?? null)}
+                roomLabel={row.roomId ? (labels.get(row.roomId) ?? null) : null}
                 detailHref={`/maintenance/${row.id}`}
                 testIdPrefix="maintenance"
                 showRoutingKind={false}
-                nowIso={nowIso}
+                nowIso={systemClock.now().toISOString()}
               />
             ))}
           </ul>
         )}
       </section>
-      <section aria-label="Request history" className="flex min-w-0 flex-col gap-2">
-        <h2 className="text-heading leading-heading font-semibold text-foreground">
-          History ({history.length})
-        </h2>
-        {history.length === 0 ? (
-          <p data-testid="maintenance-history-empty" className="text-small leading-small text-muted-foreground">
-            Closed requests will appear here.
-          </p>
-        ) : (
-          <ul data-testid="maintenance-history-list" className="flex min-w-0 flex-col border-t border-border">
-            {history.map((row) => (
-              <TicketListCard
-                key={row.id}
-                ticket={row}
-                roomLabel={row.roomId === null ? null : (labels.get(row.roomId) ?? null)}
-                detailHref={`/maintenance/${row.id}`}
-                testIdPrefix="maintenance"
-                showRoutingKind={false}
-                nowIso={nowIso}
-              />
-            ))}
-          </ul>
-        )}
-      </section>
+      <Pagination
+        page={page}
+        totalPages={Math.ceil(feed.total / 20)}
+        totalItems={feed.total}
+        pagePath="/maintenance"
+        querySuffix={`&view=${view}`}
+        testId="maintenance-pages"
+      />
     </main>
   );
 }

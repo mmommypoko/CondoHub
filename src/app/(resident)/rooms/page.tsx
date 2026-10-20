@@ -1,67 +1,85 @@
 import 'server-only';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ChevronRight } from 'lucide-react';
+import { DoorOpen } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
-import { Badge, EmptyState, PageHeader } from '@/shared/ui';
-import { resolveActorRooms } from '@/modules/property-membership/application/index';
-import { findBuildingById } from '@/modules/property-membership/infrastructure/structureRepository';
-import { db } from '@/shared/db/client';
+import { Badge, EmptyState, PageHeader, Pagination, ResourceCard, SearchField } from '@/shared/ui';
+import { listActorRoomPage } from '@/modules/property-membership/application/index';
 
-export default async function MyRoomsPage() {
+export default async function MyRoomsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; query?: string }>;
+}) {
   const actor = await getActorFromSession();
   if (actor === null) redirect('/login?returnUrl=/rooms');
   if (actor.mustChangePassword) redirect('/change-password');
-  const rooms = await resolveActorRooms(actor, systemClock.now());
+  const params = await searchParams;
+  const page = Math.max(1, Math.floor(Number(params.page) || 1));
+  const query = (params.query ?? '').slice(0, 255);
+  const feed = await listActorRoomPage(actor, { page, pageSize: 12, query }, systemClock.now());
   return (
     <main
       data-testid="my-rooms-page"
-      className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
     >
       <PageHeader
         title="Rooms"
-        description="Rooms where you hold an active membership or ownership."
+        description={
+          actor.isSystemAdmin
+            ? 'Find a room, manage its people, and review its details.'
+            : 'Your rooms, their people, and everything connected to them.'
+        }
       />
-      {rooms.length === 0 ? (
+      <SearchField query={query} label="Search rooms or buildings" total={feed.total} />
+      {feed.rows.length === 0 ? (
         <EmptyState
           data-testid="my-rooms-empty"
-          title="No rooms yet"
-          description="When you join or own a room, it will appear here."
+          icon={DoorOpen}
+          title={query ? 'No matching rooms' : 'No rooms yet'}
+          description={
+            query
+              ? 'Try a different room or building name.'
+              : 'When you join or own a room, it will appear here.'
+          }
         />
       ) : (
         <ul
           data-testid="my-rooms-list"
-          className="overflow-hidden rounded-lg border border-border bg-surface"
+          className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3"
         >
-          {await Promise.all(
-            rooms.map(async (room, index) => {
-              const building = await findBuildingById(db, room.buildingId);
-              const last = index === rooms.length - 1;
-              return (
-                <li key={room.id} className={last ? undefined : 'border-b border-border'}>
-                  <Link
-                    data-testid={`my-rooms-row-${room.id}`}
-                    href={`/rooms/${room.id}`}
-                    className="flex items-center gap-4 px-4 py-4 transition-[background-color] duration-150 ease-out hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring motion-reduce:transition-none"
-                  >
-                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="truncate text-heading font-semibold text-foreground">
-                        {building?.name ?? 'Building'} · {room.roomCode}
-                      </span>
-                      <span className="text-small text-muted-foreground">Area {room.areaSqm} sqm</span>
-                    </div>
-                    <Badge variant={room.status === 'ACTIVE' ? 'success' : 'neutral'}>
-                      {room.status === 'ACTIVE' ? 'Active' : 'Inactive'}
-                    </Badge>
-                    <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-                  </Link>
-                </li>
-              );
-            }),
-          )}
+          {feed.rows.map((room) => (
+            <li key={room.id}>
+              <ResourceCard
+                href={`/rooms/${room.id}`}
+                title={room.name}
+                eyebrow={room.buildingName}
+                icon={DoorOpen}
+                testId={`my-rooms-row-${room.id}`}
+                status={
+                  <Badge variant={room.status === 'ACTIVE' ? 'success' : 'neutral'}>
+                    {room.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+                  </Badge>
+                }
+                metadata={
+                  <>
+                    <span>{room.floorLabel}</span>
+                    <span className="ml-auto">{room.areaSqm} sqm</span>
+                  </>
+                }
+              />
+            </li>
+          ))}
         </ul>
       )}
+      <Pagination
+        page={page}
+        totalPages={Math.ceil(feed.total / 12)}
+        totalItems={feed.total}
+        pagePath="/rooms"
+        querySuffix={query ? `&query=${encodeURIComponent(query)}` : ''}
+        testId="my-rooms-pages"
+      />
     </main>
   );
 }

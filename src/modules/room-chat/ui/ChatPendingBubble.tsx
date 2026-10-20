@@ -24,24 +24,42 @@ export function ChatPendingBubble({
       className="flex min-w-0 flex-col items-end gap-1.5"
     >
       <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">
-        <span data-testid={`${testId}-state`} role="status" className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-          {failed ? null : <Loader2 aria-hidden="true" className="size-3 motion-safe:animate-spin" />}
+        <span
+          data-testid={`${testId}-state`}
+          role="status"
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+        >
+          {failed ? null : (
+            <Loader2 aria-hidden="true" className="size-3 motion-safe:animate-spin" />
+          )}
           {failed ? 'Not sent' : 'Sending'}
         </span>
       </div>
-      <div className={`flex w-fit min-w-0 max-w-[85%] flex-col gap-2 rounded-lg rounded-tr-sm px-3.5 py-2.5 sm:max-w-[75%] ${failed ? 'border border-danger-border bg-danger text-foreground' : 'border border-dashed border-border-strong bg-surface text-foreground opacity-80'}`}>
+      <div
+        className={`flex w-fit min-w-0 max-w-[85%] flex-col gap-2 rounded-2xl rounded-br-md px-4 py-3 sm:max-w-[min(75%,36rem)] ${failed ? 'border border-danger-border bg-danger text-foreground' : 'border border-dashed border-border-strong bg-surface text-foreground opacity-80'}`}
+      >
         {entry.text !== null && entry.text !== '' ? (
-          <p data-testid={`${testId}-text`} className="min-w-0 whitespace-pre-wrap break-words text-body leading-body">
+          <p
+            data-testid={`${testId}-text`}
+            className="min-w-0 whitespace-pre-wrap break-words text-body leading-6"
+          >
             {entry.text}
           </p>
         ) : null}
         {entry.imageId !== null ? (
-          <p data-testid={`${testId}-image`} className="min-w-0 break-words text-small leading-small text-muted-foreground">
+          <p
+            data-testid={`${testId}-image`}
+            className="min-w-0 break-words text-small leading-small text-muted-foreground"
+          >
             Image attached{entry.imageLabel !== null ? `: ${entry.imageLabel}` : '.'}
           </p>
         ) : null}
         {failed && entry.error !== null ? (
-          <p data-testid={`${testId}-error`} role="alert" className="min-w-0 break-words text-body leading-body font-medium text-danger-foreground">
+          <p
+            data-testid={`${testId}-error`}
+            role="alert"
+            className="min-w-0 break-words text-body leading-6 font-medium text-danger-foreground"
+          >
             {entry.error}
           </p>
         ) : null}

@@ -30,7 +30,10 @@ export default async function AdminMaintenanceDetailPage({
   const ticket = await getTicket(actor, id);
   if (ticket === null) {
     return (
-      <main data-testid="admin-maintenance-detail-page" className="mx-auto w-full max-w-3xl p-4 sm:p-6">
+      <main
+        data-testid="admin-maintenance-detail-page"
+        className="mx-auto w-full max-w-[var(--ui-content-wide)] p-4 sm:p-6"
+      >
         <EmptyState
           data-testid="admin-maintenance-detail-missing"
           title="Request not available"
@@ -56,13 +59,13 @@ export default async function AdminMaintenanceDetailPage({
       roomLabel = 'Room unavailable';
     } else {
       const building = await findBuildingById(db, room.buildingId);
-      roomLabel = `${building?.code ?? 'Building'} · ${room.roomCode}`;
+      roomLabel = `${building?.name ?? 'Building'} · ${room.name}`;
     }
   }
   return (
     <main
       data-testid="admin-maintenance-detail-page"
-      className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
     >
       <Link
         data-testid="admin-maintenance-detail-back"

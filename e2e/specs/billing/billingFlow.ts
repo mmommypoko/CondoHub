@@ -225,16 +225,13 @@ export async function getJobRun(
 }
 
 export async function findBillingRoom(page: Page, roomCode: string): Promise<string> {
-  for (let sheet = 1; sheet <= 20; sheet += 1) {
-    const listed = await apiJson<{ data: Array<{ id: string; roomCode: string }> }>(page.request, {
-      method: 'GET',
-      path: `/api/rooms?page=${sheet}&pageSize=100`,
-    });
-    expect(listed.status).toBe(200);
-    const found = listed.json.data.find((room) => room.roomCode === roomCode);
-    if (found !== undefined) return found.id;
-    if (listed.json.data.length < 100) break;
-  }
+  const listed = await apiJson<{ data: Array<{ id: string; roomCode: string }> }>(page.request, {
+    method: 'GET',
+    path: `/api/rooms?query=${encodeURIComponent(roomCode)}&pageSize=100`,
+  });
+  expect(listed.status).toBe(200);
+  const found = listed.json.data.find((room) => room.roomCode === roomCode);
+  if (found) return found.id;
   throw new Error(`Billing room ${roomCode} was not found.`);
 }
 

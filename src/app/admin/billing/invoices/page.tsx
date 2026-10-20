@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
 import { EmptyState, PageHeader, Pagination } from '@/shared/ui';
+import { getRoomLabels } from '@/modules/property-membership/application/index';
 import { listInvoices } from '@/modules/billing-payments/application/index';
 import { BillingSectionNav } from '@/modules/billing-payments/ui/BillingSectionNav';
 import { FilterBar } from '@/shared/ui';
@@ -27,21 +28,19 @@ export default async function AdminBillingInvoicesPage({
     params.kind === 'COMMON_FEE' || params.kind === 'PROJECT_MANAGED_RENT'
       ? params.kind
       : undefined;
-  const feed = await listInvoices(
-    actor,
-    {
-      page,
-      pageSize: 20,
-      at: systemClock.now(),
-      ...(kind === undefined ? {} : { kind }),
-    },
-  );
+  const feed = await listInvoices(actor, {
+    page,
+    pageSize: 20,
+    at: systemClock.now(),
+    ...(kind === undefined ? {} : { kind }),
+  });
+  const roomLabels = Object.fromEntries((await getRoomLabels([...new Set(feed.rows.map((row) => row.roomId))])).map((room) => [room.id, room.label]));
   const totalPages = Math.max(1, Math.ceil(feed.total / 20));
   const suffix = kind === undefined ? '' : `&kind=${kind}`;
   return (
     <main
       data-testid="admin-invoice-list-page"
-      className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
     >
       <PageHeader
         title="Invoices"
@@ -74,7 +73,7 @@ export default async function AdminBillingInvoicesPage({
           description="When the billing job issues invoices, they appear here with totals and due dates."
         />
       ) : (
-        <InvoiceTable rows={feed.rows} basePath={BASE_PATH} caption="Issued invoices" />
+        <InvoiceTable roomLabels={roomLabels} rows={feed.rows} basePath={BASE_PATH} caption="Issued invoices" />
       )}
       <Pagination
         page={page}

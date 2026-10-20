@@ -33,7 +33,7 @@ test.describe('property rooms: list, detail, and scoping', () => {
 
     const listed = await apiJson<RoomEnvelope>(page.request, {
       method: 'GET',
-      path: '/api/rooms?pageSize=100',
+      path: `/api/rooms?pageSize=100&query=${encodeURIComponent(`E2E-${runId}-`)}`,
     });
     expect(listed.status).toBe(200);
     expect(listed.json.meta.total).toBeGreaterThanOrEqual(5);
@@ -61,7 +61,7 @@ test.describe('property rooms: list, detail, and scoping', () => {
 
     const listed = await apiJson<RoomEnvelope>(page.request, {
       method: 'GET',
-      path: '/api/rooms?pageSize=100',
+      path: `/api/rooms?pageSize=100&query=${encodeURIComponent(`E2E-${runId}-`)}`,
     });
     const room105 = listed.json.data.find((room) => room.roomCode === `E2E-${runId}-105`);
     expect(room105).toBeDefined();
@@ -75,11 +75,15 @@ test.describe('property rooms: list, detail, and scoping', () => {
       toUserId: viewer.userId,
     });
     const password = `Viewer-${suffix}-pw1`;
-    await completeFirstLogin(page, { username, tempPassword: viewer.tempPassword, newPassword: password });
+    await completeFirstLogin(page, {
+      username,
+      tempPassword: viewer.tempPassword,
+      newPassword: password,
+    });
 
     const mine = await apiJson<RoomEnvelope>(page.request, {
       method: 'GET',
-      path: '/api/rooms?pageSize=100',
+      path: `/api/rooms?pageSize=100&query=${encodeURIComponent(`E2E-${runId}-`)}`,
     });
     expect(mine.status).toBe(200);
     expect(mine.json.data.some((room) => room.id === room105?.id)).toBe(true);

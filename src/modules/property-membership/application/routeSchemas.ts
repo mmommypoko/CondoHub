@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { parseWithFieldErrors as sharedParseWithFieldErrors } from '@/shared/utils/parseBody';
 
 export const roomListQuery = z.object({
+  query: z.string().trim().max(255).optional(),
   buildingId: z.string().uuid().optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
   page: z.coerce.number().int().min(1).default(1),
@@ -90,7 +91,7 @@ export type OwnerAssignBody = z.infer<typeof ownerAssignBody>;
 export const buildingBody = z
   .object({
     projectId: z.string().uuid(),
-    code: z.string().trim().min(1).max(64),
+    code: z.string().trim().min(1).max(64).optional(),
     name: z.string().trim().min(1).max(255),
     status: z.enum(['ACTIVE', 'INACTIVE']).default('ACTIVE'),
   })
@@ -101,7 +102,7 @@ export type BuildingBody = z.infer<typeof buildingBody>;
 export const floorBody = z
   .object({
     buildingId: z.string().uuid(),
-    code: z.string().trim().min(1).max(64),
+    code: z.string().trim().min(1).max(64).optional(),
     label: z.string().trim().min(1).max(255),
   })
   .strict();
@@ -119,9 +120,13 @@ export type FloorPatchBody = z.infer<typeof floorPatchBody>;
 
 export const buildingPatchBody = z
   .object({
-    status: z.enum(['ACTIVE', 'INACTIVE']),
+    name: z.string().trim().min(1).max(255).optional(),
+    status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
   })
-  .strict();
+  .strict()
+  .refine((value) => value.name !== undefined || value.status !== undefined, {
+    message: 'Provide a name or status to update.',
+  });
 
 export type BuildingPatchBody = z.infer<typeof buildingPatchBody>;
 
@@ -129,17 +134,26 @@ export const roomBody = z
   .object({
     floorId: z.string().uuid(),
     buildingId: z.string().uuid(),
-    roomCode: z.string().trim().min(1).max(64),
+    roomCode: z.string().trim().min(1).max(64).optional(),
+    name: z.string().trim().min(1).max(255).optional(),
     areaSqm: z.string().regex(/^\d+(\.\d{1,4})?$/),
     status: z.enum(['ACTIVE', 'INACTIVE']).default('ACTIVE'),
   })
-  .strict();
+  .strict()
+  .refine((value) => value.name !== undefined || value.roomCode !== undefined, {
+    message: 'Room name is required.',
+    path: ['name'],
+  });
 
 export type RoomBody = z.infer<typeof roomBody>;
 
 export const roomPatchBody = z
   .object({
-    areaSqm: z.string().regex(/^\d+(\.\d{1,4})?$/).optional(),
+    name: z.string().trim().min(1).max(255).optional(),
+    areaSqm: z
+      .string()
+      .regex(/^\d+(\.\d{1,4})?$/)
+      .optional(),
     status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
   })
   .strict();

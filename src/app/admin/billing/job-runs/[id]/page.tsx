@@ -27,7 +27,7 @@ export default async function AdminBillingJobRunDetailPage({
   return (
     <main
       data-testid="job-run-detail-page"
-      className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
     >
       <Link
         data-testid="job-run-detail-back"

@@ -1,4 +1,13 @@
 'use client';
+import { FormActions } from '@/shared/ui/FormActions';
+
+import { Select } from '@/shared/ui/Select';
+import {
+  CalendarDays as SelectIconCalendarDays,
+  UserRound as SelectIconUserRound,
+} from 'lucide-react';
+
+import { useFormDialog } from '@/shared/ui/FormDialog';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -62,27 +71,34 @@ export function RoomMemberAddForm({
     },
   });
 
+  const dialog = useFormDialog(isSubmitting);
+
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
-    const response = await fetch(`/api/rooms/${roomId}/members`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        username: values.username,
-        memberRole: values.memberRole,
-        ...(values.tenancyId === '' || values.tenancyId === undefined
-          ? {}
-          : { tenancyId: values.tenancyId }),
-      }),
-    });
-    if (!response.ok) {
-      const payload: unknown = await response.json().catch(() => null);
-      setServerError(serverErrorMessage(payload, 'Could not add the member.'));
-      return;
+    try {
+      const response = await fetch(`/api/rooms/${roomId}/members`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({
+          username: values.username,
+          memberRole: values.memberRole,
+          ...(values.tenancyId === '' || values.tenancyId === undefined
+            ? {}
+            : { tenancyId: values.tenancyId }),
+        }),
+      });
+      if (!response.ok) {
+        const payload: unknown = await response.json().catch(() => null);
+        setServerError(serverErrorMessage(payload, 'Could not add the member.'));
+        return;
+      }
+      toast.success(requiresTenancy ? 'Tenant added.' : 'Member added.');
+      dialog?.complete();
+      reset();
+      router.refresh();
+    } catch {
+      setServerError('Could not reach the server. Check your connection and try again.');
     }
-    toast.success('Member added.');
-    reset();
-    router.refresh();
   });
 
   return (
@@ -90,7 +106,7 @@ export function RoomMemberAddForm({
       data-testid="room-member-add-form"
       onSubmit={onSubmit}
       noValidate
-      className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:p-5"
+      className="flex flex-col gap-4 "
     >
       {serverError !== null ? (
         <p
@@ -118,18 +134,27 @@ export function RoomMemberAddForm({
             {...register('username')}
           />
         </FormField>
-        <FormField label="Role" htmlFor="room-member-add-role">
-          <select
+        <FormField
+          label="Role"
+          htmlFor="room-member-add-role"
+          hint={
+            requiresTenancy
+              ? 'Main tenants can add and remove people in this rental.'
+              : 'Main members can manage people in this room.'
+          }
+        >
+          <Select
+            icon={SelectIconUserRound}
             data-testid="room-member-add-role"
             className={INPUT_CLASS}
             {...register('memberRole')}
           >
-            <option value="SUB">Member</option>
-            <option value="MAIN">Main member</option>
-          </select>
+            <option value="SUB">{requiresTenancy ? 'Tenant' : 'Member'}</option>
+            <option value="MAIN">{requiresTenancy ? 'Main tenant' : 'Main member'}</option>
+          </Select>
         </FormField>
       </div>
-      {activeTenancies.length > 0 ? (
+      {activeTenancies.length > 1 ? (
         <FormField
           label="Tenancy"
           htmlFor="room-member-add-tenancy"
@@ -137,7 +162,8 @@ export function RoomMemberAddForm({
           hint="Members join through the active tenancy."
           required
         >
-          <select
+          <Select
+            icon={SelectIconCalendarDays}
             data-testid="room-member-add-tenancy"
             className={INPUT_CLASS}
             {...register('tenancyId')}
@@ -148,14 +174,15 @@ export function RoomMemberAddForm({
                 {tenancy.managementMode === 'PROJECT_MANAGED' ? 'Project managed' : 'Owner managed'}
               </option>
             ))}
-          </select>
+          </Select>
         </FormField>
       ) : null}
-      <div className="flex flex-wrap gap-2">
+      {activeTenancies.length === 1 ? <input type="hidden" {...register('tenancyId')} /> : null}
+      <FormActions onCancel={dialog?.requestClose} pending={isSubmitting}>
         <Button data-testid="room-member-add-submit" type="submit" loading={isSubmitting}>
-          Add member
+          {requiresTenancy ? 'Add tenant' : 'Add member'}
         </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

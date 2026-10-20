@@ -36,6 +36,9 @@ export function SecureImage({
 
   useEffect(() => {
     let cancelled = false;
+    setUrl(null);
+    setFailed(false);
+    setPreviewOpen(false);
     async function load(): Promise<void> {
       try {
         const response = await fetch(`/api/images/${imageId}/access`);
@@ -57,10 +60,7 @@ export function SecureImage({
 
   if (failed) {
     return (
-      <p
-        data-testid={`${testId}-unavailable`}
-        className={failedClassName}
-      >
+      <p data-testid={`${testId}-unavailable`} className={failedClassName}>
         <ImageOff aria-hidden="true" className="size-4 shrink-0" />
         Image unavailable.
       </p>
@@ -89,6 +89,8 @@ export function SecureImage({
           src={url}
           alt={alt}
           loading="lazy"
+          decoding="async"
+          onError={() => setFailed(true)}
           className={imgClassName}
         />
       </button>

@@ -7,9 +7,7 @@ export const quotaKindSchema = z.enum(['DAILY', 'WEEKLY', 'MONTHLY']);
 
 const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM format.');
 
-const endTimeSchema = z
-  .string()
-  .regex(/^([01]\d|2[0-3]):[0-5]\d$|^24:00$/, 'Use HH:MM format.');
+const endTimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$|^24:00$/, 'Use HH:MM format.');
 
 const intervalSchema = z
   .object({ start: timeSchema, end: endTimeSchema })
@@ -47,7 +45,7 @@ export const scheduleSchema = z
 export const facilityCreateBody = z
   .object({
     projectId: z.string().uuid(),
-    code: z.string().trim().min(1).max(64),
+    code: z.string().trim().min(1).max(64).optional(),
     name: z.string().trim().min(1).max(255),
     description: z.string().trim().max(20000).nullable().optional(),
     status: facilityStatusSchema.default('ACTIVE'),
@@ -91,7 +89,10 @@ export type FacilitySlotsQuery = z.infer<typeof facilitySlotsQuery>;
 export const bookingCreateBody = z
   .object({
     roomId: z.string().uuid(),
-    startsAt: z.array(z.string().datetime({ offset: true })).min(1).max(50),
+    startsAt: z
+      .array(z.string().datetime({ offset: true }))
+      .min(1)
+      .max(50),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -155,7 +156,10 @@ export type RoomBookingsQuery = z.infer<typeof roomBookingsQuery>;
 
 export const roomQuotaQuery = z.object({
   roomId: z.string().uuid(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD format.').optional(),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD format.')
+    .optional(),
 });
 
 export type RoomQuotaQuery = z.infer<typeof roomQuotaQuery>;

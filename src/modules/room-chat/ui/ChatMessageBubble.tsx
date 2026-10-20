@@ -27,11 +27,19 @@ export function ChatMessageBubble({
     >
       {separator !== null ? (
         <div className="w-full min-w-0" data-chat-separator="true">
-          <ChatDateSeparator value={separator.value} testId={`${testIdPrefix}-day-${separator.day}`} />
+          <ChatDateSeparator
+            value={separator.value}
+            testId={`${testIdPrefix}-day-${separator.day}`}
+          />
         </div>
       ) : null}
-      <div className={`flex min-w-0 max-w-full flex-wrap items-baseline gap-x-2 gap-y-0.5 ${own ? 'justify-end' : 'justify-start'}`}>
-        <span data-testid={`${testId}-sender`} className="min-w-0 break-words text-xs font-semibold text-foreground">
+      <div
+        className={`flex min-w-0 max-w-full flex-wrap items-baseline gap-x-2 gap-y-0.5 ${own ? 'justify-end' : 'justify-start'}`}
+      >
+        <span
+          data-testid={`${testId}-sender`}
+          className="min-w-0 break-words text-xs font-medium text-body-secondary"
+        >
           {message.senderName}
         </span>
         {message.senderIsAdmin ? (
@@ -50,19 +58,26 @@ export function ChatMessageBubble({
         </time>
       </div>
       <div
-        className={`flex w-fit min-w-0 max-w-[85%] flex-col gap-2 rounded-lg px-3.5 py-2.5 sm:max-w-[75%] ${
+        className={`flex w-fit min-w-0 max-w-[85%] flex-col gap-2 rounded-2xl px-4 py-3 sm:max-w-[min(75%,36rem)] ${
           own
-            ? 'rounded-tr-sm bg-primary text-primary-foreground'
-            : 'rounded-tl-sm border border-border bg-surface-raised text-foreground shadow-raised'
+            ? 'rounded-br-md bg-primary text-primary-foreground'
+            : 'rounded-bl-md border border-border bg-surface-raised text-foreground shadow-raised'
         }`}
       >
         {message.text !== null && message.text !== '' ? (
-          <p data-testid={`${testId}-text`} className="min-w-0 whitespace-pre-wrap break-words text-body leading-body">
+          <p
+            data-testid={`${testId}-text`}
+            className="min-w-0 whitespace-pre-wrap break-words text-body leading-6"
+          >
             {message.text}
           </p>
         ) : null}
         {message.imageId !== null ? (
-          <ChatImageBubble imageId={message.imageId} alt="Chat image attachment" testId={`${testId}-image`} />
+          <ChatImageBubble
+            imageId={message.imageId}
+            alt="Chat image attachment"
+            testId={`${testId}-image`}
+          />
         ) : null}
       </div>
     </li>

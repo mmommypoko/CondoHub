@@ -284,26 +284,32 @@ test.describe('property tenancy: create and end', () => {
     const { roomId } = await createRoomFixture(page.request, tag, projectId);
 
     await page.goto(`/admin/ownership?roomId=${roomId}`);
-    await expect(page.getByTestId('admin-ownership-page')).toBeVisible();
-    await expect(page.getByTestId('admin-owners-empty')).toBeVisible();
+    await expect(page.getByTestId('room-detail-page')).toBeVisible();
+    await expect(page.getByTestId('room-owners-empty')).toBeVisible();
 
     const uiOwner = uniqueUsername(`e2e${suffix}uiown`);
     const uiTarget = await provisionUser(page, { username: uiOwner, name: `UI Owner ${ns}` });
+    await page.getByTestId('ownership-assign-open').click();
     await page.getByTestId('ownership-assign-username').fill(uiOwner);
     await page.getByTestId('ownership-assign-submit').click();
-    await expect(page.getByTestId('admin-owners-list')).toContainText(`UI Owner ${ns}`);
+    await expect(page.getByTestId('room-owners-list')).toContainText(`UI Owner ${ns}`);
 
     const start = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    await page.getByTestId('room-rental-link').click();
+    await page.getByTestId('room-tenancy-create-open').click();
     await page.getByTestId('room-tenancy-create-start').fill(start);
     await page.getByTestId('room-tenancy-create-mode').selectOption('PROJECT_MANAGED');
     await page.getByTestId('room-tenancy-create-submit').click();
-    await expect(page.getByTestId('admin-tenancies-list')).toContainText('Project managed');
+    await expect(page.getByRole('region', { name: 'Selected rental' })).toContainText(
+      'Project managed',
+    );
+    await page.getByTestId('rental-period-details').locator('summary').click();
     const endButton = page.getByTestId(/^room-tenancy-end-/).first();
     const endTestId = (await endButton.getAttribute('data-testid')) ?? '';
     expect(endTestId).toMatch(/^room-tenancy-end-[0-9a-f-]{36}$/);
     await endButton.click();
     await page.getByTestId('room-tenancy-end-submit').click();
-    await expect(page.getByTestId('admin-tenancies-list')).toContainText('ENDED');
+    await expect(page.getByRole('region', { name: 'Selected rental' })).toContainText('Ended');
 
     const ownerPassword = `Uiowner-${suffix}-pw1`;
     await completeFirstLogin(page, {
@@ -314,6 +320,8 @@ test.describe('property tenancy: create and end', () => {
     await loginAsUser(page, uiOwner, ownerPassword);
     await page.goto(`/rooms/${roomId}`);
     await expect(page.getByTestId('room-detail-page')).toBeVisible();
+    await page.getByTestId('room-rental-link').click();
+    await page.getByTestId('room-tenancy-create-open').click();
     await expect(page.getByTestId('room-tenancy-create-form')).toBeVisible();
     const residentStart = new Date().toISOString().slice(0, 10);
     await page.getByTestId('room-tenancy-create-start').fill(residentStart);
@@ -321,13 +329,18 @@ test.describe('property tenancy: create and end', () => {
 
     await loginAsAdmin(page);
     await page.goto(`/admin/ownership?roomId=${roomId}`);
-    await expect(page.getByTestId('admin-tenancies-list')).toContainText('Owner managed');
+    await page.getByTestId('room-rental-link').click();
+    await expect(page.getByRole('region', { name: 'Selected rental' })).toContainText(
+      'Owner managed',
+    );
 
     await page.goto(`/rooms/${roomId}`);
     await expect(page.getByTestId('room-detail-page')).toBeVisible();
+    await page.getByTestId('room-rental-link').click();
+    await page.getByTestId('rental-period-details').locator('summary').click();
     const residentEnd = page.getByTestId(/^room-tenancy-end-/).first();
     await residentEnd.click();
     await page.getByTestId('room-tenancy-end-submit').click();
-    await expect(page.getByTestId('room-tenancies-list')).toContainText('ENDED');
+    await expect(page.getByRole('region', { name: 'Selected rental' })).toContainText('Ended');
   });
 });

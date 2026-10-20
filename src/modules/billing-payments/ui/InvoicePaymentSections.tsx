@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Badge } from '@/shared/ui';
+import { Badge, FormDialog, SectionCard } from '@/shared/ui';
 import type {
   InvoiceDto,
   InvoiceRevisionDto,
@@ -12,7 +13,11 @@ import { PaymentImage } from '@/modules/billing-payments/ui/PaymentImage';
 import { PaymentSubmissionCard } from '@/modules/billing-payments/ui/PaymentSubmissionCard';
 import { PaymentSubmitForm } from '@/modules/billing-payments/ui/PaymentSubmitForm';
 import { InvoiceEditForm } from '@/modules/billing-payments/ui/InvoiceEditForm';
-import { formatInstant, invoiceStateLabel, invoiceStateVariant } from '@/modules/billing-payments/ui/billingLabels';
+import {
+  formatInstant,
+  invoiceStateLabel,
+  invoiceStateVariant,
+} from '@/modules/billing-payments/ui/billingLabels';
 
 export function InvoicePaymentSections({
   invoice,
@@ -20,108 +25,169 @@ export function InvoicePaymentSections({
   revisions,
   instruction,
   actorIsAdmin,
+  permissions,
 }: {
   invoice: InvoiceDto;
   submissions: PaymentSubmissionDto[];
   revisions: InvoiceRevisionDto[];
   instruction: PaymentInstructionDto | null;
   actorIsAdmin: boolean;
+  permissions: { canEdit: boolean; canApprove: boolean; canReject: boolean; canSubmit: boolean };
 }) {
   const router = useRouter();
   const refresh = (): void => router.refresh();
-  const paid = invoice.state === 'PAID';
   const pendingSubmissions = submissions.filter((submission) => submission.state === 'PENDING');
   return (
-    <div className="flex min-w-0 flex-col gap-8">
-      <section aria-label="Balance" className="flex min-w-0 flex-col gap-4">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <h2 className="text-heading font-semibold tracking-tight text-foreground">Balance</h2>
-          <Badge data-testid="invoice-payment-state" variant={invoiceStateVariant(invoice.state)}>
-            {invoiceStateLabel(invoice.state)}
-          </Badge>
-          {invoice.overdue ? (
-            <span className="text-small font-medium text-danger-foreground">Overdue</span>
-          ) : null}
-        </div>
-        {invoice.pendingOnPaid ? (
-          <p data-testid="invoice-payment-pending-on-paid" role="alert" className="rounded-md border border-warning-border bg-warning p-3 text-small leading-small text-warning-foreground">
-            This invoice is already paid, but payment slips are still awaiting review. Reject the
-            pending slips so the queue stays accurate.
-          </p>
-        ) : null}
-        <dl
-          data-testid="invoice-payment-facts"
-          className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-4 border-t border-border pt-5 text-body sm:grid-cols-2"
+    <div className="flex min-w-0 flex-col gap-6">
+      <div className="grid min-w-0 grid-cols-1 items-stretch gap-6 xl:grid-cols-2">
+        <SectionCard
+          title="Balance"
+          action={
+            permissions.canEdit ? (
+              <FormDialog
+                icon="edit"
+                triggerLabel="Edit invoice total"
+                title="Edit invoice total"
+                description="Changes are recorded in the invoice history."
+                triggerTestId="invoice-edit-open"
+                testId="invoice-edit-dialog"
+                variant="secondary"
+              >
+                <InvoiceEditForm
+                  invoiceId={invoice.id}
+                  version={invoice.version}
+                  currentTotal={invoice.total.amount}
+                  onEdited={refresh}
+                />
+              </FormDialog>
+            ) : null
+          }
         >
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <dt className="text-small font-medium text-muted-foreground">
-              Approved
-            </dt>
-            <dd data-testid="invoice-payment-approved" className="ui-tabular break-words font-medium text-foreground">
-              {invoice.approvedTotal.amount} {invoice.approvedTotal.currency}
-            </dd>
+          <div className="mb-5 flex flex-wrap items-center gap-2">
+            <Badge data-testid="invoice-payment-state" variant={invoiceStateVariant(invoice.state)}>
+              {invoiceStateLabel(invoice.state)}
+            </Badge>
+            {invoice.overdue ? (
+              <span className="text-small font-medium text-danger-foreground">Overdue</span>
+            ) : null}
           </div>
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <dt className="text-small font-medium text-muted-foreground">
-              Pending slips
-            </dt>
-            <dd data-testid="invoice-payment-pending-count" className="ui-tabular break-words font-medium text-foreground">
-              {pendingSubmissions.length}
-            </dd>
-          </div>
-        </dl>
-      </section>
-      {instruction !== null ? (
-        <section aria-label="Payment instruction" className="flex min-w-0 flex-col gap-4">
-          <h2 className="text-heading font-semibold tracking-tight text-foreground">How to pay</h2>
+          {invoice.pendingOnPaid ? (
+            <p
+              data-testid="invoice-payment-pending-on-paid"
+              role="alert"
+              className="rounded-md border border-warning-border bg-warning p-3 text-small leading-small text-warning-foreground"
+            >
+              This invoice is already paid, but payment slips are still awaiting review. Reject the
+              pending slips so the queue stays accurate.
+            </p>
+          ) : null}
           <dl
-            data-testid="invoice-payment-instruction"
-            className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-4 rounded-lg border border-border bg-surface p-4 text-body sm:grid-cols-3"
+            data-testid="invoice-payment-facts"
+            className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-4 border-t border-border pt-5 text-body sm:grid-cols-2"
           >
             <div className="flex min-w-0 flex-col gap-0.5">
-              <dt className="text-small font-medium text-muted-foreground">
-                Bank
-              </dt>
-              <dd data-testid="invoice-payment-bank" className="break-words font-medium text-foreground">
-                {instruction.bankName}
+              <dt className="text-small font-medium text-muted-foreground">Approved</dt>
+              <dd
+                data-testid="invoice-payment-approved"
+                className="ui-tabular break-words font-medium text-foreground"
+              >
+                {invoice.approvedTotal.amount} {invoice.approvedTotal.currency}
               </dd>
             </div>
             <div className="flex min-w-0 flex-col gap-0.5">
-              <dt className="text-small font-medium text-muted-foreground">
-                Account name
-              </dt>
-              <dd data-testid="invoice-payment-account-name" className="break-words font-medium text-foreground">
-                {instruction.accountName}
-              </dd>
-            </div>
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <dt className="text-small font-medium text-muted-foreground">
-                Account number
-              </dt>
-              <dd data-testid="invoice-payment-account-number" className="ui-tabular break-words font-medium text-foreground">
-                {instruction.accountNumber}
+              <dt className="text-small font-medium text-muted-foreground">Pending slips</dt>
+              <dd
+                data-testid="invoice-payment-pending-count"
+                className="ui-tabular break-words font-medium text-foreground"
+              >
+                {pendingSubmissions.length}
               </dd>
             </div>
           </dl>
-          {instruction.qrImageId !== null ? (
-            <PaymentImage
-              imageId={instruction.qrImageId}
-              alt="Payment QR code"
-              testId="invoice-payment-qr"
-            />
-          ) : null}
-        </section>
-      ) : null}
-      {!actorIsAdmin && !paid ? (
-        <section aria-label="Submit a payment slip" className="flex min-w-0 flex-col gap-4">
-          <h2 className="text-heading font-semibold tracking-tight text-foreground">Submit a payment slip</h2>
-          <PaymentSubmitForm invoiceId={invoice.id} onSubmitted={refresh} />
-        </section>
-      ) : null}
-      <section aria-label="Payment submissions" className="flex min-w-0 flex-col gap-4">
-        <h2 className="text-heading font-semibold tracking-tight text-foreground">Payment slips</h2>
+        </SectionCard>
+        {instruction !== null && instruction.accountNumber !== 'SYSTEM-AUTO' ? (
+          <SectionCard
+            title="How to pay"
+            description="Use these payment details when transferring funds."
+          >
+            <dl
+              data-testid="invoice-payment-instruction"
+              className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-4 rounded-lg border border-border bg-background p-4 text-body sm:grid-cols-2"
+            >
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <dt className="text-small font-medium text-muted-foreground">Bank</dt>
+                <dd
+                  data-testid="invoice-payment-bank"
+                  className="break-words font-medium text-foreground"
+                >
+                  {instruction.bankName}
+                </dd>
+              </div>
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <dt className="text-small font-medium text-muted-foreground">Account name</dt>
+                <dd
+                  data-testid="invoice-payment-account-name"
+                  className="break-words font-medium text-foreground"
+                >
+                  {instruction.accountName}
+                </dd>
+              </div>
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <dt className="text-small font-medium text-muted-foreground">Account number</dt>
+                <dd
+                  data-testid="invoice-payment-account-number"
+                  className="ui-tabular break-words font-medium text-foreground"
+                >
+                  {instruction.accountNumber}
+                </dd>
+              </div>
+            </dl>
+            {instruction.qrImageId !== null ? (
+              <PaymentImage
+                imageId={instruction.qrImageId}
+                alt="Payment QR code"
+                testId="invoice-payment-qr"
+              />
+            ) : null}
+          </SectionCard>
+        ) : (
+          <SectionCard title="How to pay">
+            <p className="text-body leading-relaxed text-muted-foreground">
+              Payment details have not been configured for this invoice. Contact the receiving party
+              before transferring funds.
+            </p>
+            {actorIsAdmin ? (
+              <Link
+                href={'/admin/billing/settings'}
+                className="mt-4 inline-flex text-body font-medium text-link hover:underline"
+              >
+                Configure payment details
+              </Link>
+            ) : null}
+          </SectionCard>
+        )}
+      </div>
+      <SectionCard
+        title="Payment slips"
+        description="Submitted payments and their review status."
+        action={
+          !actorIsAdmin && permissions.canSubmit ? (
+            <FormDialog
+              triggerLabel="Submit payment slip"
+              title="Submit payment slip"
+              triggerTestId="payment-submit-open"
+              testId="payment-submit-dialog"
+            >
+              <PaymentSubmitForm invoiceId={invoice.id} onSubmitted={refresh} />
+            </FormDialog>
+          ) : null
+        }
+      >
         {submissions.length === 0 ? (
-          <p data-testid="invoice-payment-submissions-empty" className="text-small leading-small text-muted-foreground">
+          <p
+            data-testid="invoice-payment-submissions-empty"
+            className="text-small leading-small text-muted-foreground"
+          >
             No payment slips yet.
           </p>
         ) : (
@@ -131,29 +197,20 @@ export function InvoicePaymentSections({
                 key={submission.id}
                 submission={submission}
                 outstanding={invoice.outstanding.amount}
-                approveBlocked={paid}
-                canReview={actorIsAdmin}
+                approveBlocked={!permissions.canApprove}
+                canReview={permissions.canApprove || permissions.canReject}
                 onReviewed={refresh}
               />
             ))}
           </ul>
         )}
-      </section>
-      {actorIsAdmin && !paid ? (
-        <section aria-label="Edit invoice total" className="flex min-w-0 flex-col gap-4">
-          <h2 className="text-heading font-semibold tracking-tight text-foreground">Edit total</h2>
-          <InvoiceEditForm
-            invoiceId={invoice.id}
-            version={invoice.version}
-            currentTotal={invoice.total.amount}
-            onEdited={refresh}
-          />
-        </section>
-      ) : null}
-      <section aria-label="Total history" className="flex min-w-0 flex-col gap-4">
-        <h2 className="text-heading font-semibold tracking-tight text-foreground">Total history</h2>
+      </SectionCard>
+      <SectionCard title="Total history" description="Changes to the amount of this invoice.">
         {revisions.length === 0 ? (
-          <p data-testid="invoice-payment-revisions-empty" className="text-small leading-small text-muted-foreground">
+          <p
+            data-testid="invoice-payment-revisions-empty"
+            className="text-small leading-small text-muted-foreground"
+          >
             The total has not changed since this invoice was issued.
           </p>
         ) : (
@@ -165,8 +222,8 @@ export function InvoicePaymentSections({
                 className="flex min-w-0 flex-col gap-1 rounded-lg border border-border bg-surface p-4 text-body"
               >
                 <p className="ui-tabular break-words font-medium text-foreground">
-                  {revision.oldTotal.amount} {revision.oldTotal.currency} to {revision.newTotal.amount}{' '}
-                  {revision.newTotal.currency}
+                  {revision.oldTotal.amount} {revision.oldTotal.currency} to{' '}
+                  {revision.newTotal.amount} {revision.newTotal.currency}
                 </p>
                 {revision.reason !== null && revision.reason !== '' ? (
                   <p className="break-words leading-body text-foreground">{revision.reason}</p>
@@ -178,7 +235,7 @@ export function InvoicePaymentSections({
             ))}
           </ul>
         )}
-      </section>
+      </SectionCard>
     </div>
   );
 }

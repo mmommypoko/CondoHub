@@ -1,56 +1,53 @@
 import 'server-only';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ArrowLeft, CalendarDays, MessageCircle } from 'lucide-react';
+import { ArrowUpRight, CalendarDays, KeyRound, MessageCircle } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
-import { ACTION_LINK_CLASS, ACTION_LINK_SECONDARY_CLASS, Badge, EmptyState } from '@/shared/ui';
+import { PROJECT_TIMEZONE } from '@/config/project';
+import {
+  ACTION_LINK_CLASS,
+  ACTION_LINK_SECONDARY_CLASS,
+  Badge,
+  EmptyState,
+  FormDialog,
+  PageHeader,
+  SectionCard,
+} from '@/shared/ui';
 import {
   canActInRoom,
   getCurrentOwners,
-  listRoomMemberships,
+  getRoomDetail,
+  getRoomLabels,
+  listCurrentRoomMemberships,
   listRoomTenancies,
 } from '@/modules/property-membership/application/index';
-import {
-  findBuildingById,
-  findRoomById,
-} from '@/modules/property-membership/infrastructure/structureRepository';
-import { RoomMemberAddForm } from '@/modules/property-membership/ui/RoomMemberAddForm';
-import { EndMembershipButton } from '@/modules/property-membership/ui/EndMembershipButton';
-import { TenancyCreateForm } from '@/modules/property-membership/ui/TenancyCreateForm';
-import { TenancyEndButton } from '@/modules/property-membership/ui/TenancyEndButton';
 import { getSenderProfile } from '@/modules/identity-access/application/index';
-import { db } from '@/shared/db/client';
+import { RoomMemberAddForm } from '@/modules/property-membership/ui/RoomMemberAddForm';
+import {
+  OwnershipAssignForm,
+  OwnershipManageForm,
+} from '@/modules/property-membership/ui/OwnershipForms';
+import { EndMembershipButton } from '@/modules/property-membership/ui/EndMembershipButton';
 
-function memberRoleLabel(role: string): string {
-  if (role === 'MAIN') return 'Main';
-  if (role === 'SUB') return 'Sub';
-  return role;
-}
+const formatDate = (value: Date) =>
+  new Intl.DateTimeFormat('en-US', {
+    timeZone: PROJECT_TIMEZONE,
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(value);
 
-function tenancyModeLabel(mode: string): string {
-  if (mode === 'PROJECT_MANAGED') return 'Project managed';
-  if (mode === 'PRIVATE_OWNER_MANAGED') return 'Owner managed';
-  return mode;
-}
-
-export default async function RoomDetailPage({
-  params,
-}: {
-  params: Promise<{ roomId: string }>;
-}) {
+export default async function RoomDetailPage({ params }: { params: Promise<{ roomId: string }> }) {
   const actor = await getActorFromSession();
   if (actor === null) redirect('/login?returnUrl=/rooms');
   if (actor.mustChangePassword) redirect('/change-password');
   const { roomId } = await params;
   const now = systemClock.now();
   const verdict = await canActInRoom(actor.userId, roomId, 'VIEW_ROOM', now).catch(() => null);
-  if ((verdict === null || !verdict.allowed) && !actor.isSystemAdmin) {
+  if ((!verdict || !verdict.allowed) && !actor.isSystemAdmin)
     return (
-      <main
-        data-testid="room-detail-page"
-        className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6"
-      >
+      <main data-testid="room-detail-page" className="p-6">
         <EmptyState
           data-testid="room-detail-forbidden"
           title="Room not available"
@@ -58,199 +55,304 @@ export default async function RoomDetailPage({
         />
       </main>
     );
-  }
-  const manageVerdict = await canActInRoom(actor.userId, roomId, 'MANAGE_MEMBERS', now).catch(
-    () => null,
-  );
-  const canManageMembers =
-    actor.isSystemAdmin || (manageVerdict !== null && manageVerdict.allowed);
-  const room = await findRoomById(db, roomId);
-  if (room === null) redirect('/rooms');
-  const building = await findBuildingById(db, room.buildingId);
-  const [owners, memberships, tenancies] = await Promise.all([
-    getCurrentOwners(room.id, now),
-    listRoomMemberships(room.id),
-    listRoomTenancies(room.id),
+  const [room, labels, owners, memberships, tenancies, manageVerdict] = await Promise.all([
+    getRoomDetail(roomId).catch(() => null),
+    getRoomLabels([roomId]),
+    getCurrentOwners(roomId, now),
+    listCurrentRoomMemberships(roomId, now),
+    listRoomTenancies(roomId),
+    canActInRoom(actor.userId, roomId, 'MANAGE_MEMBERS', now).catch(() => null),
   ]);
-  const activeTenancies = tenancies.filter((tenancy) => tenancy.state === 'ACTIVE');
+  if (!room) redirect('/rooms');
+  const label = labels[0];
+  const canUseResidentServices =
+    actor.isSystemAdmin || (await canActInRoom(actor.userId, roomId, 'VIEW_CHAT', now)).allowed;
   const isRoomOwner = owners.some((owner) => owner.userId === actor.userId);
-  const canManageTenancies = actor.isSystemAdmin || isRoomOwner;
-  const memberNames = new Map<string, string>();
-  for (const entry of [...owners, ...memberships]) {
-    if (memberNames.has(entry.userId)) continue;
-    try {
-      const profile = await getSenderProfile(entry.userId);
-      memberNames.set(entry.userId, profile.name);
-    } catch {
-      memberNames.set(entry.userId, entry.userId);
-    }
-  }
+  const canManageMembers = actor.isSystemAdmin || manageVerdict?.allowed === true;
+  const activeTenancies = tenancies.filter(
+    (tenancy) => tenancy.state === 'ACTIVE' && (!tenancy.endsAt || tenancy.endsAt > now),
+  );
+  const currentTenancy = activeTenancies.find((row) => row.startsAt <= now);
+  const upcomingTenancy = activeTenancies.find((row) => row.startsAt > now);
+  const rental = currentTenancy ?? upcomingTenancy;
+  const canAddHousehold = canManageMembers && activeTenancies.length === 0;
+  const profiles = new Map(
+    await Promise.all(
+      [...new Set([...owners, ...memberships].map((person) => person.userId))].map(
+        async (id) =>
+          [
+            id,
+            (await getSenderProfile(id).catch(() => null))?.name ?? 'Account unavailable',
+          ] as const,
+      ),
+    ),
+  );
   return (
     <main
       data-testid="room-detail-page"
-      className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-6 sm:px-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
     >
-      <div className="flex flex-col gap-3">
-        <Link
-          data-testid="room-detail-back"
-          href="/rooms"
-          className="inline-flex w-fit items-center gap-1.5 rounded-md text-body font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
-        >
-          <ArrowLeft aria-hidden="true" className="size-4" />
-          Back to Rooms
-        </Link>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex min-w-0 flex-col gap-1">
-            <h1
-              data-testid="room-detail-title"
-              className="text-display font-semibold tracking-tight text-foreground"
-            >
-              {building?.name ?? 'Building'} · {room.roomCode}
-            </h1>
-            <p className="text-small leading-6 text-muted-foreground">Area {room.areaSqm} sqm</p>
-          </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <Link
-              data-testid="room-detail-bookings-link"
-              href={`/rooms/${room.id}/bookings`}
-              className={ACTION_LINK_SECONDARY_CLASS}
-            >
-              <CalendarDays aria-hidden="true" className="size-4" />
-              View bookings
-            </Link>
-            <Link
-              data-testid="room-detail-facilities-link"
-              href="/facilities"
-              className={ACTION_LINK_SECONDARY_CLASS}
-            >
-              Browse facilities
-            </Link>
-            <Link
-              data-testid="room-detail-chat-link"
-              href={`/rooms/${room.id}/chat`}
-              className={ACTION_LINK_CLASS}
-            >
-              <MessageCircle aria-hidden="true" className="size-4" />
-              Open room chat
-            </Link>
-          </div>
-        </div>
-      </div>
-      <section aria-label="Details" className="flex flex-col gap-6">
-        <h2 className="text-title font-semibold tracking-tight text-foreground">Details</h2>
-        <div className="flex flex-col gap-2">
-          <h3 className="text-heading font-semibold text-foreground">Current owners</h3>
-          {owners.length === 0 ? (
-            <p data-testid="room-owners-empty" className="text-body leading-6 text-muted-foreground">
-              No current owners recorded.
-            </p>
-          ) : (
-            <ul data-testid="room-owners-list" className="flex flex-wrap gap-2">
-              {owners.map((owner) => (
-                <li key={owner.ownershipId}>
-                  <Badge variant="info">{memberNames.get(owner.userId) ?? owner.userId}</Badge>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <div className="flex flex-col gap-2">
-          <h3 className="text-heading font-semibold text-foreground">
-            Memberships ({memberships.length})
-          </h3>
-          {memberships.length === 0 ? (
-            <p data-testid="room-memberships-empty" className="text-body leading-6 text-muted-foreground">
-              No memberships recorded.
-            </p>
-          ) : (
-            <ul
-              data-testid="room-memberships-list"
-              className="overflow-hidden rounded-lg border border-border bg-surface"
-            >
-              {memberships.map((membership, index) => (
-                <li
-                  key={membership.id}
-                  className={
-                    index === memberships.length - 1
-                      ? 'flex items-center justify-between gap-3 px-4 py-3 text-body'
-                      : 'flex items-center justify-between gap-3 border-b border-border px-4 py-3 text-body'
-                  }
+      <div data-testid="room-detail-title">
+        <PageHeader
+          title={room.name}
+          description={`${label?.buildingName ?? 'Building'} · ${label?.floorLabel ?? 'Floor'} · ${room.areaSqm} sqm`}
+          backHref="/rooms"
+          backLabel="Back to Rooms"
+          backTestId="room-detail-back"
+          actions={
+            <>
+              {canUseResidentServices ? (
+                <Link
+                  data-testid="room-detail-bookings-link"
+                  href={`/rooms/${room.id}/bookings`}
+                  className={ACTION_LINK_SECONDARY_CLASS}
                 >
-                  <span className="min-w-0 truncate text-foreground">{memberNames.get(membership.userId) ?? membership.userId}</span>
-                  <span className="flex shrink-0 items-center gap-2">
-                    <Badge variant={membership.endAt === null ? 'success' : 'neutral'}>
-                      {memberRoleLabel(membership.memberRole)}
-                      {membership.endAt === null ? '' : ' · ended'}
-                    </Badge>
-                    {canManageMembers && membership.endAt === null ? (
+                  <CalendarDays aria-hidden="true" className="size-4" />
+                  View bookings
+                </Link>
+              ) : null}
+              {canUseResidentServices ? (
+                <Link
+                  data-testid="room-detail-chat-link"
+                  href={
+                    actor.isSystemAdmin ? `/admin/rooms/${room.id}/chat` : `/rooms/${room.id}/chat`
+                  }
+                  className={ACTION_LINK_CLASS}
+                >
+                  <MessageCircle aria-hidden="true" className="size-4" />
+                  Open room chat
+                </Link>
+              ) : null}
+            </>
+          }
+        />
+      </div>
+      <div className="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="flex min-w-0 flex-col gap-6">
+          <section
+            aria-label="Rental overview"
+            className="rounded-xl border border-border bg-surface p-5 sm:p-6"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
+                  <KeyRound aria-hidden="true" className="size-5" />
+                </span>
+                <div>
+                  <h2 className="text-heading font-semibold">
+                    {currentTenancy
+                      ? 'Active rental'
+                      : upcomingTenancy
+                        ? 'Rental scheduled'
+                        : 'No active rental'}
+                  </h2>
+                  <p className="mt-1 text-small text-muted-foreground">
+                    {rental
+                      ? rental.managementMode === 'PROJECT_MANAGED'
+                        ? 'Managed by the project'
+                        : 'Managed by the room owner'
+                      : 'Manage tenants, rent, payments, and repairs in one place.'}
+                  </p>
+                </div>
+              </div>
+              <Badge variant={currentTenancy ? 'success' : 'neutral'}>
+                {currentTenancy ? 'Active' : upcomingTenancy ? 'Scheduled' : 'Not rented'}
+              </Badge>
+            </div>
+            {rental ? (
+              <p className="mt-5 text-body text-body-secondary">
+                {formatDate(rental.startsAt)} to{' '}
+                {rental.endsAt ? formatDate(rental.endsAt) : 'No end date'}
+              </p>
+            ) : null}
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-5">
+              <p className="max-w-md text-small text-muted-foreground">
+                {actor.isSystemAdmin || isRoomOwner
+                  ? 'Add tenants, set rent, and follow up on payments and room maintenance.'
+                  : 'Find your rent invoices and report a room problem.'}
+              </p>
+              <Link
+                data-testid="room-rental-link"
+                href={`/rooms/${room.id}/rental`}
+                className={ACTION_LINK_CLASS}
+              >
+                {actor.isSystemAdmin || isRoomOwner ? 'Manage rental' : 'View rental'}
+                <ArrowUpRight aria-hidden="true" className="size-4" />
+              </Link>
+            </div>
+          </section>
+          <SectionCard
+            title="Owners"
+            description="People who hold current ownership of this room."
+            action={
+              actor.isSystemAdmin || isRoomOwner ? (
+                <FormDialog
+                  triggerLabel={actor.isSystemAdmin ? 'Assign owner' : 'Add co-owner'}
+                  title={actor.isSystemAdmin ? 'Assign owner' : 'Add co-owner'}
+                  description={`Assign an existing account as an owner of ${room.name}.`}
+                  triggerTestId="ownership-assign-open"
+                  testId="ownership-assign-dialog"
+                  variant="secondary"
+                >
+                  <OwnershipAssignForm
+                    roomId={room.id}
+                    mode={actor.isSystemAdmin ? 'assign' : 'co-owner'}
+                  />
+                </FormDialog>
+              ) : null
+            }
+          >
+            {owners.length === 0 ? (
+              <p data-testid="room-owners-empty" className="text-body text-muted-foreground">
+                No owners assigned.
+              </p>
+            ) : (
+              <ul data-testid="room-owners-list" className="flex flex-col divide-y divide-border">
+                {owners.map((owner) => (
+                  <li
+                    key={owner.ownershipId}
+                    className="flex min-w-0 items-center gap-3 py-3 first:pt-0 last:pb-0"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary text-small font-semibold"
+                    >
+                      {(profiles.get(owner.userId) ?? 'A').slice(0, 2).toUpperCase()}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="break-words text-body font-medium">
+                        {profiles.get(owner.userId)}
+                      </p>
+                      <p className="text-caption text-muted-foreground">
+                        Since {formatDate(owner.startAt)}
+                      </p>
+                    </div>
+                    <Badge variant="neutral">Owner</Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {actor.isSystemAdmin && owners.length > 0 ? (
+              <details className="mt-5 border-t border-border pt-4">
+                <summary className="cursor-pointer text-small font-medium text-link">
+                  More ownership actions
+                </summary>
+                <div className="mt-4">
+                  <OwnershipManageForm
+                    roomId={room.id}
+                    owners={owners.map((owner) => ({
+                      ownershipId: owner.ownershipId,
+                      userId: owner.userId,
+                      name: profiles.get(owner.userId) ?? 'Account unavailable',
+                    }))}
+                  />
+                </div>
+              </details>
+            ) : null}
+          </SectionCard>
+          <SectionCard
+            title={`People in this room (${memberships.length})`}
+            description={
+              currentTenancy
+                ? 'Current residents. Tenant access is managed in Rental management.'
+                : 'Household members with current access to this room.'
+            }
+            action={
+              canAddHousehold ? (
+                <FormDialog
+                  triggerLabel="Add member"
+                  title="Add member"
+                  description="Give an existing account access to this room."
+                  triggerTestId="room-member-add-open"
+                  testId="room-member-add-dialog"
+                  variant="secondary"
+                >
+                  <RoomMemberAddForm
+                    roomId={room.id}
+                    activeTenancies={activeTenancies.map((tenancy) => ({
+                      id: tenancy.id,
+                      managementMode: tenancy.managementMode,
+                    }))}
+                  />
+                </FormDialog>
+              ) : null
+            }
+          >
+            {memberships.length === 0 ? (
+              <p data-testid="room-memberships-empty" className="text-body text-muted-foreground">
+                No active members.
+              </p>
+            ) : (
+              <ul
+                data-testid="room-memberships-list"
+                className="flex flex-col divide-y divide-border"
+              >
+                {memberships.map((membership) => (
+                  <li
+                    key={membership.id}
+                    className="flex min-w-0 flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary text-small font-semibold"
+                    >
+                      {(profiles.get(membership.userId) ?? 'A').slice(0, 2).toUpperCase()}
+                    </span>
+                    <div className="min-w-0 flex-1 basis-28">
+                      <p className="break-words text-body font-medium">
+                        {profiles.get(membership.userId)}
+                      </p>
+                      <p className="text-caption text-muted-foreground">
+                        {membership.tenancyId
+                          ? membership.memberRole === 'MAIN'
+                            ? 'Main tenant'
+                            : 'Tenant'
+                          : membership.memberRole === 'MAIN'
+                            ? 'Main member'
+                            : 'Member'}
+                      </p>
+                    </div>
+                    {canManageMembers && !membership.tenancyId ? (
                       <EndMembershipButton roomId={room.id} membershipId={membership.id} />
                     ) : null}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </SectionCard>
         </div>
-        <div className="flex flex-col gap-2">
-          <h3 className="text-heading font-semibold text-foreground">Tenancies ({tenancies.length})</h3>
-          {tenancies.length === 0 ? (
-            <p data-testid="room-tenancies-empty" className="text-body leading-6 text-muted-foreground">
-              No tenancies recorded.
-            </p>
-          ) : (
-            <ul
-              data-testid="room-tenancies-list"
-              className="overflow-hidden rounded-lg border border-border bg-surface"
-            >
-              {tenancies.map((tenancy, index) => (
-                <li
-                  key={tenancy.id}
-                  className={
-                    index === tenancies.length - 1
-                      ? 'flex items-center justify-between gap-3 px-4 py-3 text-body'
-                      : 'flex items-center justify-between gap-3 border-b border-border px-4 py-3 text-body'
-                  }
-                >
-                  <span className="min-w-0 truncate text-foreground">{tenancyModeLabel(tenancy.managementMode)}</span>
-                  <span className="flex shrink-0 items-center gap-2">
-                    <Badge variant={tenancy.state === 'ACTIVE' ? 'success' : 'neutral'}>
-                      {tenancy.state}
-                    </Badge>
-                    {tenancy.state === 'ACTIVE' &&
-                    (actor.isSystemAdmin ||
-                      (isRoomOwner && tenancy.managementMode === 'PRIVATE_OWNER_MANAGED')) ? (
-                      <TenancyEndButton roomId={room.id} tenancyId={tenancy.id} />
-                    ) : null}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
-      {canManageMembers || canManageTenancies ? (
-        <section aria-label="Manage this room" className="flex flex-col gap-6">
-          <h2 className="text-title font-semibold tracking-tight text-foreground">Manage this room</h2>
-          {canManageMembers ? (
-            <div className="flex flex-col gap-2">
-              <h3 className="text-heading font-semibold text-foreground">Add member</h3>
-              <RoomMemberAddForm
-                roomId={room.id}
-                activeTenancies={activeTenancies.map((tenancy) => ({
-                  id: tenancy.id,
-                  managementMode: tenancy.managementMode,
-                }))}
-              />
+        <SectionCard title="Room details">
+          <dl className="flex flex-col gap-5 text-body">
+            <div>
+              <dt className="text-caption text-muted-foreground">Building</dt>
+              <dd className="mt-1 break-words font-medium">{label?.buildingName ?? 'Building'}</dd>
             </div>
-          ) : null}
-          {canManageTenancies ? (
-            <div className="flex flex-col gap-2">
-              <h3 className="text-heading font-semibold text-foreground">New tenancy</h3>
-              <TenancyCreateForm roomId={room.id} allowProjectManaged={actor.isSystemAdmin} />
+            <div>
+              <dt className="text-caption text-muted-foreground">Floor</dt>
+              <dd className="mt-1 font-medium">{label?.floorLabel ?? 'Floor'}</dd>
             </div>
-          ) : null}
-        </section>
-      ) : null}
+            <div>
+              <dt className="text-caption text-muted-foreground">Area</dt>
+              <dd className="mt-1 font-medium">{room.areaSqm} sqm</dd>
+            </div>
+            <div>
+              <dt className="mb-2 text-caption text-muted-foreground">Status</dt>
+              <dd>
+                <Badge variant={room.status === 'ACTIVE' ? 'success' : 'neutral'}>
+                  {room.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+                </Badge>
+              </dd>
+            </div>
+          </dl>
+          <Link
+            data-testid="room-detail-facilities-link"
+            href="/facilities"
+            className="mt-6 inline-flex text-small font-medium text-link hover:underline"
+          >
+            Browse facilities
+          </Link>
+        </SectionCard>
+      </div>
     </main>
   );
 }

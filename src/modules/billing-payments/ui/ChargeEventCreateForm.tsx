@@ -1,5 +1,7 @@
 'use client';
+import { FormActions } from '@/shared/ui/FormActions';
 
+import { useFormDialog } from '@/shared/ui/FormDialog';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -45,56 +47,67 @@ export function ChargeEventCreateForm() {
     if (first !== undefined) setFocus(first);
   };
 
-  const onSubmit = handleSubmit(
-    async (values) => {
-      setServerError(null);
-      setConflict(false);
-      const amount = values.configuredAmount?.trim() ?? '';
-      const note = values.contextNote?.trim() ?? '';
-      const response = await fetch('/api/admin/billing/common-fee-events', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          eventEffectiveDate: values.eventEffectiveDate,
-          status: 'OPEN',
-          ...(amount === ''
-            ? {}
-            : { configuredAmount: { amount, currency: 'THB' } }),
-          ...(note === '' ? {} : { chargeContext: { note } }),
-        }),
-      });
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as ErrorPayload | null;
-        if (response.status === 401 || response.status === 403) {
-          setServerError('Your session cannot create billing events. Sign in as a system admin.');
-          return;
-        }
-        if (response.status === 409) setConflict(true);
-        setServerError(payload?.error?.message ?? 'Could not create the billing event.');
+  const dialog = useFormDialog(isSubmitting);
+
+  const onSubmit = handleSubmit(async (values) => {
+    setServerError(null);
+    setConflict(false);
+    const amount = values.configuredAmount?.trim() ?? '';
+    const note = values.contextNote?.trim() ?? '';
+    const response = await fetch('/api/admin/billing/common-fee-events', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        eventEffectiveDate: values.eventEffectiveDate,
+        status: 'OPEN',
+        ...(amount === '' ? {} : { configuredAmount: { amount, currency: 'THB' } }),
+        ...(note === '' ? {} : { chargeContext: { note } }),
+      }),
+    });
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as ErrorPayload | null;
+      if (response.status === 401 || response.status === 403) {
+        setServerError('Your session cannot create billing events. Sign in as a system admin.');
         return;
       }
-      const payload = (await response.json().catch(() => null)) as CreatedPayload | null;
-      const createdId = payload?.data?.id;
-      if (typeof createdId !== 'string' || createdId === '') {
-        setServerError('The event was created but the response was empty. Reload the list.');
-        return;
-      }
-      toast.success('Billing event created.');
-      router.push(`/admin/billing/events/${createdId}`);
-      router.refresh();
-    },
-    onInvalid,
-  );
+      if (response.status === 409) setConflict(true);
+      setServerError(payload?.error?.message ?? 'Could not create the billing event.');
+      return;
+    }
+    const payload = (await response.json().catch(() => null)) as CreatedPayload | null;
+    const createdId = payload?.data?.id;
+    if (typeof createdId !== 'string' || createdId === '') {
+      setServerError('The event was created but the response was empty. Reload the list.');
+      return;
+    }
+    toast.success('Billing event created.');
+    dialog?.complete();
+    router.push(`/admin/billing/events/${createdId}`);
+    router.refresh();
+  }, onInvalid);
 
   return (
-    <form data-testid="charge-event-create-form" onSubmit={onSubmit} noValidate className="flex min-w-0 flex-col gap-4">
+    <form
+      data-testid="charge-event-create-form"
+      onSubmit={onSubmit}
+      noValidate
+      className="flex min-w-0 flex-col gap-4"
+    >
       {serverError !== null ? (
-        <p data-testid="charge-event-create-error" role="alert" className="text-body leading-body font-medium text-danger-foreground">
+        <p
+          data-testid="charge-event-create-error"
+          role="alert"
+          className="text-body leading-body font-medium text-danger-foreground"
+        >
           {serverError}
         </p>
       ) : null}
       {conflict ? (
-        <p data-testid="charge-event-create-conflict" role="alert" className="text-body leading-body font-medium text-danger-foreground">
+        <p
+          data-testid="charge-event-create-conflict"
+          role="alert"
+          className="text-body leading-body font-medium text-danger-foreground"
+        >
           The event conflicts with an existing record.
         </p>
       ) : null}
@@ -140,19 +153,15 @@ export function ChargeEventCreateForm() {
           {...register('contextNote')}
         />
       </FormField>
-      <div className="flex flex-wrap gap-2">
+      <FormActions
+        onCancel={() => (dialog ? dialog.requestClose() : router.push('/admin/billing/events'))}
+        pending={isSubmitting}
+        cancelTestId="charge-event-create-cancel"
+      >
         <Button data-testid="charge-event-create-submit" type="submit" loading={isSubmitting}>
           Create event
         </Button>
-        <Button
-          data-testid="charge-event-create-cancel"
-          type="button"
-          variant="secondary"
-          onClick={() => router.push('/admin/billing/events')}
-        >
-          Cancel
-        </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

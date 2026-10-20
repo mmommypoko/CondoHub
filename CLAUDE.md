@@ -85,11 +85,3 @@ spec says so). Signed URLs only for private objects; never public buckets.
 
 Concise English messages, no co-author trailer, no task/phase numbers. Never stage `.env.local`,
 `.agent/`, or `docs/superpowers/` (local-only). Never `git add -f` those paths. No amend/push unless asked.
-
-## Pointer index (read on demand, don't paste)
-
-- `docs/superpowers/CondoHub-Master-Specification-Audited.md`: the spec (source of truth).
-- `.agent/notes/contracts-freeze*.md`: frozen API/schema/socket contracts (FROZEN — ADR to change).
-- `.agent/notes/p6-redesign-plan.md`: current frontend redesign plan (§4 = E2E contracts).
-- `.agent/DECISIONS.md`: ADRs (binding); `.agent/STATUS.md` + `.agent/MASTER_CHECKLIST.md`: live state.
-- `.agent/reviews/`: prior review findings; `.agent/notes/*-handoff.md`: slice handoffs.

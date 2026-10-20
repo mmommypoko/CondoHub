@@ -31,7 +31,10 @@ function actorPassword(runId: string): string {
 
 async function writePhotoFixture(prefix: string): Promise<string> {
   const fixture = await buildValidImage('png', 32);
-  const filePath = path.join(os.tmpdir(), `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1e6)}.png`);
+  const filePath = path.join(
+    os.tmpdir(),
+    `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1e6)}.png`,
+  );
   await fs.writeFile(filePath, fixture.bytes);
   return filePath;
 }
@@ -148,36 +151,51 @@ test.describe('maintenance screens: create, comment, transition, terminal, admin
     expect(eligiblePm).toContain(room306);
 
     const ns = runId.replace(/[^a-z0-9]/gi, '').toLowerCase();
-    const privateSeed = await postTicket(reporter.page.request, {
-      routingKind: 'PRIVATE_OWNER',
-      roomId: room305,
-      locationDescription: `Screens seed kitchen ${ns}`,
-      subject: `Screens seed leak ${ns}`,
-      description: `Seeded private ticket for screens spec run ${runId}.`,
-    }, randomUUID());
+    const privateSeed = await postTicket(
+      reporter.page.request,
+      {
+        routingKind: 'PRIVATE_OWNER',
+        roomId: room305,
+        locationDescription: `Screens seed kitchen ${ns}`,
+        subject: `Screens seed leak ${ns}`,
+        description: `Seeded private ticket for screens spec run ${runId}.`,
+      },
+      randomUUID(),
+    );
     expect(privateSeed.status).toBe(200);
     ctx.privateTicketId = (privateSeed.json as TicketCreateEnvelope).data.id;
 
-    const pmSeed = await postTicket(reporter.page.request, {
-      routingKind: 'PROJECT_MANAGED_PRIVATE',
-      roomId: room306,
-      locationDescription: `Screens seed bedroom ${ns}`,
-      subject: `Screens seed outlet ${ns}`,
-      description: `Seeded managed ticket for screens spec run ${runId}.`,
-    }, randomUUID());
+    const pmSeed = await postTicket(
+      reporter.page.request,
+      {
+        routingKind: 'PROJECT_MANAGED_PRIVATE',
+        roomId: room306,
+        locationDescription: `Screens seed bedroom ${ns}`,
+        subject: `Screens seed outlet ${ns}`,
+        description: `Seeded managed ticket for screens spec run ${runId}.`,
+      },
+      randomUUID(),
+    );
     expect(pmSeed.status).toBe(200);
     ctx.pmTicketId = (pmSeed.json as TicketCreateEnvelope).data.id;
 
-    const terminalSeed = await postTicket(reporter.page.request, {
-      routingKind: 'COMMON_AREA',
-      locationDescription: `Screens seed lobby ${ns}`,
-      subject: `Screens seed bulb ${ns}`,
-      description: `Seeded terminal ticket for screens spec run ${runId}.`,
-    }, randomUUID());
+    const terminalSeed = await postTicket(
+      reporter.page.request,
+      {
+        routingKind: 'COMMON_AREA',
+        locationDescription: `Screens seed lobby ${ns}`,
+        subject: `Screens seed bulb ${ns}`,
+        description: `Seeded terminal ticket for screens spec run ${runId}.`,
+      },
+      randomUUID(),
+    );
     expect(terminalSeed.status).toBe(200);
     const terminalId = (terminalSeed.json as TicketCreateEnvelope).data.id;
     ctx.terminalTicketId = terminalId;
-    const closed = await patchTicket(page.request, terminalId, { status: 'COMPLETED', expectedVersion: 1 });
+    const closed = await patchTicket(page.request, terminalId, {
+      status: 'COMPLETED',
+      expectedVersion: 1,
+    });
     expect(closed.status).toBe(200);
     expect((closed.json as TicketDetailEnvelope).data.status).toBe('COMPLETED');
 
@@ -194,10 +212,12 @@ test.describe('maintenance screens: create, comment, transition, terminal, admin
     await expect(reporter.getByTestId('maintenance-create-room')).toHaveCount(0);
     await reporter.getByTestId('maintenance-create-location').fill(`Lobby near lift ui ${ns}`);
     await reporter.getByTestId('maintenance-create-subject').fill(subject);
-    await reporter.getByTestId('maintenance-create-description').fill(
-      `Water pools near the lift after rain. Run ${runId}.`,
-    );
-    await reporter.getByTestId('maintenance-create-upload-input').setInputFiles(ctx.photoPath ?? '');
+    await reporter
+      .getByTestId('maintenance-create-description')
+      .fill(`Water pools near the lift after rain. Run ${runId}.`);
+    await reporter
+      .getByTestId('maintenance-create-upload-input')
+      .setInputFiles(ctx.photoPath ?? '');
     await expect(reporter.getByTestId('maintenance-create-image-list')).toBeVisible();
     await reporter.getByTestId('maintenance-create-submit').click();
     await expect(reporter.getByTestId('maintenance-detail-page')).toBeVisible({ timeout: 15000 });
@@ -225,14 +245,16 @@ test.describe('maintenance screens: create, comment, transition, terminal, admin
     await reporter.getByTestId('maintenance-create-room').selectOption(ctx.room305 ?? '');
     await reporter.getByTestId('maintenance-create-location').fill(`Kitchen sink ui ${ns}`);
     await reporter.getByTestId('maintenance-create-subject').fill(subject);
-    await reporter.getByTestId('maintenance-create-description').fill(
-      `The kitchen tap drips all night. Run ${runId}.`,
-    );
+    await reporter
+      .getByTestId('maintenance-create-description')
+      .fill(`The kitchen tap drips all night. Run ${runId}.`);
     await reporter.getByTestId('maintenance-create-submit').click();
     await expect(reporter.getByTestId('maintenance-detail-page')).toBeVisible({ timeout: 15000 });
     await expect(reporter.getByTestId('maintenance-detail-title')).toHaveText(subject);
     await expect(reporter.getByTestId('maintenance-detail-kind')).toHaveCount(0);
-    const createdId = ((await reporter.getByTestId('maintenance-detail-id').textContent()) ?? '').trim();
+    const createdId = (
+      (await reporter.getByTestId('maintenance-detail-id').textContent()) ?? ''
+    ).trim();
     expect(createdId).not.toBe('');
     const detail = await getTicket(reporter.request, createdId);
     expect(detail.roomId).toBe(ctx.room305 ?? '');
@@ -246,14 +268,21 @@ test.describe('maintenance screens: create, comment, transition, terminal, admin
     const ticketId = ctx.privateTicketId ?? '';
     const { runId } = await readRunContext();
     const firstBody = `Owner first note screens ${runId}`;
-    const seeded = await postTicketComment(owner.request, ticketId, { body: firstBody }, randomUUID());
+    const seeded = await postTicketComment(
+      owner.request,
+      ticketId,
+      { body: firstBody },
+      randomUUID(),
+    );
     expect(seeded.status).toBe(200);
     await owner.goto(`/maintenance/${ticketId}`);
     await expect(owner.getByTestId('maintenance-detail-page')).toBeVisible();
     await expect(owner.getByTestId('maintenance-detail-comments')).toContainText(firstBody);
     const secondBody = `Owner live note with photo ${runId}`;
     await owner.getByTestId('maintenance-detail-comment-body').fill(secondBody);
-    await owner.getByTestId('maintenance-detail-comment-upload-input').setInputFiles(ctx.photoPath ?? '');
+    await owner
+      .getByTestId('maintenance-detail-comment-upload-input')
+      .setInputFiles(ctx.photoPath ?? '');
     await expect(owner.getByTestId('maintenance-detail-comment-image-list')).toBeVisible();
     await owner.getByTestId('maintenance-detail-comment-submit').click();
     await expect(owner.getByTestId('maintenance-detail-comments')).toContainText(secondBody);
@@ -262,16 +291,23 @@ test.describe('maintenance screens: create, comment, transition, terminal, admin
     expect(detail.comments[1]?.images).toHaveLength(1);
   });
 
-  test('ui: admin moves a common request live and the history shows the change', async ({ page }) => {
+  test('ui: admin moves a common request live and the history shows the change', async ({
+    page,
+  }) => {
     await loginAsAdmin(page);
     const ticketId = ctx.commonTicketId ?? '';
     await page.goto(`/admin/maintenance/${ticketId}`);
     await expect(page.getByTestId('admin-maintenance-detail-page')).toBeVisible();
     await expect(page.getByTestId('admin-maintenance-detail-status')).toHaveText('Pending');
-    await page.getByTestId('admin-maintenance-detail-transition-status').selectOption('IN_PROGRESS');
+    await page.getByTestId('admin-maintenance-detail-transition-open').click();
+    await page
+      .getByTestId('admin-maintenance-detail-transition-status')
+      .selectOption('IN_PROGRESS');
     await page.getByTestId('admin-maintenance-detail-transition-submit').click();
     await expect(page.getByTestId('admin-maintenance-detail-status')).toHaveText('In progress');
-    await expect(page.getByTestId('admin-maintenance-detail-history')).toContainText('Pending to In progress');
+    await expect(page.getByTestId('admin-maintenance-detail-history')).toContainText(
+      'Pending to In progress',
+    );
     const detail = await getTicket(page.request, ticketId);
     expect(detail.status).toBe('IN_PROGRESS');
     expect(detail.version).toBe(2);
@@ -280,7 +316,9 @@ test.describe('maintenance screens: create, comment, transition, terminal, admin
     await expect(reporter.getByTestId('maintenance-detail-status')).toHaveText('In progress');
   });
 
-  test('ui: validation alerts mark invalid fields, focus first, keyboard submit works', async ({ page }) => {
+  test('ui: validation alerts mark invalid fields, focus first, keyboard submit works', async ({
+    page,
+  }) => {
     const reporter = ctx.reporter?.page ?? page;
     await reporter.goto('/maintenance/new');
     await expect(reporter.getByTestId('maintenance-new-page')).toBeVisible();
@@ -288,23 +326,33 @@ test.describe('maintenance screens: create, comment, transition, terminal, admin
     await expect(reporter.getByTestId('maintenance-create-room')).toBeVisible();
     await reporter.getByTestId('maintenance-create-submit').click();
     await expect(reporter.getByTestId('maintenance-create-room-error')).toBeVisible();
-    await expect(reporter.getByTestId('maintenance-create-room')).toHaveAttribute('aria-invalid', 'true');
+    await expect(reporter.getByTestId('maintenance-create-room')).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
     await expect(reporter.getByTestId('maintenance-create-room')).toBeFocused();
     await expect(reporter.getByTestId('maintenance-create-location-error')).toBeVisible();
-    await expect(reporter.getByTestId('maintenance-create-location')).toHaveAttribute('aria-invalid', 'true');
+    await expect(reporter.getByTestId('maintenance-create-location')).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
     const { runId } = await readRunContext();
     const ns = runId.replace(/[^a-z0-9]/gi, '').toLowerCase();
     await reporter.getByTestId('maintenance-create-room').selectOption(ctx.room305 ?? '');
     await reporter.getByTestId('maintenance-create-location').fill(`Validation hall ui ${ns}`);
     await reporter.getByTestId('maintenance-create-subject').fill(`Validation subject ui ${ns}`);
-    await reporter.getByTestId('maintenance-create-description').fill(`Keyboard submit check run ${runId}.`);
+    await reporter
+      .getByTestId('maintenance-create-description')
+      .fill(`Keyboard submit check run ${runId}.`);
     await reporter.getByTestId('maintenance-create-submit').focus();
     await reporter.keyboard.press('Enter');
     await expect(reporter.getByTestId('maintenance-detail-page')).toBeVisible({ timeout: 15000 });
     await expect(reporter.getByTestId('maintenance-detail-kind')).toHaveCount(0);
   });
 
-  test('ui: terminal request renders read-only with no comment or transition forms', async ({ page }) => {
+  test('ui: terminal request renders read-only with no comment or transition forms', async ({
+    page,
+  }) => {
     const reporter = ctx.reporter?.page ?? page;
     const ticketId = ctx.terminalTicketId ?? '';
     await reporter.goto(`/maintenance/${ticketId}`);
@@ -314,7 +362,10 @@ test.describe('maintenance screens: create, comment, transition, terminal, admin
     await expect(reporter.getByTestId('maintenance-detail-comment-form')).toHaveCount(0);
     await expect(reporter.getByTestId('maintenance-detail-transition-form')).toHaveCount(0);
     await reporter.goto('/maintenance');
-    await expect(reporter.getByTestId('maintenance-history-list')).toContainText('Screens seed bulb');
+    await reporter.getByTestId('maintenance-view-history').click();
+    await expect(reporter.getByTestId('maintenance-history-list')).toContainText(
+      'Screens seed bulb',
+    );
     await loginAsAdmin(page);
     await page.goto(`/admin/maintenance/${ticketId}`);
     await expect(page.getByTestId('admin-maintenance-detail-terminal-note')).toBeVisible();
@@ -322,7 +373,9 @@ test.describe('maintenance screens: create, comment, transition, terminal, admin
     await expect(page.getByTestId('admin-maintenance-detail-transition-form')).toHaveCount(0);
   });
 
-  test('ui: admin inbox excludes owner-room rows and splits open from history', async ({ page }) => {
+  test('ui: admin inbox excludes owner-room rows and splits open from history', async ({
+    page,
+  }) => {
     await loginAsAdmin(page);
     await page.goto('/admin/maintenance');
     await expect(page.getByTestId('admin-maintenance-page')).toBeVisible();
@@ -332,31 +385,50 @@ test.describe('maintenance screens: create, comment, transition, terminal, admin
     }
     const privateRow = page.getByTestId(`admin-maintenance-row-${ctx.privateTicketId ?? ''}`);
     await expect(privateRow).toHaveCount(0);
-    await expect(page.getByTestId(`admin-maintenance-row-${ctx.commonTicketId ?? ''}`)).toBeVisible();
+    await expect(
+      page.getByTestId(`admin-maintenance-row-${ctx.commonTicketId ?? ''}`),
+    ).toBeVisible();
     await expect(page.getByTestId(`admin-maintenance-row-${ctx.pmTicketId ?? ''}`)).toBeVisible();
-    await expect(page.getByTestId(`admin-maintenance-row-${ctx.terminalTicketId ?? ''}`)).toBeVisible();
+    await expect(
+      page.getByTestId(`admin-maintenance-row-${ctx.terminalTicketId ?? ''}`),
+    ).toHaveCount(0);
+    await page.getByTestId('admin-maintenance-view-history').click();
+    await expect(
+      page.getByTestId(`admin-maintenance-row-${ctx.terminalTicketId ?? ''}`),
+    ).toBeVisible();
+    await page.getByTestId('admin-maintenance-view-open').click();
     const kinds = await page.getByTestId('admin-maintenance-open-list').textContent();
     expect(kinds ?? '').not.toContain('Owner room');
     const reporter = ctx.reporter?.page ?? page;
     await reporter.goto('/maintenance');
     await expect(reporter.getByTestId('maintenance-open-list')).toBeVisible();
-    await expect(reporter.getByTestId(`maintenance-link-${ctx.privateTicketId ?? ''}`)).toBeVisible();
+    await expect(
+      reporter.getByTestId(`maintenance-link-${ctx.privateTicketId ?? ''}`),
+    ).toBeVisible();
   });
 
-  test('ui: reporter cancels a waiting request and the server deny copy stays generic', async ({ page }) => {
+  test('ui: reporter cancels a waiting request and the server deny copy stays generic', async ({
+    page,
+  }) => {
     await loginAsAdmin(page);
     const ticketId = ctx.pmTicketId ?? '';
     const detail = await getTicket(page.request, ticketId);
-    const waiting = await patchTicket(page.request, ticketId, { status: 'WAITING_FOR_INFO', expectedVersion: detail.version });
+    const waiting = await patchTicket(page.request, ticketId, {
+      status: 'WAITING_FOR_INFO',
+      expectedVersion: detail.version,
+    });
     expect(waiting.status).toBe(200);
     const reporter = ctx.reporter?.page ?? page;
     await reporter.goto(`/maintenance/${ticketId}`);
     await expect(reporter.getByTestId('maintenance-detail-page')).toBeVisible();
     await expect(reporter.getByTestId('maintenance-detail-status')).toHaveText('Waiting for info');
+    await reporter.getByTestId('maintenance-detail-transition-open').click();
     await reporter.getByTestId('maintenance-detail-transition-submit').click();
     await expect(reporter.getByTestId('maintenance-detail-status')).toHaveText('Cancelled');
     const unknownId = '00000000-0000-4000-8000-000000000000';
     await reporter.goto(`/maintenance/${unknownId}`);
-    await expect(reporter.getByTestId('maintenance-detail-missing')).toContainText('does not exist or you do not have access');
+    await expect(reporter.getByTestId('maintenance-detail-missing')).toContainText(
+      'does not exist or you do not have access',
+    );
   });
 });

@@ -15,7 +15,9 @@ export {
   isOwnerAt,
   listMembershipWindowsByUser,
   membershipOverlapsServiceWindow,
+  getRoomLabels,
   resolveActorRooms,
+  listActorRoomPage,
   roomResidencyScope,
   tenantOverlapScope,
 } from './queries';
@@ -32,6 +34,7 @@ export type {
 } from './queries';
 export {
   createBuilding,
+  updateBuildingDetails,
   createFloor,
   createRoom,
   deleteFloor,
@@ -39,6 +42,7 @@ export {
   disableRoom,
   enableBuilding,
   listAllBuildings,
+  listBuildingPage,
   listBuildingStructures,
   previewRoomImpact,
   updateFloor,
@@ -54,7 +58,12 @@ export {
   removeOwnership,
   transferOwnership,
 } from './ownershipAdmin';
-export type { AssignOwnerInput, AssignOwnerResult, TransferOwnershipInput, TransferOwnershipResult } from './ownershipAdmin';
+export type {
+  AssignOwnerInput,
+  AssignOwnerResult,
+  TransferOwnershipInput,
+  TransferOwnershipResult,
+} from './ownershipAdmin';
 export {
   createTenancy,
   endTenancyAt,
@@ -67,6 +76,7 @@ export {
   attachProvisionedMembership,
   endMembershipAt,
   listRoomMemberships,
+  listCurrentRoomMemberships,
 } from './memberships';
 export type { AddMembershipInput } from './memberships';
 export {

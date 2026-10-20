@@ -50,7 +50,10 @@ async function provisionActor(
   stem: string,
 ): Promise<ActorSession> {
   const username = actorUsername(runId, workerIndex, stem);
-  const provisioned = await provisionUser(adminPage, { username, name: `Chat Screens ${stem} ${runId}` });
+  const provisioned = await provisionUser(adminPage, {
+    username,
+    name: `Chat Screens ${stem} ${runId}`,
+  });
   const password = actorPassword(runId);
   const context = await browser.newContext({ baseURL });
   const userPage = await context.newPage();
@@ -62,7 +65,12 @@ async function provisionActor(
   return { userId: provisioned.userId, username, page: userPage, close: () => context.close() };
 }
 
-async function joinRoom(adminPage: Page, roomId: string, userId: string, memberRole: string): Promise<void> {
+async function joinRoom(
+  adminPage: Page,
+  roomId: string,
+  userId: string,
+  memberRole: string,
+): Promise<void> {
   const detail = await apiJson<{
     data: { tenancies: Array<{ id: string; state: string }> };
   }>(adminPage.request, { method: 'GET', path: `/api/rooms/${roomId}` });
@@ -77,7 +85,11 @@ async function joinRoom(adminPage: Page, roomId: string, userId: string, memberR
   expect(joined.status).toBe(200);
 }
 
-async function endMembership(adminRequest: ActorSession['page']['request'], roomId: string, userId: string): Promise<void> {
+async function endMembership(
+  adminRequest: ActorSession['page']['request'],
+  roomId: string,
+  userId: string,
+): Promise<void> {
   const detail = await apiJson<{
     data: { memberships: Array<{ id: string; userId: string; endAt: string | null }> };
   }>(adminRequest, { method: 'GET', path: `/api/rooms/${roomId}` });
@@ -96,12 +108,18 @@ async function endMembership(adminRequest: ActorSession['page']['request'], room
 
 async function writePhotoFixture(prefix: string): Promise<string> {
   const fixture = await buildValidImage('png', 32);
-  const filePath = path.join(os.tmpdir(), `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1e6)}.png`);
+  const filePath = path.join(
+    os.tmpdir(),
+    `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1e6)}.png`,
+  );
   await fs.writeFile(filePath, fixture.bytes);
   return filePath;
 }
 
-async function messageIds(request: ActorSession['page']['request'], roomId: string): Promise<string[]> {
+async function messageIds(
+  request: ActorSession['page']['request'],
+  roomId: string,
+): Promise<string[]> {
   const listed = await listMessages(request, roomId, '?limit=50');
   expect(listed.status).toBe(200);
   return asChatList(listed.json).data.map((entry) => entry.id);
@@ -122,9 +140,30 @@ test.describe('chat screens: composer, backfill, pill, retry, revoke, denies', (
     ctx.room301 = await findChatRoom(page, `E2E-${runId}-301`);
     ctx.room302 = await findChatRoom(page, `E2E-${runId}-302`);
     ctx.room303 = await findChatRoom(page, `E2E-${runId}-303`);
-    const residentA = await provisionActor(page, browser, baseURL, runId, testInfo.workerIndex, 'chtscra');
-    const residentB = await provisionActor(page, browser, baseURL, runId, testInfo.workerIndex, 'chtscrb');
-    const outsider = await provisionActor(page, browser, baseURL, runId, testInfo.workerIndex, 'chtscro');
+    const residentA = await provisionActor(
+      page,
+      browser,
+      baseURL,
+      runId,
+      testInfo.workerIndex,
+      'chtscra',
+    );
+    const residentB = await provisionActor(
+      page,
+      browser,
+      baseURL,
+      runId,
+      testInfo.workerIndex,
+      'chtscrb',
+    );
+    const outsider = await provisionActor(
+      page,
+      browser,
+      baseURL,
+      runId,
+      testInfo.workerIndex,
+      'chtscro',
+    );
     ctx.residentA = residentA;
     ctx.residentB = residentB;
     ctx.outsider = outsider;
@@ -166,14 +205,67 @@ test.describe('chat screens: composer, backfill, pill, retry, revoke, denies', (
     await expect(bubble).toHaveText(body);
   });
 
-  test('send image via composer attaches one ready chat image and pins via api', async () => {
+  test('resident chat fits mobile screens and preserves multiline drafts', async () => {
+    const resident = ctx.residentA?.page;
+    if (resident === undefined) throw new Error('Resident A session is missing.');
+    for (const viewport of [
+      { width: 360, height: 640 },
+      { width: 768, height: 800 },
+      { width: 1366, height: 900 },
+    ]) {
+      await resident.setViewportSize(viewport);
+      await resident.goto(`/rooms/${ctx.room301}/chat`);
+      await expect(resident.getByTestId('chat-title')).toBeVisible();
+      const composer = await resident.getByTestId('chat-composer').boundingBox();
+      expect((composer?.y ?? 0) + (composer?.height ?? 0)).toBeLessThanOrEqual(
+        viewport.height - (viewport.width < 768 ? 64 : 0),
+      );
+      expect(
+        await resident.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      ).toBe(true);
+      expect(
+        await resident.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1),
+      ).toBe(true);
+      await resident.getByTestId('chat-composer-text').fill('First line');
+      await resident.getByTestId('chat-composer-text').press('Shift+Enter');
+      await resident.keyboard.type('Second line');
+      await expect(resident.getByTestId('chat-composer-text')).toHaveValue(
+        'First line\nSecond line',
+      );
+    }
+  });
+
+  test('send image via composer attaches one ready chat image and pins via api', async ({}, testInfo) => {
     const room301 = ctx.room301 ?? '';
     const residentA = ctx.residentA?.page;
     if (residentA === undefined) throw new Error('Resident A session is missing.');
     await residentA.goto(`/rooms/${room301}/chat`);
     await expect(residentA.getByTestId('chat-page')).toBeVisible();
+    let releaseUpload: () => void = () => {};
+    const uploadGate = new Promise<void>((resolve) => {
+      releaseUpload = resolve;
+    });
+    await residentA.route('**/api/images/intents', async (route) => {
+      await uploadGate;
+      await route.continue();
+    });
+    await residentA.getByTestId('chat-composer-text').fill('');
     await residentA.getByTestId('chat-composer-upload-input').setInputFiles(ctx.photoPath ?? '');
+    try {
+      await expect(residentA.getByTestId('chat-composer-upload-progress')).toBeVisible();
+      await residentA.getByTestId('chat-composer-text').fill('Draft while uploading');
+      await residentA.getByTestId('chat-composer-text').press('Enter');
+      await expect(residentA.getByTestId('chat-composer-send')).toBeDisabled();
+      await expect(residentA.getByTestId('chat-composer-text')).toHaveValue(
+        'Draft while uploading',
+      );
+    } finally {
+      releaseUpload();
+    }
     await expect(residentA.getByTestId('chat-composer-attachment')).toBeVisible({ timeout: 30000 });
+    await expect(residentA.getByTestId('chat-composer-preview')).toBeVisible();
+    await residentA.getByTestId('chat-composer-text').fill('');
+    await residentA.unroute('**/api/images/intents');
     await residentA.getByTestId('chat-composer-send').click();
     let images: Array<{ id: string; type: string; imageId: string | null }> = [];
     for (let attempt = 0; attempt < 10; attempt += 1) {
@@ -195,6 +287,21 @@ test.describe('chat screens: composer, backfill, pill, retry, revoke, denies', (
     await expect(residentA.getByTestId(`chat-message-${newest.id}-image-preview`)).toBeVisible();
     await residentA.getByTestId(`chat-message-${newest.id}-image-preview-close`).click();
     await expect(residentA.getByTestId(`chat-message-${newest.id}-image-preview`)).toHaveCount(0);
+    for (const width of [360, 768, 1366]) {
+      await residentA.setViewportSize({ width, height: 900 });
+      const composer = await residentA.getByTestId('chat-composer').boundingBox();
+      expect((composer?.y ?? 0) + (composer?.height ?? 0)).toBeLessThanOrEqual(
+        900 - (width < 768 ? 64 : 0),
+      );
+      expect(
+        await residentA.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      ).toBe(true);
+      await residentA.screenshot({
+        path: testInfo.outputPath(`chat-conversation-${width}.png`),
+        fullPage: true,
+        animations: 'disabled',
+      });
+    }
   });
 
   test('before-scroll backfill loads older history without moving the scroll anchor', async () => {
@@ -228,7 +335,9 @@ test.describe('chat screens: composer, backfill, pill, retry, revoke, denies', (
     await expect
       .poll(
         async () => {
-          const top = await anchorAfter.evaluate((node) => node.getBoundingClientRect().top).catch(() => -1);
+          const top = await anchorAfter
+            .evaluate((node) => node.getBoundingClientRect().top)
+            .catch(() => -1);
           return Math.abs(top - anchorTopBefore);
         },
         { timeout: 10000 },
@@ -311,9 +420,7 @@ test.describe('chat screens: composer, backfill, pill, retry, revoke, denies', (
     }
   });
 
-  test('membership end in another context toasts and redirects to my rooms', async ({
-    page,
-  }) => {
+  test('membership end in another context toasts and redirects to my rooms', async ({ page }) => {
     await loginAsPoolAdmin(page, 'chatscreens');
     const room303 = ctx.room303 ?? '';
     const viewer = ctx.residentB?.page;
@@ -344,7 +451,10 @@ test.describe('chat screens: composer, backfill, pill, retry, revoke, denies', (
     await outsider.goto(`/rooms/${room301}/chat`);
     await expect(outsider.getByTestId('chat-page')).toBeVisible();
     await expect(outsider.getByTestId('chat-denied')).toContainText('Chat not available');
-    const ids = await messageIds(ctx.residentA?.page.request as ActorSession['page']['request'], room301);
+    const ids = await messageIds(
+      ctx.residentA?.page.request as ActorSession['page']['request'],
+      room301,
+    );
     expect(ids).toContain(ctx.textMessageId ?? '');
   });
 

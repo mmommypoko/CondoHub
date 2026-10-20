@@ -1,4 +1,5 @@
 'use client';
+import { Power, PowerOff } from 'lucide-react';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -50,6 +51,7 @@ export function BuildingStatusControl({
           size="sm"
           onClick={() => setConfirmOpen(true)}
         >
+          <PowerOff aria-hidden="true" className="size-4" />
           Deactivate building
         </Button>
       ) : (
@@ -59,11 +61,13 @@ export function BuildingStatusControl({
           size="sm"
           onClick={() => setConfirmOpen(true)}
         >
+          <Power aria-hidden="true" className="size-4" />
           Reactivate building
         </Button>
       )}
       <Dialog
         open={confirmOpen}
+        busy={busy}
         onClose={() => setConfirmOpen(false)}
         title={deactivating ? 'Deactivate this building?' : 'Reactivate this building?'}
         description={
@@ -75,7 +79,7 @@ export function BuildingStatusControl({
         testId="building-status-confirm"
         actions={
           <>
-            <Button variant="secondary" onClick={() => setConfirmOpen(false)}>
+            <Button variant="secondary" disabled={busy} onClick={() => setConfirmOpen(false)}>
               Cancel
             </Button>
             <Button

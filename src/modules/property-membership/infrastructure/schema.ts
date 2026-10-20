@@ -59,6 +59,7 @@ export const room = pgTable(
     floorId: uuid('floor_id').notNull(),
     buildingId: uuid('building_id').notNull(),
     roomCode: text('room_code').notNull(),
+    name: text('name').notNull().default(''),
     areaSqm: numeric('area_sqm').notNull(),
     status: roomStatus('status').notNull(),
   },

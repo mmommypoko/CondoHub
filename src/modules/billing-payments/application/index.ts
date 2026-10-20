@@ -4,16 +4,17 @@ export { createBillingCtx } from './ctx';
 export type { BillingCtx } from './ctx';
 export { createCommonFeeEvent, getCommonFeeEvent } from './commonFeeEvents';
 export type { ChargeEventDto, CreateChargeEventInput } from './commonFeeEvents';
-export {
-  generateInvoicesForCycle,
-  generateOneTimeEventInvoices,
-} from './generateInvoices';
+export { generateInvoicesForCycle, generateOneTimeEventInvoices } from './generateInvoices';
 export type { GenerateCycleCounts, GenerateInvoicesDeps, RoomCycleInput } from './generateInvoices';
 export { getInvoice, listInvoices } from './invoiceReads';
 export type { InvoiceDto, InvoicePage } from './invoiceReads';
 export { getAdminJobRun, listAdminJobRuns } from './jobRunReads';
 export type { JobRunDetail, JobRunListItem, JobRunPage } from './jobRunReads';
-export { latestDoneGenerateCycle, resolveGenerateWindow, runGenerateInvoices } from './runGenerateInvoices';
+export {
+  latestDoneGenerateCycle,
+  resolveGenerateWindow,
+  runGenerateInvoices,
+} from './runGenerateInvoices';
 export type { GenerateJobDeps, GenerateJobResult } from './runGenerateInvoices';
 export {
   commonFeeEventCreateBody,
@@ -63,7 +64,11 @@ export {
 } from './paymentScopeCallbacks';
 export { checkBillingCursorAtStartup } from './startupBillingCheck';
 export { seedBillingRule, seedChargeEvent, seedPayeeInstruction } from './seedBilling';
-export type { SeedBillingRuleInput, SeedChargeEventInput, SeedPayeeInstructionInput } from './seedBilling';
+export type {
+  SeedBillingRuleInput,
+  SeedChargeEventInput,
+  SeedPayeeInstructionInput,
+} from './seedBilling';
 export { resolveTurnoverReview } from './resolveTurnover';
 export type {
   ResolvePerInvoiceInput,
@@ -79,3 +84,23 @@ export {
 export type { TurnoverReviewDto, TurnoverReviewPage } from './turnoverReads';
 export { resolveTurnoverBody, turnoverReviewListQuery } from './turnoverRouteSchemas';
 export type { ResolveTurnoverBody, TurnoverReviewListQuery } from './turnoverRouteSchemas';
+
+export {
+  getProjectPaymentSettings,
+  saveProjectPaymentSettings,
+  getRoomPaymentSettings,
+  saveRoomPaymentSettings,
+  paymentSettingsBody,
+} from './paymentSettings';
+
+export {
+  getRentSettings,
+  saveRentSettings,
+  issueRoomRentInvoice,
+  rentSettingsBody,
+  rentInvoiceBody,
+} from './rentSettings';
+
+export { canManageRent } from '../domain/rentRulePolicy';
+
+export { getInvoiceUiPermissions } from './invoiceReads';

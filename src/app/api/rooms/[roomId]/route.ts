@@ -45,6 +45,7 @@ export const GET = withApi(
       floorId: room.floorId,
       buildingId: room.buildingId,
       roomCode: room.roomCode,
+      name: room.name,
       areaSqm: room.areaSqm,
       status: room.status,
       owners: owners.map((owner) => ({

@@ -4,12 +4,7 @@ import { addDaysProjectDate, projectToday } from '../../helpers/dates';
 import { readRunContext, workerNamespace } from '../../fixtures/run-context';
 import { loginAsAdmin } from '../../helpers/owner';
 import { provisionResidentWithRetry } from '../../helpers/resident';
-import {
-  bookSlots,
-  createFacility,
-  findRoom,
-  slotsFor,
-} from './bookingFlow';
+import { bookSlots, createFacility, findRoom, slotsFor } from './bookingFlow';
 
 const VIEWPORTS = [
   { width: 1366, height: 900 },
@@ -25,7 +20,9 @@ async function expectNoOverflow(page: Page): Promise<void> {
       const rect = el.getBoundingClientRect();
       if (rect.width > 0 && (rect.left < -1 || rect.right > vw + 1)) {
         const testid = el.getAttribute('data-testid');
-        bad.push(`${el.tagName}${testid === null ? '' : `#${testid}`}@${Math.round(rect.left)},${Math.round(rect.right)}/${vw}`);
+        bad.push(
+          `${el.tagName}${testid === null ? '' : `#${testid}`}@${Math.round(rect.left)},${Math.round(rect.right)}/${vw}`,
+        );
         if (bad.length >= 10) break;
       }
     }
@@ -70,7 +67,9 @@ test.describe('booking browser gate: six screens at 1366/768/360', () => {
       page.request,
       { method: 'GET', path: `/api/rooms/${room102}` },
     );
-    const activeTenancy = roomDetail.json.data.tenancies.find((tenancy) => tenancy.state === 'ACTIVE');
+    const activeTenancy = roomDetail.json.data.tenancies.find(
+      (tenancy) => tenancy.state === 'ACTIVE',
+    );
     expect(activeTenancy).toBeDefined();
     const added = await apiJson<unknown>(page.request, {
       method: 'POST',
@@ -109,10 +108,13 @@ test.describe('booking browser gate: six screens at 1366/768/360', () => {
     expect(facilitiesListed.status).toBe(200);
     expect(facilitiesListed.json.data.some((row) => row.id === facility.id)).toBe(true);
 
-    const roomBookingsListed = await apiJson<{ data: { bookings: Array<{ id: string }> } }>(ui.request, {
-      method: 'GET',
-      path: `/api/bookings?roomId=${room102}`,
-    });
+    const roomBookingsListed = await apiJson<{ data: { bookings: Array<{ id: string }> } }>(
+      ui.request,
+      {
+        method: 'GET',
+        path: `/api/bookings?roomId=${room102}`,
+      },
+    );
     expect(roomBookingsListed.status).toBe(200);
     expect(roomBookingsListed.json.data.bookings.length).toBeGreaterThanOrEqual(2);
 
@@ -150,7 +152,6 @@ test.describe('booking browser gate: six screens at 1366/768/360', () => {
 
     await page.goto('/admin/facilities/new');
     await expect(page.getByTestId('admin-facility-new-page')).toBeVisible();
-    await page.getByTestId('facility-create-code').fill(`E2E-${ns}-UIGATE`);
     await page.getByTestId('facility-create-name').fill(`E2E ${ns} UI Gate Arena`);
     await page.getByTestId('facility-create-quota-limit').fill('5');
     await page.getByTestId('facility-create-day-6').check();
@@ -168,12 +169,18 @@ test.describe('booking browser gate: six screens at 1366/768/360', () => {
 
     await page.goto(`/admin/facilities/${facilityId}`);
     await expect(page.getByTestId('admin-facility-detail-page')).toBeVisible();
+    await page.getByTestId('facility-actions-trigger').click();
+    await page.getByTestId('facility-edit-open').click();
     await expect(page.getByTestId('facility-edit-form')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.getByTestId('config-change-open').click();
     const effectiveAt = new Date(Date.now() + 7 * 86_400_000);
     const pad = (value: number): string => String(value).padStart(2, '0');
-    await page.getByTestId('config-change-effective-at').fill(
-      `${effectiveAt.getFullYear()}-${pad(effectiveAt.getMonth() + 1)}-${pad(effectiveAt.getDate())}T${pad(effectiveAt.getHours())}:${pad(effectiveAt.getMinutes())}`,
-    );
+    await page
+      .getByTestId('config-change-effective-at')
+      .fill(
+        `${effectiveAt.getFullYear()}-${pad(effectiveAt.getMonth() + 1)}-${pad(effectiveAt.getDate())}T${pad(effectiveAt.getHours())}:${pad(effectiveAt.getMinutes())}`,
+      );
     await page.getByTestId('config-change-preview').click();
     await expect(page.getByTestId('config-change-preview-result')).toBeVisible({ timeout: 15000 });
     await expect(page.getByTestId('config-change-no-conflicts')).toBeVisible();
@@ -184,13 +191,19 @@ test.describe('booking browser gate: six screens at 1366/768/360', () => {
     const closureEnd = new Date(closureStart.getTime() + 2 * 3_600_000);
     const toLocal = (value: Date): string =>
       `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}`;
+    await page.getByTestId('closure-create-open').click();
     await page.getByTestId('closure-create-start').fill(toLocal(closureStart));
     await page.getByTestId('closure-create-end').fill(toLocal(closureEnd));
     await page.getByTestId('closure-create-reason').fill(`E2E ${ns} gate closure`);
     await page.getByTestId('closure-create-submit').click();
     await expect(page.getByTestId('admin-facility-closures')).toBeVisible({ timeout: 15000 });
 
-    const adminAvailability = await slotsFor(page, facilityId, addDaysProjectDate(projectToday(), 6), room102);
+    const adminAvailability = await slotsFor(
+      page,
+      facilityId,
+      addDaysProjectDate(projectToday(), 6),
+      room102,
+    );
     const booked = await bookSlots(page, facilityId, {
       roomId: room102,
       startsAt: adminAvailability.slots
@@ -204,10 +217,15 @@ test.describe('booking browser gate: six screens at 1366/768/360', () => {
     await page.goto(`/admin/facilities/${facilityId}`);
     await expect(page.getByTestId(`admin-facility-slot-${slot?.id}`)).toBeVisible();
     await page.getByTestId(`admin-facility-cancel-${slot?.id}-open`).click();
-    await page.getByTestId(`admin-facility-cancel-${slot?.id}-reason`).fill(`E2E ${ns} gate admin cancel`);
+    await page
+      .getByTestId(`admin-facility-cancel-${slot?.id}-reason`)
+      .fill(`E2E ${ns} gate admin cancel`);
     await page.getByTestId(`admin-facility-cancel-${slot?.id}-refund`).check();
     await page.getByTestId(`admin-facility-cancel-${slot?.id}-submit`).click();
-    await expect(page.getByTestId(`admin-facility-slot-${slot?.id}`)).toContainText('ADMIN_CANCELLED', { timeout: 15000 });
+    await expect(page.getByTestId(`admin-facility-slot-${slot?.id}`)).toContainText(
+      'ADMIN_CANCELLED',
+      { timeout: 15000 },
+    );
 
     for (const viewport of VIEWPORTS) {
       await page.setViewportSize(viewport);
@@ -223,8 +241,14 @@ test.describe('booking browser gate: six screens at 1366/768/360', () => {
 
       await page.goto(`/admin/facilities/${facilityId}`);
       await expect(page.getByTestId('admin-facility-detail-page')).toBeVisible();
+      await page.getByTestId('config-change-open').click();
       await expect(page.getByTestId('config-change-form')).toBeVisible();
+      await expectNoOverflow(page);
+      await page.keyboard.press('Escape');
+      await page.getByTestId('closure-create-open').click();
       await expect(page.getByTestId('closure-create-form')).toBeVisible();
+      await expectNoOverflow(page);
+      await page.keyboard.press('Escape');
       await expect(page.getByTestId('admin-facility-bookings')).toBeVisible();
       await expectNoOverflow(page);
     }

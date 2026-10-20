@@ -1,68 +1,108 @@
 import 'server-only';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ChevronRight, Plus } from 'lucide-react';
+import { Building2, Layers3 } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
-import { ACTION_LINK_CLASS, Badge, EmptyState, PageHeader } from '@/shared/ui';
-import { listAllBuildings } from '@/modules/property-membership/application/index';
+import {
+  Badge,
+  EmptyState,
+  FormDialog,
+  PageHeader,
+  Pagination,
+  ResourceCard,
+  SearchField,
+} from '@/shared/ui';
+import { listBuildingPage } from '@/modules/property-membership/application/index';
+import { BuildingCreateForm } from '@/modules/property-membership/ui/BuildingCreateForm';
 
-export default async function AdminBuildingsPage() {
+export default async function AdminBuildingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; query?: string }>;
+}) {
   const actor = await getActorFromSession();
   if (actor === null) redirect('/login?returnUrl=/admin/buildings');
   if (!actor.isSystemAdmin) redirect('/');
   if (actor.mustChangePassword) redirect('/change-password');
-  const buildings = await listAllBuildings(actor);
+  const params = await searchParams;
+  const page = Math.max(1, Math.floor(Number(params.page) || 1));
+  const query = (params.query ?? '').slice(0, 255);
+  const feed = await listBuildingPage(actor, { page, pageSize: 12, query });
+  const projectId = feed.rows[0]?.projectId ?? '00000000-0000-4000-8000-000000000000';
   return (
     <main
       data-testid="admin-buildings-page"
-      className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
     >
       <PageHeader
         title="Buildings"
-        description="Manage buildings, floors, rooms, and room status."
+        description="An overview of your property, from each building to every room."
         actions={
-          <Link
-            data-testid="admin-buildings-create"
-            href="/admin/buildings/new"
-            className={ACTION_LINK_CLASS}
+          <FormDialog
+            triggerLabel="New building"
+            title="New building"
+            size="sm"
+            description="Add a building to organize its floors and rooms."
+            triggerTestId="admin-buildings-create"
+            testId="building-create-dialog"
           >
-            <Plus aria-hidden="true" className="size-4" />
-            New building
-          </Link>
+            <BuildingCreateForm projectId={projectId} />
+          </FormDialog>
         }
       />
-      {buildings.length === 0 ? (
+      <SearchField query={query} label="Search buildings" total={feed.total} />
+      {feed.rows.length === 0 ? (
         <EmptyState
           data-testid="admin-buildings-empty"
-          title="No buildings yet"
-          description="Create the first building to start onboarding rooms."
+          icon={Building2}
+          title={query ? 'No matching buildings' : 'No buildings yet'}
+          description={
+            query
+              ? 'Try a different building name.'
+              : 'Create a building, then add its floors and rooms.'
+          }
         />
       ) : (
-        <ul data-testid="admin-buildings-list" aria-label="Buildings" className="flex min-w-0 flex-col gap-3">
-          {buildings.map((building) => (
-            <li
-              key={building.id}
-              className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-3"
-            >
-              <div className="flex min-w-0 flex-col gap-1">
-                <Link
-                  data-testid={`admin-buildings-row-${building.id}`}
-                  href={`/admin/buildings/${building.id}`}
-                  className="inline-flex min-w-0 items-center gap-1 break-words text-body leading-body font-semibold text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
-                >
-                  <span className="min-w-0 truncate">
-                    {building.name} · {building.code}
-                  </span>
-                  <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-                </Link>
-              </div>
-              <Badge variant={building.status === 'ACTIVE' ? 'success' : 'neutral'}>
-                {building.status === 'ACTIVE' ? 'Active' : 'Inactive'}
-              </Badge>
+        <ul
+          data-testid="admin-buildings-list"
+          aria-label="Buildings"
+          className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3"
+        >
+          {feed.rows.map((building) => (
+            <li key={building.id}>
+              <ResourceCard
+                href={`/admin/buildings/${building.id}`}
+                title={building.name}
+                icon={Building2}
+                testId={`admin-buildings-row-${building.id}`}
+                status={
+                  <Badge variant={building.status === 'ACTIVE' ? 'success' : 'neutral'}>
+                    {building.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+                  </Badge>
+                }
+                metadata={
+                  <>
+                    <span className="inline-flex items-center gap-1.5">
+                      <Layers3 aria-hidden="true" className="size-4" />
+                      {building.floorCount} {building.floorCount === 1 ? 'floor' : 'floors'}
+                    </span>
+                    <span>
+                      {building.roomCount} {building.roomCount === 1 ? 'room' : 'rooms'}
+                    </span>
+                  </>
+                }
+              />
             </li>
           ))}
         </ul>
       )}
+      <Pagination
+        page={page}
+        totalPages={Math.ceil(feed.total / 12)}
+        totalItems={feed.total}
+        pagePath="/admin/buildings"
+        querySuffix={query ? `&query=${encodeURIComponent(query)}` : ''}
+        testId="admin-buildings-pages"
+      />
     </main>
   );
 }

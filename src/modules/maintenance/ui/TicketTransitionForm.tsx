@@ -1,15 +1,32 @@
 'use client';
+import { FormActions } from '@/shared/ui/FormActions';
+
+import { Select } from '@/shared/ui/Select';
+import { CircleCheck as SelectIconCircleCheck } from 'lucide-react';
+
+import { useFormDialog } from '@/shared/ui';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, FormField, INPUT_BASE_CLASS, cx, deniedCopy, rateLimitedCopy, useToast } from '@/shared/ui';
+import {
+  Button,
+  FormField,
+  INPUT_BASE_CLASS,
+  cx,
+  deniedCopy,
+  rateLimitedCopy,
+  useToast,
+} from '@/shared/ui';
 import {
   ticketTransitionFormSchema,
   type TicketTransitionFormValues,
 } from '@/modules/maintenance/ui/maintenanceFormSchemas';
 import { isTerminalTicketStatus, statusLabel } from '@/modules/maintenance/ui/ticketLabels';
-import { handlerTransitionsFrom, type TicketStatus } from '@/modules/maintenance/domain/stateMachine';
+import {
+  handlerTransitionsFrom,
+  type TicketStatus,
+} from '@/modules/maintenance/domain/stateMachine';
 
 interface ErrorPayload {
   error?: { code?: string; message?: string };
@@ -26,9 +43,7 @@ function transitionErrorCopy(code: string | undefined, fallback: string): string
   return fallback;
 }
 
-export type TicketTransitionAction =
-  | 'handler'
-  | 'reporter-cancel';
+export type TicketTransitionAction = 'handler' | 'reporter-cancel';
 
 export function TicketTransitionForm({
   ticketId,
@@ -70,6 +85,7 @@ export function TicketTransitionForm({
       reason: '',
     },
   });
+  const dialog = useFormDialog(isSubmitting);
   const status = watch('status');
   const terminal = isTerminalTicketStatus(currentStatus);
 
@@ -93,11 +109,15 @@ export function TicketTransitionForm({
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as ErrorPayload | null;
         setServerError(
-          transitionErrorCopy(payload?.error?.code, payload?.error?.message ?? 'Could not update this request. Reload the page and retry.'),
+          transitionErrorCopy(
+            payload?.error?.code,
+            payload?.error?.message ?? 'Could not update this request. Reload the page and retry.',
+          ),
         );
         return;
       }
       toast.success('Request updated.');
+      dialog?.complete();
       onTransitioned();
     },
     (invalid) => {
@@ -110,15 +130,30 @@ export function TicketTransitionForm({
   );
 
   return (
-    <form data-testid={`${testIdPrefix}-transition-form`} onSubmit={onSubmit} noValidate className="flex min-w-0 flex-col gap-3">
+    <form
+      data-testid={`${testIdPrefix}-transition-form`}
+      onSubmit={onSubmit}
+      noValidate
+      className="flex min-w-0 flex-col gap-3"
+    >
       {serverError !== null ? (
-        <p data-testid={`${testIdPrefix}-transition-error`} role="alert" className="text-body leading-body font-medium text-danger-foreground">
+        <p
+          data-testid={`${testIdPrefix}-transition-error`}
+          role="alert"
+          className="text-body leading-body font-medium text-danger-foreground"
+        >
           {serverError}
         </p>
       ) : null}
       {mode === 'handler' ? (
-        <FormField label="New status" htmlFor={`${testIdPrefix}-transition-status`} {...(errors.status?.message === undefined ? {} : { error: errors.status.message })} required>
-          <select
+        <FormField
+          label="New status"
+          htmlFor={`${testIdPrefix}-transition-status`}
+          {...(errors.status?.message === undefined ? {} : { error: errors.status.message })}
+          required
+        >
+          <Select
+            icon={SelectIconCircleCheck}
             data-testid={`${testIdPrefix}-transition-status`}
             required
             className={cx(INPUT_BASE_CLASS, 'h-10')}
@@ -129,13 +164,22 @@ export function TicketTransitionForm({
                 {statusLabel(option)}
               </option>
             ))}
-          </select>
+          </Select>
         </FormField>
       ) : (
-        <input type="hidden" data-testid={`${testIdPrefix}-transition-status`} {...register('status')} />
+        <input
+          type="hidden"
+          data-testid={`${testIdPrefix}-transition-status`}
+          {...register('status')}
+        />
       )}
       {mode === 'handler' && status === 'REJECTED' ? (
-        <FormField label="Rejection reason" htmlFor={`${testIdPrefix}-transition-reason`} {...(errors.reason?.message === undefined ? {} : { error: errors.reason.message })} required>
+        <FormField
+          label="Rejection reason"
+          htmlFor={`${testIdPrefix}-transition-reason`}
+          {...(errors.reason?.message === undefined ? {} : { error: errors.reason.message })}
+          required
+        >
           <input
             data-testid={`${testIdPrefix}-transition-reason`}
             type="text"
@@ -147,7 +191,7 @@ export function TicketTransitionForm({
           />
         </FormField>
       ) : null}
-      <div>
+      <FormActions onCancel={dialog?.requestClose} pending={isSubmitting}>
         <Button
           data-testid={`${testIdPrefix}-transition-submit`}
           type="submit"
@@ -157,7 +201,7 @@ export function TicketTransitionForm({
         >
           {mode === 'reporter-cancel' ? 'Cancel request' : 'Update status'}
         </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

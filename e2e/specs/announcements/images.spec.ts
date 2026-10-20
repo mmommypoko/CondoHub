@@ -1,7 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { apiJson } from '../../helpers/api';
 import { readRunContext, workerNamespace } from '../../fixtures/run-context';
-import { loginAsPoolAdmin } from '../../helpers/owner';
+import {
+  loginAsPoolAdmin,
+  provisionUser,
+  uniqueUsername,
+  completeFirstLogin,
+} from '../../helpers/owner';
 import { buildFakeImage, buildValidImage } from '../../helpers/announcementFiles';
 
 interface IntentEnvelope {
@@ -72,7 +77,11 @@ test.describe('announcement images: intent, upload, complete, attach, access', (
     expect(intent.status).toBe(200);
     expect(intent.json.data.uploadUrl).toContain('http');
 
-    const putStatus = await putBytes(intent.json.data.uploadUrl, fixture.contentType, fixture.bytes);
+    const putStatus = await putBytes(
+      intent.json.data.uploadUrl,
+      fixture.contentType,
+      fixture.bytes,
+    );
     expect(putStatus).toBeLessThan(300);
 
     const completed = await apiJson<CompleteEnvelope>(page.request, {
@@ -90,9 +99,7 @@ test.describe('announcement images: intent, upload, complete, attach, access', (
       body: { imageIds: [intent.json.data.imageId] },
     });
     expect(attached.status).toBe(200);
-    expect(attached.json.data.images.map((image) => image.id)).toContain(
-      intent.json.data.imageId,
-    );
+    expect(attached.json.data.images.map((image) => image.id)).toContain(intent.json.data.imageId);
 
     const access = await apiJson<AccessEnvelope>(page.request, {
       method: 'GET',
@@ -101,6 +108,29 @@ test.describe('announcement images: intent, upload, complete, attach, access', (
     expect(access.status).toBe(200);
     expect(access.json.data.url).toContain('http');
 
+    const residentName = uniqueUsername(`e2e${runId.replace(/[^a-z0-9]/gi, '')}news`);
+    const resident = await provisionUser(page, {
+      username: residentName,
+      name: `News reader ${ns}`,
+    });
+    await completeFirstLogin(page, {
+      username: residentName,
+      tempPassword: resident.tempPassword,
+      newPassword: `News-${runId}-password1`,
+    });
+    await page.goto('/');
+    await expect(page.getByTestId('nav-facilities')).toBeVisible();
+    const preview = page.getByTestId(`announcement-preview-image-${announcementId}`);
+    await expect(preview).toBeVisible({ timeout: 15000 });
+    await expect
+      .poll(() =>
+        preview.evaluate((element) =>
+          element instanceof HTMLImageElement
+            ? element.naturalWidth
+            : (element.querySelector('img')?.naturalWidth ?? 0),
+        ),
+      )
+      .toBeGreaterThan(0);
     await page.goto(`/announcements/${announcementId}`);
     await expect(page.getByTestId('announcement-detail-image-0')).toBeVisible({ timeout: 15000 });
   });
@@ -123,7 +153,11 @@ test.describe('announcement images: intent, upload, complete, attach, access', (
     });
     expect(intent.status).toBe(200);
 
-    const putStatus = await putBytes(intent.json.data.uploadUrl, fixture.contentType, fixture.bytes);
+    const putStatus = await putBytes(
+      intent.json.data.uploadUrl,
+      fixture.contentType,
+      fixture.bytes,
+    );
     expect(putStatus).toBeLessThan(300);
 
     const completed = await apiJson<unknown>(page.request, {

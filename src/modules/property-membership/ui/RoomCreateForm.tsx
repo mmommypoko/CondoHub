@@ -1,4 +1,10 @@
 'use client';
+import { FormActions } from '@/shared/ui/FormActions';
+
+import { Select } from '@/shared/ui/Select';
+import { CircleCheck as SelectIconCircleCheck, Layers3 as SelectIconLayers3 } from 'lucide-react';
+
+import { useFormDialog } from '@/shared/ui/FormDialog';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -9,7 +15,7 @@ import { Button, FormField, INPUT_CLASS, serverErrorMessage, useToast } from '@/
 
 const createSchema = z.object({
   floorId: z.string().min(1, 'Floor is required.'),
-  roomCode: z.string().trim().min(1, 'Room code is required.').max(64),
+  name: z.string().trim().min(1, 'Room name is required.').max(255),
   areaSqm: z
     .string()
     .trim()
@@ -28,9 +34,11 @@ export interface RoomFloorOption {
 export function RoomCreateForm({
   buildingId,
   floors,
+  defaultFloorId = '',
 }: {
   buildingId: string;
   floors: RoomFloorOption[];
+  defaultFloorId?: string;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -42,35 +50,45 @@ export function RoomCreateForm({
     formState: { errors, isSubmitting },
   } = useForm<CreateValues>({
     resolver: zodResolver(createSchema),
-    defaultValues: { floorId: '', roomCode: '', areaSqm: '', status: 'ACTIVE' },
+    defaultValues: { floorId: defaultFloorId, name: '', areaSqm: '', status: 'ACTIVE' },
   });
+
+  const dialog = useFormDialog(isSubmitting);
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
-    const response = await fetch('/api/admin/rooms', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        floorId: values.floorId,
-        buildingId,
-        roomCode: values.roomCode,
-        areaSqm: values.areaSqm,
-        status: values.status,
-      }),
-    });
-    if (!response.ok) {
-      const payload: unknown = await response.json().catch(() => null);
-      setServerError(serverErrorMessage(payload, 'Could not create the room.'));
-      return;
+    try {
+      const response = await fetch('/api/admin/rooms', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          floorId: values.floorId,
+          buildingId,
+          name: values.name,
+          areaSqm: values.areaSqm,
+          status: values.status,
+        }),
+      });
+      if (!response.ok) {
+        const payload: unknown = await response.json().catch(() => null);
+        setServerError(serverErrorMessage(payload, 'Could not create the room.'));
+        return;
+      }
+      toast.success('Room created.');
+      dialog?.complete();
+      reset();
+      router.refresh();
+    } catch {
+      setServerError('Could not reach the server. Check your connection and try again.');
     }
-    toast.success('Room created.');
-    reset();
-    router.refresh();
   });
 
   if (floors.length === 0) {
     return (
-      <p data-testid="room-create-no-floors" className="text-small leading-small text-muted-foreground">
+      <p
+        data-testid="room-create-no-floors"
+        className="text-small leading-small text-muted-foreground"
+      >
         Create a floor first, then add rooms to it.
       </p>
     );
@@ -81,7 +99,7 @@ export function RoomCreateForm({
       data-testid="room-create-form"
       onSubmit={onSubmit}
       noValidate
-      className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:p-5"
+      className="flex flex-col gap-4 "
     >
       {serverError !== null ? (
         <p
@@ -93,8 +111,14 @@ export function RoomCreateForm({
         </p>
       ) : null}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <FormField label="Floor" htmlFor="room-create-floor" error={errors.floorId?.message ?? ''} required>
-          <select
+        <FormField
+          label="Floor"
+          htmlFor="room-create-floor"
+          error={errors.floorId?.message ?? ''}
+          required
+        >
+          <Select
+            icon={SelectIconLayers3}
             data-testid="room-create-floor"
             className={INPUT_CLASS}
             {...register('floorId')}
@@ -102,18 +126,23 @@ export function RoomCreateForm({
             <option value="">Select a floor</option>
             {floors.map((floor) => (
               <option key={floor.id} value={floor.id}>
-                {floor.label} · {floor.code}
+                {floor.label}
               </option>
             ))}
-          </select>
+          </Select>
         </FormField>
-        <FormField label="Room code" htmlFor="room-create-code" error={errors.roomCode?.message ?? ''} required>
+        <FormField
+          label="Room name"
+          htmlFor="room-create-name"
+          error={errors.name?.message ?? ''}
+          required
+        >
           <input
-            data-testid="room-create-code"
+            data-testid="room-create-name"
             type="text"
             required
             className={INPUT_CLASS}
-            {...register('roomCode')}
+            {...register('name')}
           />
         </FormField>
         <FormField
@@ -133,21 +162,22 @@ export function RoomCreateForm({
           />
         </FormField>
         <FormField label="Status" htmlFor="room-create-status">
-          <select
+          <Select
+            icon={SelectIconCircleCheck}
             data-testid="room-create-status"
             className={INPUT_CLASS}
             {...register('status')}
           >
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
-          </select>
+          </Select>
         </FormField>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <FormActions onCancel={dialog?.requestClose} pending={isSubmitting}>
         <Button data-testid="room-create-submit" type="submit" loading={isSubmitting}>
           Create room
         </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

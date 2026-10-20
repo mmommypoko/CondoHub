@@ -1,4 +1,10 @@
 'use client';
+import { FormActions } from '@/shared/ui/FormActions';
+
+import { Select } from '@/shared/ui/Select';
+import { CircleCheck as SelectIconCircleCheck } from 'lucide-react';
+
+import { useFormDialog } from '@/shared/ui/FormDialog';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -12,15 +18,13 @@ const editSchema = z.object({
   name: z.string().trim().min(1, 'Name is required.').max(255),
   description: z.string().trim().max(20000).optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']),
-  capacity: z
-    .string()
-    .refine(
-      (value) => {
-        const parsed = Number(value);
-        return value.trim() !== '' && Number.isInteger(parsed) && parsed >= 1 && parsed <= 1000;
-      },
-      { message: 'Capacity must be an integer between 1 and 1000.' },
-    ),
+  capacity: z.string().refine(
+    (value) => {
+      const parsed = Number(value);
+      return value.trim() !== '' && Number.isInteger(parsed) && parsed >= 1 && parsed <= 1000;
+    },
+    { message: 'Capacity must be an integer between 1 and 1000.' },
+  ),
 });
 
 type EditValues = z.infer<typeof editSchema>;
@@ -34,7 +38,12 @@ export function FacilityEditForm({
   initial,
 }: {
   facilityId: string;
-  initial: { name: string; description: string | null; status: 'ACTIVE' | 'INACTIVE'; capacity: number };
+  initial: {
+    name: string;
+    description: string | null;
+    status: 'ACTIVE' | 'INACTIVE';
+    capacity: number;
+  };
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -52,6 +61,8 @@ export function FacilityEditForm({
       capacity: String(initial.capacity),
     },
   });
+
+  const dialog = useFormDialog(isSubmitting);
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
@@ -71,6 +82,7 @@ export function FacilityEditForm({
       return;
     }
     toast.success('Facility saved.');
+    dialog?.complete();
     router.refresh();
   });
 
@@ -79,7 +91,7 @@ export function FacilityEditForm({
       data-testid="facility-edit-form"
       onSubmit={onSubmit}
       noValidate
-      className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:p-5"
+      className="flex flex-col gap-4 "
     >
       {serverError !== null ? (
         <p
@@ -91,7 +103,12 @@ export function FacilityEditForm({
         </p>
       ) : null}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <FormField label="Name" htmlFor="facility-edit-name" error={errors.name?.message ?? ''} required>
+        <FormField
+          label="Name"
+          htmlFor="facility-edit-name"
+          error={errors.name?.message ?? ''}
+          required
+        >
           <input
             data-testid="facility-edit-name"
             type="text"
@@ -123,20 +140,21 @@ export function FacilityEditForm({
         />
       </FormField>
       <FormField label="Status" htmlFor="facility-edit-status">
-        <select
+        <Select
+          icon={SelectIconCircleCheck}
           data-testid="facility-edit-status"
           className={INPUT_CLASS}
           {...register('status')}
         >
           <option value="ACTIVE">Active</option>
           <option value="INACTIVE">Inactive</option>
-        </select>
+        </Select>
       </FormField>
-      <div>
+      <FormActions onCancel={dialog?.requestClose} pending={isSubmitting}>
         <Button data-testid="facility-edit-submit" type="submit" loading={isSubmitting}>
           Save facility
         </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

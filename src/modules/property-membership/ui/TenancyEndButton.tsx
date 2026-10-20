@@ -4,13 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Dialog, serverErrorMessage, useToast } from '@/shared/ui';
 
-export function TenancyEndButton({
-  roomId,
-  tenancyId,
-}: {
-  roomId: string;
-  tenancyId: string;
-}) {
+export function TenancyEndButton({ roomId, tenancyId }: { roomId: string; tenancyId: string }) {
   const router = useRouter();
   const { toast } = useToast();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -32,7 +26,7 @@ export function TenancyEndButton({
         return;
       }
       setConfirmOpen(false);
-      toast.success('Tenancy ended.');
+      toast.success('Rental period ended.');
       router.refresh();
     } finally {
       setBusy(false);
@@ -47,18 +41,21 @@ export function TenancyEndButton({
         size="sm"
         onClick={() => setConfirmOpen(true)}
       >
-        End
+        End rental period
       </Button>
       <Dialog
         open={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        title="End this tenancy?"
-        description="Active memberships under this tenancy end as well. History is kept."
+        busy={busy}
+        onClose={() => {
+          if (!busy) setConfirmOpen(false);
+        }}
+        title="End this rental period?"
+        description="All linked tenants lose tenant access. Invoices and repair history are kept."
         size="sm"
         testId="room-tenancy-end-confirm"
         actions={
           <>
-            <Button variant="secondary" onClick={() => setConfirmOpen(false)}>
+            <Button variant="secondary" disabled={busy} onClick={() => setConfirmOpen(false)}>
               Cancel
             </Button>
             <Button
@@ -67,7 +64,7 @@ export function TenancyEndButton({
               loading={busy}
               onClick={() => void confirm()}
             >
-              End tenancy
+              End rental period
             </Button>
           </>
         }

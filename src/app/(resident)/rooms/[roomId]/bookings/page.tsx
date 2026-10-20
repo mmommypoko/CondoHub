@@ -5,10 +5,13 @@ import { ArrowLeft, CalendarDays } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
 import { Badge, EmptyState } from '@/shared/ui';
-import { canActInRoom } from '@/modules/property-membership/application/index';
-import { findRoomById, findBuildingById } from '@/modules/property-membership/infrastructure/structureRepository';
-import { db } from '@/shared/db/client';
-import { getRoomQuota, listRoomBookings } from '@/modules/facility-booking/application/index';
+import {
+  canActInRoom,
+  getRoomDetail,
+  getRoomLabels,
+} from '@/modules/property-membership/application/index';
+import { AppError } from '@/shared/utils/errors';
+import { getRoomQuota, getRoomBookingHistory } from '@/modules/facility-booking/application/index';
 import { listFacilityPage } from '@/modules/facility-booking/application/index';
 import { BookingCancelButton } from '@/modules/facility-booking/ui/BookingCancelButton';
 
@@ -43,7 +46,10 @@ export default async function RoomBookingsPage({
   const verdict = await canActInRoom(actor.userId, roomId, 'BOOK_FACILITY', now).catch(() => null);
   if ((verdict === null || !verdict.allowed) && !actor.isSystemAdmin) {
     return (
-      <main data-testid="room-bookings-page" className="mx-auto w-full max-w-5xl p-4 sm:p-6">
+      <main
+        data-testid="room-bookings-page"
+        className="mx-auto w-full max-w-[var(--ui-content-wide)] p-4 sm:p-6"
+      >
         <EmptyState
           data-testid="room-bookings-forbidden"
           icon={CalendarDays}
@@ -53,14 +59,23 @@ export default async function RoomBookingsPage({
       </main>
     );
   }
-  const room = await findRoomById(db, roomId);
+  const room = await getRoomDetail(roomId).catch((error: unknown) => {
+    if (error instanceof AppError && error.code === 'RESOURCE_NOT_FOUND') return null;
+    throw error;
+  });
   if (room === null) redirect('/rooms');
-  const building = await findBuildingById(db, room.buildingId);
-  const [bookings, facilities] = await Promise.all([
-    listRoomBookings(actor, { roomId }, now),
+  const [roomLabel] = await getRoomLabels([roomId]);
+  const [history, facilities] = await Promise.all([
+    getRoomBookingHistory(actor, roomId, now),
     listFacilityPage(actor, { status: 'ACTIVE', page: 1, pageSize: 100 }),
   ]);
-  const facilityNames = new Map(facilities.rows.map((row) => [row.id, row.name]));
+  const bookings = history.bookings;
+  const deletedFacilities = new Set(
+    history.facilities.filter((row) => row.deleted).map((row) => row.id),
+  );
+  const facilityNames = new Map(
+    [...history.facilities, ...facilities.rows].map((row) => [row.id, row.name]),
+  );
   const quotas = [];
   for (const facility of facilities.rows) {
     try {
@@ -72,7 +87,7 @@ export default async function RoomBookingsPage({
   return (
     <main
       data-testid="room-bookings-page"
-      className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
     >
       <div className="flex min-w-0 flex-col gap-3">
         <Link
@@ -84,20 +99,27 @@ export default async function RoomBookingsPage({
           Back to room
         </Link>
         <div className="flex min-w-0 flex-col gap-1">
-          <h1 data-testid="room-bookings-title" className="break-words text-title font-semibold tracking-tight text-foreground">
-            Bookings · {building?.name ?? 'Building'} {room.roomCode}
+          <h1
+            data-testid="room-bookings-title"
+            className="break-words text-display leading-display font-semibold tracking-tight text-foreground"
+          >
+            Bookings · {roomLabel?.label ?? room.name}
           </h1>
           <p className="max-w-2xl text-small leading-small text-muted-foreground">
-            Quota is shared by the whole room. Resident cancellations release the seat but keep quota used.
+            Quota is shared by the whole room. Resident cancellations release the seat but keep
+            quota used.
           </p>
         </div>
       </div>
       {quotas.length > 0 ? (
-        <ul data-testid="room-bookings-quotas" className="flex flex-col gap-2">
+        <ul
+          data-testid="room-bookings-quotas"
+          className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3"
+        >
           {quotas.map((quota) => (
             <li
               key={`${quota.facilityId}-${quota.periodKey}`}
-              className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-4 py-3"
+              className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface px-5 py-5"
             >
               <span className="min-w-0 flex-1 basis-40 break-words text-body text-foreground">
                 {facilityNames.get(quota.facilityId) ?? 'Facility'}
@@ -142,16 +164,28 @@ export default async function RoomBookingsPage({
           {bookings.map((booking) => (
             <li
               key={booking.id}
-              className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-surface p-4 sm:p-5"
+              className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-surface p-5 sm:p-6"
             >
               <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                <Link
-                  data-testid={`room-bookings-facility-${booking.id}`}
-                  href={`/facilities/${booking.facilityId}?roomId=${roomId}`}
-                  className="min-w-0 flex-1 basis-40 break-words rounded-md text-body font-semibold text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
-                >
-                  {facilityNames.get(booking.facilityId) ?? 'Facility'}
-                </Link>
+                {deletedFacilities.has(booking.facilityId) ? (
+                  <span
+                    data-testid={`room-bookings-facility-${booking.id}`}
+                    className="min-w-0 flex-1 break-words text-body font-semibold text-foreground"
+                  >
+                    {facilityNames.get(booking.facilityId)}
+                    <span className="ml-2 text-small font-normal text-muted-foreground">
+                      Deleted facility
+                    </span>
+                  </span>
+                ) : (
+                  <Link
+                    data-testid={`room-bookings-facility-${booking.id}`}
+                    href={`/facilities/${booking.facilityId}?roomId=${roomId}`}
+                    className="min-w-0 flex-1 basis-40 break-words rounded-md text-body font-semibold text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                  >
+                    {facilityNames.get(booking.facilityId) ?? 'Facility'}
+                  </Link>
+                )}
                 <span className="ui-tabular text-small text-muted-foreground">
                   Booked {formatInstant(booking.createdAt)}
                 </span>
@@ -169,7 +203,8 @@ export default async function RoomBookingsPage({
                       </span>
                       <Badge variant={slotVariant(slot.state)}>{slot.state}</Badge>
                     </div>
-                    {slot.state === 'CONFIRMED' && new Date(slot.startsAt).getTime() > now.getTime() ? (
+                    {slot.state === 'CONFIRMED' &&
+                    new Date(slot.startsAt).getTime() > now.getTime() ? (
                       <div className="flex flex-wrap gap-2">
                         <BookingCancelButton
                           bookingId={booking.id}

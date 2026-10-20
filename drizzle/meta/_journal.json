@@ -78,6 +78,20 @@
       "when": 1792404240321,
       "tag": "0010_redundant_nehzno",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792436726117,
+      "tag": "0011_room-display-name",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792467285060,
+      "tag": "0012_facility-deletion",
+      "breakpoints": true
     }
   ]
 }

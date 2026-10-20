@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, asc, desc, eq, gte, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, isNull, ilike, inArray, lte, sql } from 'drizzle-orm';
 import type { Db, Tx } from '@/shared/db/transaction';
 import {
   booking,
@@ -37,13 +37,21 @@ function toFacilityRow(row: typeof facility.$inferSelect): FacilityRecord {
 }
 
 export async function findFacilityById(conn: Db, id: string): Promise<FacilityRecord | null> {
-  const rows = await conn.select().from(facility).where(eq(facility.id, id)).limit(1);
+  const rows = await conn
+    .select()
+    .from(facility)
+    .where(and(eq(facility.id, id), isNull(facility.deletedAt)))
+    .limit(1);
   const row = rows[0];
   return row === undefined ? null : toFacilityRow(row);
 }
 
 export async function listFacilities(conn: Db): Promise<FacilityRecord[]> {
-  const rows = await conn.select().from(facility).orderBy(asc(facility.name), asc(facility.id));
+  const rows = await conn
+    .select()
+    .from(facility)
+    .where(isNull(facility.deletedAt))
+    .orderBy(asc(facility.name), asc(facility.id));
   return rows.map(toFacilityRow);
 }
 
@@ -92,7 +100,7 @@ export async function updateFacility(
       ...(input.status !== undefined ? { status: input.status } : {}),
       ...(input.capacity !== undefined ? { capacity: input.capacity } : {}),
     })
-    .where(eq(facility.id, id))
+    .where(and(eq(facility.id, id), isNull(facility.deletedAt)))
     .returning();
   const row = rows[0];
   return row === undefined ? null : toFacilityRow(row);
@@ -299,18 +307,20 @@ export async function listClosuresOverlapping(
 }
 
 export async function findClosureById(conn: Db, id: string): Promise<ClosureRecord | null> {
-  const rows = await conn
-    .select()
-    .from(facilityClosure)
-    .where(eq(facilityClosure.id, id))
-    .limit(1);
+  const rows = await conn.select().from(facilityClosure).where(eq(facilityClosure.id, id)).limit(1);
   const row = rows[0];
   return row === undefined ? null : toClosureRow(row);
 }
 
 export async function insertClosure(
   tx: Tx,
-  input: { facilityId: string; startsAt: Date; endsAt: Date; reason: string; author: string | null },
+  input: {
+    facilityId: string;
+    startsAt: Date;
+    endsAt: Date;
+    reason: string;
+    author: string | null;
+  },
 ): Promise<ClosureRecord> {
   const rows = await tx
     .insert(facilityClosure)
@@ -438,7 +448,10 @@ export async function lockBookingSlotForUpdate(
   return findBookingSlotById(tx, found);
 }
 
-export async function listSlotsForBooking(conn: Db, bookingId: string): Promise<BookingSlotRecord[]> {
+export async function listSlotsForBooking(
+  conn: Db,
+  bookingId: string,
+): Promise<BookingSlotRecord[]> {
   const rows = await conn
     .select()
     .from(bookingSlot)
@@ -497,7 +510,13 @@ export async function listConfirmedFutureSlots(
 
 export async function insertBookingSlots(
   tx: Tx,
-  input: Array<{ bookingId: string; facilityId: string; roomId: string; startsAt: Date; endsAt: Date }>,
+  input: Array<{
+    bookingId: string;
+    facilityId: string;
+    roomId: string;
+    startsAt: Date;
+    endsAt: Date;
+  }>,
 ): Promise<BookingSlotRecord[]> {
   if (input.length === 0) return [];
   const rows = await tx
@@ -571,7 +590,10 @@ export async function listAdjustmentsForRoomFacility(
     .from(quotaAdjustment)
     .where(
       input.periodKey === undefined
-        ? and(eq(quotaAdjustment.roomId, input.roomId), eq(quotaAdjustment.facilityId, input.facilityId))
+        ? and(
+            eq(quotaAdjustment.roomId, input.roomId),
+            eq(quotaAdjustment.facilityId, input.facilityId),
+          )
         : and(
             eq(quotaAdjustment.roomId, input.roomId),
             eq(quotaAdjustment.facilityId, input.facilityId),
@@ -644,4 +666,119 @@ export async function ensureQuotaPeriodLocks(
       FOR UPDATE
     `);
   }
+}
+
+export async function queryFacilityPage(
+  conn: Db,
+  input: {
+    status?: 'ACTIVE' | 'INACTIVE' | undefined;
+    query?: string | undefined;
+    page: number;
+    pageSize: number;
+  },
+) {
+  const search = input.query?.trim();
+  const where = and(
+    isNull(facility.deletedAt),
+    input.status ? eq(facility.status, input.status) : undefined,
+    search ? ilike(facility.name, `%${search.replace(/[\\%_]/g, '\\$&')}%`) : undefined,
+  );
+  const [rows, counted] = await Promise.all([
+    conn
+      .select()
+      .from(facility)
+      .where(where)
+      .orderBy(asc(facility.name), asc(facility.id))
+      .limit(input.pageSize)
+      .offset((input.page - 1) * input.pageSize),
+    conn
+      .select({ total: sql<number>`count(*)`.mapWith(Number) })
+      .from(facility)
+      .where(where),
+  ]);
+  return { rows: rows.map(toFacilityRow), total: counted[0]?.total ?? 0 };
+}
+
+export async function queryFacilityBookingPage(
+  conn: Db,
+  facilityId: string,
+  page: number,
+  pageSize: number,
+) {
+  const [rows, counted] = await Promise.all([
+    conn
+      .select()
+      .from(booking)
+      .where(eq(booking.facilityId, facilityId))
+      .orderBy(desc(booking.createdAt), desc(booking.id))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
+    conn
+      .select({ total: sql<number>`count(*)`.mapWith(Number) })
+      .from(booking)
+      .where(eq(booking.facilityId, facilityId)),
+  ]);
+  const slots =
+    rows.length === 0
+      ? []
+      : await conn
+          .select()
+          .from(bookingSlot)
+          .where(
+            inArray(
+              bookingSlot.bookingId,
+              rows.map((row) => row.id),
+            ),
+          )
+          .orderBy(asc(bookingSlot.startsAt), asc(bookingSlot.id));
+  return {
+    rows: rows.map((row) => ({
+      booking: toBookingRow(row),
+      slots: slots.filter((slot) => slot.bookingId === row.id).map(toBookingSlotRow),
+    })),
+    total: counted[0]?.total ?? 0,
+  };
+}
+
+export async function lockFacilityForUpdate(tx: Tx, id: string): Promise<FacilityRecord | null> {
+  const [row] = await tx
+    .select()
+    .from(facility)
+    .where(and(eq(facility.id, id), isNull(facility.deletedAt)))
+    .for('update');
+  return row ? toFacilityRow(row) : null;
+}
+
+export async function hasUpcomingConfirmedSlots(
+  conn: Db,
+  facilityId: string,
+  at: Date,
+): Promise<boolean> {
+  const [slot] = await conn
+    .select({ id: bookingSlot.id })
+    .from(bookingSlot)
+    .where(
+      and(
+        eq(bookingSlot.facilityId, facilityId),
+        eq(bookingSlot.state, 'CONFIRMED'),
+        gt(bookingSlot.endsAt, at),
+      ),
+    )
+    .limit(1);
+  return slot !== undefined;
+}
+
+export async function markFacilityDeleted(tx: Tx, id: string, at: Date): Promise<void> {
+  await tx
+    .update(facility)
+    .set({ deletedAt: at, status: 'INACTIVE' })
+    .where(and(eq(facility.id, id), isNull(facility.deletedAt)));
+}
+
+export async function listBookingFacilityLabels(conn: Db, facilityIds: string[]) {
+  if (facilityIds.length === 0) return [];
+  return conn
+    .select({ id: facility.id, name: facility.name, deletedAt: facility.deletedAt })
+    .from(facility)
+    .where(inArray(facility.id, facilityIds));
 }

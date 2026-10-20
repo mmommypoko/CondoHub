@@ -194,7 +194,14 @@ export async function listRoomMemberships(roomId: string): Promise<MembershipRow
 
 export async function attachProvisionedMembership(
   tx: Tx,
-  input: { roomId: string; userId: string; memberRole: MemberRole; requestId: string; actorId: string | null; at: Date },
+  input: {
+    roomId: string;
+    userId: string;
+    memberRole: MemberRole;
+    requestId: string;
+    actorId: string | null;
+    at: Date;
+  },
 ): Promise<{ membershipId: string }> {
   const tenancies = await listTenanciesByRoom(tx, input.roomId);
   const intervals: TenancyInterval[] = tenancies.map((row) => ({
@@ -222,7 +229,12 @@ export async function attachProvisionedMembership(
       resourceType: 'room_membership',
       resourceId: created.id,
       requestId: input.requestId,
-      after: { roomId: input.roomId, userId: input.userId, memberRole: input.memberRole, tenancyId },
+      after: {
+        roomId: input.roomId,
+        userId: input.userId,
+        memberRole: input.memberRole,
+        tenancyId,
+      },
     });
     return { membershipId: created.id };
   } catch (error) {
@@ -233,4 +245,25 @@ export async function attachProvisionedMembership(
       },
     });
   }
+}
+
+export async function listCurrentRoomMemberships(
+  roomId: string,
+  at: Date,
+): Promise<MembershipRow[]> {
+  const [memberships, tenancies] = await Promise.all([
+    listRoomMemberships(roomId),
+    listTenanciesByRoom(db, roomId),
+  ]);
+  return memberships.filter(
+    (entry) =>
+      covers({ start: entry.startAt, end: entry.endAt }, at) &&
+      (entry.tenancyId === null ||
+        tenancies.some(
+          (tenancy) =>
+            tenancy.id === entry.tenancyId &&
+            tenancy.state === 'ACTIVE' &&
+            covers({ start: tenancy.startsAt, end: tenancy.endsAt }, at),
+        )),
+  );
 }

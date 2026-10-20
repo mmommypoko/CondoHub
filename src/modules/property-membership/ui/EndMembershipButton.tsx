@@ -7,9 +7,11 @@ import { Button, Dialog, serverErrorMessage, useToast } from '@/shared/ui';
 export function EndMembershipButton({
   roomId,
   membershipId,
+  personKind = 'member',
 }: {
   roomId: string;
   membershipId: string;
+  personKind?: 'member' | 'tenant';
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -32,8 +34,10 @@ export function EndMembershipButton({
         return;
       }
       setConfirmOpen(false);
-      toast.success('Membership ended.');
+      toast.success(personKind === 'tenant' ? 'Tenant removed.' : 'Member removed.');
       router.refresh();
+    } catch {
+      setServerError('Could not reach the server. Check your connection and try again.');
     } finally {
       setBusy(false);
     }
@@ -47,18 +51,25 @@ export function EndMembershipButton({
         size="sm"
         onClick={() => setConfirmOpen(true)}
       >
-        End
+        {personKind === 'tenant' ? 'Remove tenant' : 'Remove member'}
       </Button>
       <Dialog
         open={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        title="End this membership?"
-        description="The member loses room access immediately. History is kept."
+        busy={busy}
+        onClose={() => {
+          if (!busy) setConfirmOpen(false);
+        }}
+        title={personKind === 'tenant' ? 'Remove this tenant?' : 'Remove this member?'}
+        description={
+          personKind === 'tenant'
+            ? 'Only this person’s tenant access ends. The rental period and other tenants stay active.'
+            : 'The member loses room access immediately. History is kept.'
+        }
         size="sm"
         testId="room-membership-end-confirm"
         actions={
           <>
-            <Button variant="secondary" onClick={() => setConfirmOpen(false)}>
+            <Button variant="secondary" disabled={busy} onClick={() => setConfirmOpen(false)}>
               Cancel
             </Button>
             <Button
@@ -67,7 +78,7 @@ export function EndMembershipButton({
               loading={busy}
               onClick={() => void confirm()}
             >
-              End membership
+              {personKind === 'tenant' ? 'Remove tenant' : 'Remove member'}
             </Button>
           </>
         }
@@ -82,7 +93,8 @@ export function EndMembershipButton({
           </p>
         ) : (
           <p className="text-sm leading-6 text-muted-foreground">
-            The membership interval closes now. Past activity stays recorded.
+            This person will no longer appear in the active member list. Their past activity stays
+            recorded.
           </p>
         )}
       </Dialog>

@@ -71,7 +71,11 @@ async function driveAddMember(input: {
   return JSON.parse(await runBillingOps(args)) as { membershipId: string };
 }
 
-function pickInvoice(rows: InvoiceRow[], kind: InvoiceRow['kind'], periodStart: string): InvoiceRow {
+function pickInvoice(
+  rows: InvoiceRow[],
+  kind: InvoiceRow['kind'],
+  periodStart: string,
+): InvoiceRow {
   const found = rows.find((row) => row.kind === kind && row.periodStart === periodStart);
   if (found === undefined) throw new Error(`No ${kind} invoice for ${periodStart}.`);
   return found;
@@ -89,7 +93,10 @@ function actorPassword(runId: string): string {
 
 async function writeSlipFixture(): Promise<string> {
   const fixture = await buildValidImage('png', 32);
-  const filePath = path.join(os.tmpdir(), `e2e-slip-${Date.now()}-${Math.floor(Math.random() * 1e6)}.png`);
+  const filePath = path.join(
+    os.tmpdir(),
+    `e2e-slip-${Date.now()}-${Math.floor(Math.random() * 1e6)}.png`,
+  );
   await fs.writeFile(filePath, fixture.bytes);
   return filePath;
 }
@@ -150,7 +157,10 @@ test.describe('billing payment screens: balance, submit, review, edit', () => {
       at: '2026-10-01T00:00:00.000Z',
     });
 
-    const august = await triggerGenerate(page.request, { triggerSource: 'MANUAL', fromCycle: '2027-08' });
+    const august = await triggerGenerate(page.request, {
+      triggerSource: 'MANUAL',
+      fromCycle: '2027-08',
+    });
     expect(august.json.data.caughtUp).toBe(true);
 
     const payerRows = await listInvoices(userPage.request, { roomId: room213 });
@@ -159,7 +169,9 @@ test.describe('billing payment screens: balance, submit, review, edit', () => {
     ctx.slipPath = await writeSlipFixture();
   });
 
-  test('ui: invoice lists show payment state, outstanding, and overdue badges', async ({ page }) => {
+  test('ui: invoice lists show payment state, outstanding, and overdue badges', async ({
+    page,
+  }) => {
     const payer = ctx.payer?.page ?? page;
     const rows = await listInvoices(payer.request, { roomId: ctx.room213 ?? '' });
     const rent = pickInvoice(rows, 'PROJECT_MANAGED_RENT', '2027-08-01');
@@ -189,6 +201,7 @@ test.describe('billing payment screens: balance, submit, review, edit', () => {
     await expect(payer.getByTestId('invoice-detail-page')).toBeVisible();
     await expect(payer.getByTestId('invoice-payment-state')).toHaveText('Unpaid');
     await expect(payer.getByTestId('invoice-payment-bank')).toBeVisible();
+    await payer.getByTestId('payment-submit-open').click();
     await expect(payer.getByTestId('payment-submit-form')).toBeVisible();
     await payer.getByTestId('payment-submit-upload-input').setInputFiles(ctx.slipPath ?? '');
     await expect(payer.getByTestId('payment-submit-slip-ready')).toBeVisible();
@@ -203,11 +216,14 @@ test.describe('billing payment screens: balance, submit, review, edit', () => {
     const rows = await listInvoices(payer.request, { roomId: ctx.room213 ?? '' });
     const rent = pickInvoice(rows, 'PROJECT_MANAGED_RENT', '2027-08-01');
     await payer.goto(`/invoices/${rent.id}`);
+    await payer.getByTestId('payment-submit-open').click();
     await expect(payer.getByTestId('payment-submit-form')).toBeVisible();
     await payer.getByTestId('payment-submit-upload-input').setInputFiles(ctx.slipPath ?? '');
     await expect(payer.getByTestId('payment-submit-slip-ready')).toBeVisible();
     await payer.getByTestId('payment-submit-button').click();
-    await expect(payer.getByTestId('payment-submit-error')).toContainText('already awaiting review');
+    await expect(payer.getByTestId('payment-submit-error')).toContainText(
+      'already awaiting review',
+    );
   });
 
   test('ui: admin approves the slip and the balance updates', async ({ page }) => {
@@ -225,7 +241,9 @@ test.describe('billing payment screens: balance, submit, review, edit', () => {
     await page.getByTestId(`payment-approve-submit-${submissionId}`).click();
     await expect(page.getByTestId('invoice-payment-state')).toHaveText('Partially paid');
     await expect(page.getByTestId('invoice-payment-outstanding')).toContainText('5000.00 THB');
-    await expect(page.getByTestId(`payment-submission-state-${submissionId}`)).toHaveText('Approved');
+    await expect(page.getByTestId(`payment-submission-state-${submissionId}`)).toHaveText(
+      'Approved',
+    );
   });
 
   test('ui: admin edits the total live and the revision history shows it', async ({ page }) => {
@@ -233,12 +251,15 @@ test.describe('billing payment screens: balance, submit, review, edit', () => {
     const rows = await listInvoices(page.request, { roomId: ctx.room213 ?? '' });
     const rent = pickInvoice(rows, 'PROJECT_MANAGED_RENT', '2027-08-01');
     await page.goto(`/admin/billing/invoices/${rent.id}`);
+    await page.getByTestId('invoice-edit-open').click();
     await expect(page.getByTestId('invoice-edit-form')).toBeVisible();
     await page.getByTestId('invoice-edit-total').fill('9000.00');
     await page.getByTestId('invoice-edit-reason').fill('Correct the meter reading.');
     await page.getByTestId('invoice-edit-submit').click();
     await expect(page.getByTestId('invoice-detail-total')).toContainText('9000.00 THB');
-    await expect(page.getByTestId('invoice-payment-revisions')).toContainText('Correct the meter reading.');
+    await expect(page.getByTestId('invoice-payment-revisions')).toContainText(
+      'Correct the meter reading.',
+    );
     const detail = await getInvoice(page.request, rent.id);
     expect(detail.version).toBe(rent.version + 1);
   });
@@ -250,6 +271,7 @@ test.describe('billing payment screens: balance, submit, review, edit', () => {
     const rows = await listInvoices(page.request, { roomId: ctx.room213 ?? '' });
     const fee = pickInvoice(rows, 'COMMON_FEE', '2027-08-01');
     await page.goto(`/admin/billing/invoices/${fee.id}`);
+    await page.getByTestId('invoice-edit-open').click();
     await expect(page.getByTestId('invoice-edit-form')).toBeVisible();
     await page.getByTestId('invoice-edit-total').fill('bad-amount');
     await page.getByTestId('invoice-edit-submit').click();
@@ -268,6 +290,7 @@ test.describe('billing payment screens: balance, submit, review, edit', () => {
     const rows = await listInvoices(payer.request, { roomId: ctx.room213 ?? '' });
     const rent = pickInvoice(rows, 'PROJECT_MANAGED_RENT', '2027-08-01');
     await payer.goto(`/invoices/${rent.id}`);
+    await payer.getByTestId('payment-submit-open').click();
     await payer.getByTestId('payment-submit-upload-input').setInputFiles(ctx.slipPath ?? '');
     await expect(payer.getByTestId('payment-submit-slip-ready')).toBeVisible();
     await payer.getByTestId('payment-submit-button').click();

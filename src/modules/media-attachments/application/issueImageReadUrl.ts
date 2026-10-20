@@ -26,6 +26,7 @@ export async function issueImageReadUrl(
     image.scope,
     actor,
     {
+      imageId: image.id,
       scope: image.scope,
       entityRef:
         image.ownerEntityType === null || image.ownerEntityId === null

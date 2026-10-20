@@ -1,4 +1,11 @@
 'use client';
+import { closingScheduleValue } from './closingTime';
+import { FormActions } from '@/shared/ui/FormActions';
+
+import { Select } from '@/shared/ui/Select';
+import { CalendarDays as SelectIconCalendarDays } from 'lucide-react';
+
+import { useFormDialog } from '@/shared/ui/FormDialog';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -19,18 +26,15 @@ const DAYS = [
 ] as const;
 
 const intString = (field: string, min: number, max: number) =>
-  z
-    .string()
-    .refine(
-      (value) => {
-        const parsed = Number(value);
-        return value.trim() !== '' && Number.isInteger(parsed) && parsed >= min && parsed <= max;
-      },
-      { message: `${field} must be an integer between ${min} and ${max}.` },
-    );
+  z.string().refine(
+    (value) => {
+      const parsed = Number(value);
+      return value.trim() !== '' && Number.isInteger(parsed) && parsed >= min && parsed <= max;
+    },
+    { message: `${field} must be an integer between ${min} and ${max}.` },
+  );
 
 const createSchema = z.object({
-  code: z.string().trim().min(1, 'Code is required.').max(64),
   name: z.string().trim().min(1, 'Name is required.').max(255),
   description: z.string().trim().max(20000).optional(),
   capacity: intString('Capacity', 1, 1000),
@@ -78,17 +82,22 @@ export function FacilityCreateForm({ projectId }: { projectId: string }) {
     },
   });
 
+  const dialog = useFormDialog(isSubmitting);
+
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
-    if (toMinutes(values.openEnd) <= toMinutes(values.openStart)) {
+    const closing = closingScheduleValue(values.openEnd);
+    if (toMinutes(closing) <= toMinutes(values.openStart)) {
       setServerError('Opening end must be after opening start.');
       return;
     }
-    const hasBreak =
-      (values.breakStart ?? '') !== '' || (values.breakEnd ?? '') !== '';
+    const hasBreak = (values.breakStart ?? '') !== '' || (values.breakEnd ?? '') !== '';
     if (hasBreak) {
       const breakPattern = /^([01]\d|2[0-3]):[0-5]\d$/;
-      if (!breakPattern.test(values.breakStart ?? '') || !breakPattern.test(values.breakEnd ?? '')) {
+      if (
+        !breakPattern.test(values.breakStart ?? '') ||
+        !breakPattern.test(values.breakEnd ?? '')
+      ) {
         setServerError('Break times must use HH:MM format.');
         return;
       }
@@ -97,22 +106,23 @@ export function FacilityCreateForm({ projectId }: { projectId: string }) {
       if (
         breakEnd <= breakStart ||
         breakStart < toMinutes(values.openStart) ||
-        breakEnd > toMinutes(values.openEnd)
+        breakEnd > toMinutes(closing)
       ) {
         setServerError('The break must sit inside the opening window.');
         return;
       }
     }
-    const days: Record<string, { open: Array<{ start: string; end: string }>; breaks: Array<{ start: string; end: string }> }> = {};
+    const days: Record<
+      string,
+      { open: Array<{ start: string; end: string }>; breaks: Array<{ start: string; end: string }> }
+    > = {};
     for (const day of ['0', '1', '2', '3', '4', '5', '6']) {
       if (!values.openDays.includes(day)) {
         days[day] = { open: [], breaks: [] };
       } else {
         days[day] = {
-          open: [{ start: values.openStart, end: values.openEnd }],
-          breaks: hasBreak
-            ? [{ start: values.breakStart ?? '', end: values.breakEnd ?? '' }]
-            : [],
+          open: [{ start: values.openStart, end: closing }],
+          breaks: hasBreak ? [{ start: values.breakStart ?? '', end: values.breakEnd ?? '' }] : [],
         };
       }
     }
@@ -121,7 +131,6 @@ export function FacilityCreateForm({ projectId }: { projectId: string }) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         projectId,
-        code: values.code,
         name: values.name,
         description: values.description ?? null,
         status: 'ACTIVE',
@@ -139,7 +148,8 @@ export function FacilityCreateForm({ projectId }: { projectId: string }) {
       return;
     }
     toast.success('Facility created.');
-    router.push('/admin/facilities');
+    dialog?.complete();
+    router.push(`/admin/facilities?query=${encodeURIComponent(values.name)}`);
     router.refresh();
   });
 
@@ -148,7 +158,7 @@ export function FacilityCreateForm({ projectId }: { projectId: string }) {
       data-testid="facility-create-form"
       onSubmit={onSubmit}
       noValidate
-      className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:p-5"
+      className="flex flex-col gap-4 "
     >
       {serverError !== null ? (
         <p
@@ -159,17 +169,13 @@ export function FacilityCreateForm({ projectId }: { projectId: string }) {
           {serverError}
         </p>
       ) : null}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <FormField label="Code" htmlFor="facility-create-code" error={errors.code?.message ?? ''} required>
-          <input
-            data-testid="facility-create-code"
-            type="text"
-            required
-            className={INPUT_CLASS}
-            {...register('code')}
-          />
-        </FormField>
-        <FormField label="Name" htmlFor="facility-create-name" error={errors.name?.message ?? ''} required>
+      <div className="grid grid-cols-1 gap-4">
+        <FormField
+          label="Name"
+          htmlFor="facility-create-name"
+          error={errors.name?.message ?? ''}
+          required
+        >
           <input
             data-testid="facility-create-name"
             type="text"
@@ -179,7 +185,11 @@ export function FacilityCreateForm({ projectId }: { projectId: string }) {
           />
         </FormField>
       </div>
-      <FormField label="Description" htmlFor="facility-create-description" hint="Shown to residents on the facility page.">
+      <FormField
+        label="Description"
+        htmlFor="facility-create-description"
+        hint="Shown to residents on the facility page."
+      >
         <textarea
           data-testid="facility-create-description"
           rows={3}
@@ -207,7 +217,8 @@ export function FacilityCreateForm({ projectId }: { projectId: string }) {
           />
         </FormField>
         <FormField label="Quota period" htmlFor="facility-create-quota-kind">
-          <select
+          <Select
+            icon={SelectIconCalendarDays}
             data-testid="facility-create-quota-kind"
             className={INPUT_CLASS}
             {...register('quotaKind')}
@@ -215,7 +226,7 @@ export function FacilityCreateForm({ projectId }: { projectId: string }) {
             <option value="DAILY">Daily</option>
             <option value="WEEKLY">Weekly</option>
             <option value="MONTHLY">Monthly</option>
-          </select>
+          </Select>
         </FormField>
         <FormField label="Quota slots per period" htmlFor="facility-create-quota-limit">
           <input
@@ -267,7 +278,12 @@ export function FacilityCreateForm({ projectId }: { projectId: string }) {
             {...register('openStart')}
           />
         </FormField>
-        <FormField label="Closes" htmlFor="facility-create-open-end" className="min-w-0">
+        <FormField
+          label="Closes"
+          htmlFor="facility-create-open-end"
+          hint="00:00 means midnight at the end of the day."
+          className="min-w-0"
+        >
           <input
             data-testid="facility-create-open-end"
             type="time"
@@ -275,7 +291,11 @@ export function FacilityCreateForm({ projectId }: { projectId: string }) {
             {...register('openEnd')}
           />
         </FormField>
-        <FormField label="Break start (optional)" htmlFor="facility-create-break-start" className="min-w-0">
+        <FormField
+          label="Break start (optional)"
+          htmlFor="facility-create-break-start"
+          className="min-w-0"
+        >
           <input
             data-testid="facility-create-break-start"
             type="time"
@@ -283,7 +303,11 @@ export function FacilityCreateForm({ projectId }: { projectId: string }) {
             {...register('breakStart')}
           />
         </FormField>
-        <FormField label="Break end (optional)" htmlFor="facility-create-break-end" className="min-w-0">
+        <FormField
+          label="Break end (optional)"
+          htmlFor="facility-create-break-end"
+          className="min-w-0"
+        >
           <input
             data-testid="facility-create-break-end"
             type="time"
@@ -292,14 +316,14 @@ export function FacilityCreateForm({ projectId }: { projectId: string }) {
           />
         </FormField>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <FormActions
+        onCancel={() => (dialog ? dialog.requestClose() : router.push('/admin/facilities'))}
+        pending={isSubmitting}
+      >
         <Button data-testid="facility-create-submit" type="submit" loading={isSubmitting}>
           Create facility
         </Button>
-        <Button type="button" variant="secondary" onClick={() => router.push('/admin/facilities')}>
-          Cancel
-        </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

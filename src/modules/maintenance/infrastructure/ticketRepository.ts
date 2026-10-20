@@ -41,7 +41,11 @@ function toRecord(row: typeof maintenanceRequest.$inferSelect): TicketRecord {
 }
 
 export async function findTicketById(conn: Db, id: string): Promise<TicketRecord | null> {
-  const rows = await conn.select().from(maintenanceRequest).where(eq(maintenanceRequest.id, id)).limit(1);
+  const rows = await conn
+    .select()
+    .from(maintenanceRequest)
+    .where(eq(maintenanceRequest.id, id))
+    .limit(1);
   const row = rows[0];
   return row === undefined ? null : toRecord(row);
 }
@@ -95,7 +99,9 @@ export async function updateTicketStatus(
   const rows = await tx
     .update(maintenanceRequest)
     .set({ status: input.toStatus, version: input.fromVersion + 1, updatedAt: input.at })
-    .where(and(eq(maintenanceRequest.id, input.id), eq(maintenanceRequest.version, input.fromVersion)))
+    .where(
+      and(eq(maintenanceRequest.id, input.id), eq(maintenanceRequest.version, input.fromVersion)),
+    )
     .returning();
   const row = rows[0];
   return row === undefined ? null : toRecord(row);
@@ -172,6 +178,7 @@ export interface TicketListPage {
 }
 
 export interface TicketListFilter {
+  view?: 'open' | 'history' | undefined;
   roomId?: string | undefined;
   routingKind?: MaintenanceRoutingKind | undefined;
   status?: MaintenanceStatus | undefined;
@@ -181,6 +188,12 @@ export interface TicketListFilter {
 
 function buildListConditions(input: TicketListFilter) {
   const conditions = [];
+  if (input.view === 'open')
+    conditions.push(
+      inArray(maintenanceRequest.status, ['PENDING', 'IN_PROGRESS', 'WAITING_FOR_INFO']),
+    );
+  if (input.view === 'history')
+    conditions.push(inArray(maintenanceRequest.status, ['COMPLETED', 'REJECTED', 'CANCELLED']));
   if (input.roomId !== undefined) conditions.push(eq(maintenanceRequest.roomId, input.roomId));
   if (input.routingKind !== undefined) {
     conditions.push(eq(maintenanceRequest.routingKind, input.routingKind));

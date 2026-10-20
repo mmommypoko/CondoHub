@@ -1,12 +1,18 @@
 'use client';
+import { closingInputValue, closingScheduleValue } from './closingTime';
+import { FormActions } from '@/shared/ui/FormActions';
+
+import { Select } from '@/shared/ui/Select';
+import { CalendarDays as SelectIconCalendarDays } from 'lucide-react';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
-import { Badge, Button, FormField, useToast } from '@/shared/ui';
+import { Badge, Button, useFormDialog, FormField, useToast } from '@/shared/ui';
 import { CHECKBOX_CLASS, INPUT_CLASS } from '@/shared/ui';
+import type { FacilitySchedule } from '../domain/schedule';
 
 const DAYS = [
   { key: '1', label: 'Mon' },
@@ -19,15 +25,13 @@ const DAYS = [
 ] as const;
 
 const intString = (field: string, min: number, max: number) =>
-  z
-    .string()
-    .refine(
-      (value) => {
-        const parsed = Number(value);
-        return value.trim() !== '' && Number.isInteger(parsed) && parsed >= min && parsed <= max;
-      },
-      { message: `${field} must be an integer between ${min} and ${max}.` },
-    );
+  z.string().refine(
+    (value) => {
+      const parsed = Number(value);
+      return value.trim() !== '' && Number.isInteger(parsed) && parsed >= min && parsed <= max;
+    },
+    { message: `${field} must be an integer between ${min} and ${max}.` },
+  );
 
 const configSchema = z.object({
   slotMinutes: intString('Slot length', 5, 1440),
@@ -56,7 +60,13 @@ interface PreviewPayload {
       endsAt: string;
       conflicts: string[];
     }>;
-    quotaImpacts: Array<{ roomId: string; periodKey: string; used: number; newLimit: number; overBy: number }>;
+    quotaImpacts: Array<{
+      roomId: string;
+      periodKey: string;
+      used: number;
+      newLimit: number;
+      overBy: number;
+    }>;
     previewToken: string;
   };
 }
@@ -85,6 +95,7 @@ export function ConfigChangeForm({
     openStart: string;
     openEnd: string;
     openDays: string[];
+    schedule: FacilitySchedule;
   };
 }) {
   const router = useRouter();
@@ -92,6 +103,7 @@ export function ConfigChangeForm({
   const [serverError, setServerError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PreviewPayload['data'] | null>(null);
   const [working, setWorking] = useState(false);
+  const dialog = useFormDialog(working);
   const {
     register,
     handleSubmit,
@@ -106,13 +118,14 @@ export function ConfigChangeForm({
       advanceDays: String(initial.advanceDays),
       effectiveAt: '',
       openStart: initial.openStart,
-      openEnd: initial.openEnd,
+      openEnd: closingInputValue(initial.openEnd),
       openDays: initial.openDays,
     },
   });
 
   const buildBody = (values: ConfigValues): Record<string, unknown> | null => {
-    if (toMinutes(values.openEnd) <= toMinutes(values.openStart)) {
+    const closing = closingScheduleValue(values.openEnd);
+    if (toMinutes(closing) <= toMinutes(values.openStart)) {
       setServerError('Opening end must be after opening start.');
       return null;
     }
@@ -121,14 +134,22 @@ export function ConfigChangeForm({
       setServerError('The effective time is invalid.');
       return null;
     }
-    const days: Record<string, { open: Array<{ start: string; end: string }>; breaks: Array<{ start: string; end: string }> }> = {};
+    const days: Record<
+      string,
+      { open: Array<{ start: string; end: string }>; breaks: Array<{ start: string; end: string }> }
+    > = {};
     for (const day of ['0', '1', '2', '3', '4', '5', '6']) {
       days[day] = values.openDays.includes(day)
-        ? { open: [{ start: values.openStart, end: values.openEnd }], breaks: [] }
+        ? { open: [{ start: values.openStart, end: closing }], breaks: [] }
         : { open: [], breaks: [] };
     }
     return {
-      schedule: { days, holidays: [] },
+      schedule:
+        values.openStart === initial.openStart &&
+        closing === initial.openEnd &&
+        [...values.openDays].sort().join(',') === [...initial.openDays].sort().join(',')
+          ? initial.schedule
+          : { days, holidays: initial.schedule.holidays },
       slotMinutes: Number(values.slotMinutes),
       capacity,
       quotaKind: values.quotaKind,
@@ -190,6 +211,7 @@ export function ConfigChangeForm({
         return;
       }
       toast.success('Config committed.');
+      dialog?.complete();
       setPreview(null);
       router.refresh();
     } catch {
@@ -204,117 +226,136 @@ export function ConfigChangeForm({
       <form
         data-testid="config-change-form"
         onSubmit={onPreview}
+        onChange={() => setPreview(null)}
         noValidate
-        className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:p-5"
+        className="flex min-w-0 flex-col gap-4"
       >
-        {serverError !== null ? (
-          <p
-            data-testid="config-change-error"
-            role="alert"
-            className="text-body leading-body font-medium text-danger-foreground"
-          >
-            {serverError}
-          </p>
-        ) : null}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormField label="Slot length (minutes)" htmlFor="config-change-slot">
-            <input
-              data-testid="config-change-slot-minutes"
-              type="number"
-              min={5}
-              className={INPUT_CLASS}
-              {...register('slotMinutes')}
-            />
-          </FormField>
-          <FormField label="Quota period" htmlFor="config-change-kind">
-            <select
-              data-testid="config-change-quota-kind"
-              className={INPUT_CLASS}
-              {...register('quotaKind')}
+        <fieldset disabled={working} className="flex min-w-0 flex-col gap-4">
+          {serverError !== null ? (
+            <p
+              data-testid="config-change-error"
+              role="alert"
+              className="text-body leading-body font-medium text-danger-foreground"
             >
-              <option value="DAILY">Daily</option>
-              <option value="WEEKLY">Weekly</option>
-              <option value="MONTHLY">Monthly</option>
-            </select>
-          </FormField>
-          <FormField label="Quota slots per period" htmlFor="config-change-limit">
-            <input
-              data-testid="config-change-quota-limit"
-              type="number"
-              min={0}
-              className={INPUT_CLASS}
-              {...register('quotaLimit')}
-            />
-          </FormField>
-          <FormField label="Advance booking days" htmlFor="config-change-advance">
-            <input
-              data-testid="config-change-advance-days"
-              type="number"
-              min={0}
-              className={INPUT_CLASS}
-              {...register('advanceDays')}
-            />
-          </FormField>
-          <div className="sm:col-span-2">
+              {serverError}
+            </p>
+          ) : null}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField label="Slot length (minutes)" htmlFor="config-change-slot">
+              <input
+                data-testid="config-change-slot-minutes"
+                type="number"
+                min={5}
+                className={INPUT_CLASS}
+                {...register('slotMinutes')}
+              />
+            </FormField>
+            <FormField label="Quota period" htmlFor="config-change-kind">
+              <Select
+                icon={SelectIconCalendarDays}
+                data-testid="config-change-quota-kind"
+                className={INPUT_CLASS}
+                {...register('quotaKind')}
+              >
+                <option value="DAILY">Daily</option>
+                <option value="WEEKLY">Weekly</option>
+                <option value="MONTHLY">Monthly</option>
+              </Select>
+            </FormField>
+            <FormField label="Quota slots per period" htmlFor="config-change-limit">
+              <input
+                data-testid="config-change-quota-limit"
+                type="number"
+                min={0}
+                className={INPUT_CLASS}
+                {...register('quotaLimit')}
+              />
+            </FormField>
+            <FormField label="Advance booking days" htmlFor="config-change-advance">
+              <input
+                data-testid="config-change-advance-days"
+                type="number"
+                min={0}
+                className={INPUT_CLASS}
+                {...register('advanceDays')}
+              />
+            </FormField>
+            <div className="sm:col-span-2">
+              <FormField
+                label="Effective at"
+                htmlFor="config-change-effective"
+                error={errors.effectiveAt?.message ?? ''}
+              >
+                <input
+                  data-testid="config-change-effective-at"
+                  type="datetime-local"
+                  className={INPUT_CLASS}
+                  {...register('effectiveAt')}
+                />
+              </FormField>
+            </div>
+          </div>
+          <fieldset className="flex min-w-0 flex-col gap-2">
+            <legend className="text-body font-medium text-foreground">Opening hours</legend>
+            <p className="text-small text-muted-foreground">
+              Current daily hours and breaks are kept unless you change the days or times below.
+              Changing them applies these hours to all selected days and replaces their breaks.
+              Holiday dates are kept.
+            </p>
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
+              {DAYS.map((day) => (
+                <label key={day.key} className="flex items-center gap-2 text-body text-foreground">
+                  <input
+                    data-testid={`config-change-day-${day.key}`}
+                    type="checkbox"
+                    className={CHECKBOX_CLASS}
+                    value={day.key}
+                    {...register('openDays')}
+                  />
+                  {day.label}
+                </label>
+              ))}
+            </div>
+            {errors.openDays !== undefined ? (
+              <p role="alert" className="text-body leading-body font-medium text-danger-foreground">
+                {errors.openDays.message}
+              </p>
+            ) : null}
+          </fieldset>
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Opens" htmlFor="config-change-open-start" className="min-w-0">
+              <input
+                data-testid="config-change-open-start"
+                type="time"
+                className={INPUT_CLASS}
+                {...register('openStart')}
+              />
+            </FormField>
             <FormField
-              label="Effective at"
-              htmlFor="config-change-effective"
-              error={errors.effectiveAt?.message ?? ''}
+              label="Closes"
+              htmlFor="config-change-open-end"
+              hint="00:00 means midnight at the end of the day."
+              className="min-w-0"
             >
               <input
-                data-testid="config-change-effective-at"
-                type="datetime-local"
+                data-testid="config-change-open-end"
+                type="time"
                 className={INPUT_CLASS}
-                {...register('effectiveAt')}
+                {...register('openEnd')}
               />
             </FormField>
           </div>
-        </div>
-        <fieldset className="flex min-w-0 flex-col gap-2">
-          <legend className="text-body font-medium text-foreground">Open days</legend>
-          <div className="flex flex-wrap gap-x-4 gap-y-2">
-            {DAYS.map((day) => (
-              <label key={day.key} className="flex items-center gap-2 text-body text-foreground">
-                <input
-                  data-testid={`config-change-day-${day.key}`}
-                  type="checkbox"
-                  className={CHECKBOX_CLASS}
-                  value={day.key}
-                  {...register('openDays')}
-                />
-                {day.label}
-              </label>
-            ))}
-          </div>
-          {errors.openDays !== undefined ? (
-            <p role="alert" className="text-body leading-body font-medium text-danger-foreground">
-              {errors.openDays.message}
-            </p>
-          ) : null}
+          <FormActions onCancel={dialog?.requestClose} pending={working}>
+            <Button
+              data-testid="config-change-preview"
+              type="submit"
+              variant="secondary"
+              loading={working}
+            >
+              Preview impact
+            </Button>
+          </FormActions>
         </fieldset>
-        <div className="grid grid-cols-2 gap-3">
-          <FormField label="Opens" htmlFor="config-change-open-start" className="min-w-0">
-            <input
-              data-testid="config-change-open-start"
-              type="time"
-              className={INPUT_CLASS}
-              {...register('openStart')}
-            />
-          </FormField>
-          <FormField label="Closes" htmlFor="config-change-open-end" className="min-w-0">
-            <input
-              data-testid="config-change-open-end"
-              type="time"
-              className={INPUT_CLASS}
-              {...register('openEnd')}
-            />
-          </FormField>
-        </div>
-        <div>
-          <Button data-testid="config-change-preview" type="submit" variant="secondary" loading={working}>
-            Preview impact
-          </Button>
-        </div>
       </form>
       {preview !== null ? (
         <section
@@ -336,8 +377,12 @@ export function ConfigChangeForm({
               {preview.structuralConflicts.length === 1 ? '' : 's'}
             </p>
             {preview.structuralConflicts.length === 0 ? (
-              <p data-testid="config-change-no-conflicts" className="text-small text-muted-foreground">
-                No future bookings conflict with the proposed schedule, length, capacity, or closures.
+              <p
+                data-testid="config-change-no-conflicts"
+                className="text-small text-muted-foreground"
+              >
+                No future bookings conflict with the proposed schedule, length, capacity, or
+                closures.
               </p>
             ) : (
               <ul data-testid="config-change-conflicts" className="flex flex-col gap-1">
@@ -353,7 +398,8 @@ export function ConfigChangeForm({
           </div>
           <div className="flex flex-col gap-1 border-t border-border pt-4 text-body">
             <p className="font-medium text-foreground">
-              {preview.quotaImpacts.length} room-period{preview.quotaImpacts.length === 1 ? '' : 's'} over the new limit
+              {preview.quotaImpacts.length} room-period
+              {preview.quotaImpacts.length === 1 ? '' : 's'} over the new limit
             </p>
             {preview.quotaImpacts.length === 0 ? (
               <p className="text-small text-muted-foreground">
@@ -362,17 +408,21 @@ export function ConfigChangeForm({
             ) : (
               <ul data-testid="config-change-quota-impacts" className="flex flex-col gap-1">
                 {preview.quotaImpacts.slice(0, 20).map((impact) => (
-                  <li key={`${impact.roomId}-${impact.periodKey}`} className="break-words text-body text-foreground">
+                  <li
+                    key={`${impact.roomId}-${impact.periodKey}`}
+                    className="break-words text-body text-foreground"
+                  >
                     {impact.periodKey}: used {impact.used}, new limit {impact.newLimit}
                   </li>
                 ))}
               </ul>
             )}
             <p className="text-small text-muted-foreground">
-              Quota-only reductions never cancel existing bookings; new requests are blocked until usage fits.
+              Quota-only reductions never cancel existing bookings; new requests are blocked until
+              usage fits.
             </p>
           </div>
-          <div>
+          <FormActions onCancel={dialog?.requestClose} pending={working}>
             <Button
               data-testid="config-change-commit"
               type="button"
@@ -380,9 +430,9 @@ export function ConfigChangeForm({
               disabled={preview.structuralConflicts.length > 0}
               onClick={() => void onCommit()}
             >
-              Commit config
+              Apply booking rules
             </Button>
-          </div>
+          </FormActions>
         </section>
       ) : null}
     </div>

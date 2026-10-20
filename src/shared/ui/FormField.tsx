@@ -1,6 +1,6 @@
-import { cloneElement, isValidElement } from "react";
-import type { ReactElement, ReactNode } from "react";
-import { cx } from "./cx";
+import { cloneElement, isValidElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
+import { cx } from './cx';
 
 export interface FormFieldProps {
   label: string;
@@ -30,18 +30,18 @@ export function FormField({
   const errorId = error && fieldId ? `${fieldId}-error` : undefined;
   const describedBy = [hintId, error ? (errorId ?? undefined) : undefined]
     .filter(Boolean)
-    .join(" ");
+    .join(' ');
 
   const control = isValidElement(children)
     ? cloneElement(children as ReactElement<Record<string, unknown>>, {
         id: fieldId ?? (children as ReactElement<Record<string, unknown>>).props.id,
-        "aria-invalid": error ? true : undefined,
-        "aria-describedby": describedBy.length > 0 ? describedBy : undefined,
+        'aria-invalid': error ? true : undefined,
+        'aria-describedby': describedBy.length > 0 ? describedBy : undefined,
       })
     : (children as ReactNode);
 
   return (
-    <div data-testid={testId} className={cx("flex flex-col gap-1.5", className)}>
+    <div data-testid={testId} className={cx('flex min-w-0 flex-col gap-1.5', className)}>
       <label htmlFor={fieldId} className="text-body leading-body font-medium text-foreground">
         {label}
         {required ? (

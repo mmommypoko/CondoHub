@@ -1,6 +1,7 @@
 'use client';
+import { FormActions } from '@/shared/ui/FormActions';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -43,9 +44,11 @@ export function extractProvisionedAccount(payload: unknown): {
 export function UserProvisionForm({
   onDone,
   onCancel,
+  onPendingChange,
 }: {
   onDone: (userId: string, tempPassword: string | null) => void;
   onCancel: () => void;
+  onPendingChange: (pending: boolean) => void;
 }) {
   const [serverError, setServerError] = useState<string | null>(null);
   const {
@@ -57,6 +60,10 @@ export function UserProvisionForm({
     defaultValues: { username: '', email: '', name: '', phone: '', isSystemAdmin: false },
   });
 
+  useEffect(() => {
+    onPendingChange(isSubmitting);
+    return () => onPendingChange(false);
+  }, [isSubmitting, onPendingChange]);
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
     const response = await fetch('/api/admin/users', {
@@ -80,7 +87,12 @@ export function UserProvisionForm({
   });
 
   return (
-    <form data-testid="admin-users-provision-form" onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
+    <form
+      data-testid="admin-users-provision-form"
+      onSubmit={onSubmit}
+      noValidate
+      className="flex flex-col gap-4"
+    >
       {serverError !== null ? (
         <p
           data-testid="admin-users-provision-error"
@@ -106,7 +118,12 @@ export function UserProvisionForm({
           {...register('username')}
         />
       </FormField>
-      <FormField label="Email" htmlFor="admin-users-provision-email" error={errors.email?.message ?? ''} required>
+      <FormField
+        label="Email"
+        htmlFor="admin-users-provision-email"
+        error={errors.email?.message ?? ''}
+        required
+      >
         <input
           data-testid="admin-users-provision-email"
           type="email"
@@ -116,7 +133,12 @@ export function UserProvisionForm({
           {...register('email')}
         />
       </FormField>
-      <FormField label="Full name" htmlFor="admin-users-provision-name" error={errors.name?.message ?? ''} required>
+      <FormField
+        label="Full name"
+        htmlFor="admin-users-provision-name"
+        error={errors.name?.message ?? ''}
+        required
+      >
         <input
           data-testid="admin-users-provision-name"
           type="text"
@@ -126,7 +148,11 @@ export function UserProvisionForm({
           {...register('name')}
         />
       </FormField>
-      <FormField label="Phone (optional)" htmlFor="admin-users-provision-phone" error={errors.phone?.message ?? ''}>
+      <FormField
+        label="Phone (optional)"
+        htmlFor="admin-users-provision-phone"
+        error={errors.phone?.message ?? ''}
+      >
         <input
           data-testid="admin-users-provision-phone"
           type="tel"
@@ -144,14 +170,11 @@ export function UserProvisionForm({
         />
         System admin
       </label>
-      <div className="flex flex-wrap gap-2">
+      <FormActions onCancel={onCancel} pending={isSubmitting}>
         <Button data-testid="admin-users-provision-submit" type="submit" loading={isSubmitting}>
           Provision user
         </Button>
-        <Button type="button" variant="secondary" onClick={onCancel}>
-          Cancel
-        </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

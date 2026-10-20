@@ -4,10 +4,7 @@ import { db } from '@/shared/db/client';
 import type { Db } from '@/shared/db/transaction';
 import { AppError } from '@/shared/utils/errors';
 import { listAttachedImagesForEntity } from '@/modules/media-attachments/application/index';
-import type {
-  MaintenanceRoutingKind,
-  MaintenanceStatus,
-} from '../infrastructure/schema';
+import type { MaintenanceRoutingKind, MaintenanceStatus } from '../infrastructure/schema';
 import {
   allowedRoutingKinds,
   evaluateTicketAccess,
@@ -142,11 +139,11 @@ export async function assertTicketVisible(
   return grants;
 }
 
-async function toCommentDto(
-  conn: Db,
-  row: TicketCommentRecord,
-): Promise<TicketCommentDto> {
-  const images = await listAttachedImagesForEntity(conn, { type: 'maintenance_comment', id: row.id });
+async function toCommentDto(conn: Db, row: TicketCommentRecord): Promise<TicketCommentDto> {
+  const images = await listAttachedImagesForEntity(conn, {
+    type: 'maintenance_comment',
+    id: row.id,
+  });
   return {
     id: row.id,
     authorId: row.authorId,
@@ -210,6 +207,7 @@ export async function listTickets(
     status?: MaintenanceStatus | undefined;
     page: number;
     pageSize: number;
+    view?: 'open' | 'history' | undefined;
   },
   conn: Db = db,
 ): Promise<TicketPage> {
@@ -224,6 +222,7 @@ export async function listTickets(
     ? await listTicketsForAdmin(conn, {
         limit,
         offset,
+        view: input.view,
         ...(input.roomId !== undefined ? { roomId: input.roomId } : {}),
         ...(input.routingKind !== undefined ? { routingKind: input.routingKind } : {}),
         ...(input.status !== undefined ? { status: input.status } : {}),
@@ -232,6 +231,7 @@ export async function listTickets(
         userId: actor.userId,
         limit,
         offset,
+        view: input.view,
         ...(input.roomId !== undefined ? { roomId: input.roomId } : {}),
         ...(input.routingKind !== undefined ? { routingKind: input.routingKind } : {}),
         ...(input.status !== undefined ? { status: input.status } : {}),

@@ -1,4 +1,5 @@
 'use client';
+import { Pencil, Trash2 } from 'lucide-react';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -8,7 +9,6 @@ import { useRouter } from 'next/navigation';
 import { Button, Dialog, FormField, INPUT_CLASS, serverErrorMessage, useToast } from '@/shared/ui';
 
 const editSchema = z.object({
-  code: z.string().trim().min(1, 'Code is required.').max(64),
   label: z.string().trim().min(1, 'Label is required.').max(255),
 });
 
@@ -16,12 +16,10 @@ type EditValues = z.infer<typeof editSchema>;
 
 export function FloorRowActions({
   floorId,
-  code,
   label,
   roomCount,
 }: {
   floorId: string;
-  code: string;
   label: string;
   roomCount: number;
 }) {
@@ -38,7 +36,7 @@ export function FloorRowActions({
     formState: { errors, isSubmitting },
   } = useForm<EditValues>({
     resolver: zodResolver(editSchema),
-    defaultValues: { code, label },
+    defaultValues: { label },
   });
 
   const onEdit = handleSubmit(async (values) => {
@@ -46,7 +44,7 @@ export function FloorRowActions({
     const response = await fetch(`/api/admin/floors/${floorId}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ code: values.code, label: values.label }),
+      body: JSON.stringify({ label: values.label }),
     });
     if (!response.ok) {
       const payload: unknown = await response.json().catch(() => null);
@@ -85,6 +83,7 @@ export function FloorRowActions({
           size="sm"
           onClick={() => setEditOpen(true)}
         >
+          <Pencil aria-hidden="true" className="size-4" />
           Edit
         </Button>
         <Button
@@ -95,19 +94,21 @@ export function FloorRowActions({
           title={roomCount > 0 ? `Has ${roomCount} rooms` : undefined}
           onClick={() => setDeleteOpen(true)}
         >
+          <Trash2 aria-hidden="true" className="size-4" />
           Delete
         </Button>
       </span>
       <Dialog
         open={editOpen}
+        busy={isSubmitting}
         onClose={() => setEditOpen(false)}
         title="Edit floor"
-        description="Update the floor code and label."
+        description="Update the floor name."
         size="sm"
         testId="floor-edit-dialog"
         actions={
           <>
-            <Button variant="secondary" onClick={() => setEditOpen(false)}>
+            <Button variant="secondary" disabled={isSubmitting} onClick={() => setEditOpen(false)}>
               Cancel
             </Button>
             <Button
@@ -135,16 +136,12 @@ export function FloorRowActions({
               {editError}
             </p>
           ) : null}
-          <FormField label="Code" htmlFor="floor-edit-code" error={errors.code?.message ?? ''} required>
-            <input
-              data-testid="floor-edit-code"
-              type="text"
-              required
-              className={INPUT_CLASS}
-              {...register('code')}
-            />
-          </FormField>
-          <FormField label="Label" htmlFor="floor-edit-label" error={errors.label?.message ?? ''} required>
+          <FormField
+            label="Floor name"
+            htmlFor="floor-edit-label"
+            error={errors.label?.message ?? ''}
+            required
+          >
             <input
               data-testid="floor-edit-label"
               type="text"
@@ -157,6 +154,7 @@ export function FloorRowActions({
       </Dialog>
       <Dialog
         open={deleteOpen}
+        busy={busy}
         onClose={() => setDeleteOpen(false)}
         title="Remove this floor?"
         description="The floor is removed permanently. Only empty floors can be removed."
@@ -164,7 +162,7 @@ export function FloorRowActions({
         testId="floor-delete-confirm"
         actions={
           <>
-            <Button variant="secondary" onClick={() => setDeleteOpen(false)}>
+            <Button variant="secondary" disabled={busy} onClick={() => setDeleteOpen(false)}>
               Cancel
             </Button>
             <Button

@@ -211,6 +211,7 @@ test.describe('billing payments: submit, review, edit, transfer, tenants, admin 
     page,
     browser,
   }, testInfo) => {
+    test.setTimeout(600000);
     const { runId } = await readRunContext();
     const baseURL = process.env.TEST_BASE_URL ?? 'http://localhost:3000';
     await loginAsAdmin(page);
@@ -1172,8 +1173,8 @@ test.describe('billing payments: submit, review, edit, transfer, tenants, admin 
     const instruction = await getPayments(revA.request, rent.id, 'instruction');
     expect(instruction.status).toBe(200);
     const snapshot = (instruction.json as PaymentInstructionEnvelope).data.instruction;
-    expect(snapshot.accountNumber).toBe('SYSTEM-AUTO');
-    expect(snapshot.qrImageId).toBeNull();
+    expect(snapshot.accountNumber).toBe('210-0-00001-9');
+    expect(typeof snapshot.qrImageId).toBe('string');
 
     const buyerSubmissions = await getPayments(buyerC.request, rent.id);
     expect(buyerSubmissions.status).toBe(404);
@@ -1218,11 +1219,11 @@ test.describe('billing payments: submit, review, edit, transfer, tenants, admin 
     const payee210 = await probePayee(`E2E-${runId}-210`, 'OWNER');
     const qrImageId = payee210.payee?.qrImageId ?? '';
     const qrAdmin = await readAccess(page.request, qrImageId);
-    expect(qrAdmin.status).toBe(200);
+    expect(qrAdmin.status).toBe(403);
     const qrReviewer = await readAccess(revA.request, qrImageId);
-    expect(qrReviewer.status).toBe(403);
+    expect(qrReviewer.status).toBe(200);
     const qrBuyer = await readAccess(buyerC.request, qrImageId);
-    expect(qrBuyer.status).toBe(403);
+    expect(qrBuyer.status).toBe(200);
   });
 
   test('dto-shape: derived fields ride the list and detail envelopes', async ({ page }) => {

@@ -1,11 +1,13 @@
 import 'server-only';
 import { withApi } from '@/shared/auth/withApi';
 import { requireAdmin } from '@/shared/auth/guards';
+import { isUuid } from '@/shared/utils/idempotency';
 import { AppError } from '@/shared/utils/errors';
 import { RATE_LIMIT_PRESETS } from '@/shared/utils/rateLimit';
 import { systemClock } from '@/shared/utils/clock';
 import {
   createBookingCtx,
+  deleteFacility,
   facilityPatchBody,
   getFacilityDetail,
   parseWithFieldErrors,
@@ -48,6 +50,17 @@ export const PATCH = withApi(
       },
       bookingCtx,
     );
+  },
+  { rateLimit: RATE_LIMIT_PRESETS.generalApi ?? { capacity: 300, windowMs: 60_000 } },
+);
+
+export const DELETE = withApi(
+  async (_request, ctx, route) => {
+    requireAdmin(ctx.actor);
+    const params = await route?.params;
+    const id = params?.id;
+    if (!id || !isUuid(id)) throw new AppError('VALIDATION_ERROR', 'The facility id is invalid.');
+    return deleteFacility(ctx.actor, id, createBookingCtx({ requestId: ctx.requestId }));
   },
   { rateLimit: RATE_LIMIT_PRESETS.generalApi ?? { capacity: 300, windowMs: 60_000 } },
 );

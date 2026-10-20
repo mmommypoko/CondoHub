@@ -1,10 +1,15 @@
-import type { ReactNode } from "react";
-import { cx } from "./cx";
+import { Children, cloneElement, isValidElement, type ReactNode } from 'react';
+import { cx } from './cx';
+import { TableFrame } from './TableFrame';
 
 export interface DataTableColumn {
   key: string;
   header: string;
   numeric?: boolean;
+  width?: number;
+  minWidth?: number;
+  maxWidth?: number;
+  truncate?: boolean;
 }
 
 export interface DataTableProps {
@@ -24,36 +29,34 @@ export function DataTable({
   className,
   children,
 }: DataTableProps) {
-  if (children === undefined && emptyState !== undefined) {
+  if (Children.toArray(children).length === 0 && emptyState !== undefined) {
     return <div data-testid={testId}>{emptyState}</div>;
   }
 
+  const rows = Children.map(children, (row) => {
+    if (!isValidElement<DataTableRowProps>(row) || row.type !== DataTableRow) return row;
+    return cloneElement(row, {
+      children: Children.map(row.props.children, (cell, index) =>
+        isValidElement<DataTableCellProps>(cell) && cell.type === DataTableCell
+          ? cloneElement(cell, {
+              label: columns[index]?.header,
+              truncate: columns[index]?.truncate,
+            })
+          : cell,
+      ),
+    });
+  });
+
   return (
-    <div
-      data-testid={testId}
-      className={cx("overflow-x-auto rounded-lg border border-border bg-surface", className)}
+    <TableFrame
+      key={columns.map((column) => column.key).join(':')}
+      columns={columns}
+      testId={testId}
+      caption={caption}
+      className={className}
     >
-      <table className="w-full min-w-[36rem] border-collapse text-body">
-        {caption ? <caption className="sr-only">{caption}</caption> : null}
-        <thead className="sticky top-0 z-[var(--ui-z-sticky)] bg-secondary shadow-[var(--ui-shadow-raised)]">
-          <tr>
-            {columns.map((column) => (
-              <th
-                key={column.key}
-                scope="col"
-                className={cx(
-                  "border-b border-border px-4 py-3 text-caption leading-caption font-semibold whitespace-nowrap text-body-secondary",
-                  column.numeric ? "text-right" : "text-left",
-                )}
-              >
-                {column.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>{children}</tbody>
-      </table>
-    </div>
+      {rows}
+    </TableFrame>
   );
 }
 
@@ -66,11 +69,12 @@ export interface DataTableRowProps {
 export function DataTableRow({ rowKey, onClick, children }: DataTableRowProps) {
   return (
     <tr
+      role="row"
       data-row-key={rowKey}
       onClick={onClick}
       className={cx(
-        "border-b border-border transition-[background-color] duration-fast ease-out last:border-b-0 hover:bg-secondary/50 motion-reduce:transition-none",
-        onClick !== undefined && "cursor-pointer",
+        'border-b border-border transition-[background-color] duration-fast ease-out last:border-b-0 hover:bg-secondary/50 motion-reduce:transition-none @max-2xl/table:grid @max-2xl/table:grid-cols-2 @max-2xl/table:gap-x-4 @max-2xl/table:px-5 @max-2xl/table:py-3',
+        onClick !== undefined && 'cursor-pointer',
       )}
     >
       {children}
@@ -79,32 +83,61 @@ export function DataTableRow({ rowKey, onClick, children }: DataTableRowProps) {
 }
 
 export interface DataTableCellProps {
+  label?: string | undefined;
   numeric?: boolean;
   link?: boolean;
   href?: string;
   linkTestId?: string;
+  truncate?: boolean | undefined;
   children: ReactNode;
 }
 
-export function DataTableCell({ numeric = false, link = false, href, linkTestId, children }: DataTableCellProps) {
+export function DataTableCell({
+  label,
+  numeric = false,
+  link = false,
+  href,
+  linkTestId,
+  truncate,
+  children,
+}: DataTableCellProps) {
+  const shouldTruncate = truncate ?? (typeof children === 'string' || typeof children === 'number');
   return (
     <td
+      role="cell"
       className={cx(
-        "px-4 py-3 text-body leading-body whitespace-nowrap text-body-secondary",
-        numeric && "text-right tabular-nums",
+        'overflow-hidden px-4 py-4 text-body leading-body whitespace-nowrap text-body-secondary @max-2xl/table:min-w-0 @max-2xl/table:px-0 @max-2xl/table:py-2 @max-2xl/table:whitespace-normal @max-2xl/table:text-left @max-2xl/table:last:col-span-full',
+        numeric && 'text-right tabular-nums',
       )}
     >
-      {link && href !== undefined ? (
-        <a
-          data-testid={linkTestId}
-          href={href}
-          className="rounded-lg font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
-        >
-          {children}
-        </a>
-      ) : (
-        children
-      )}
+      {label ? (
+        <span className="mb-1 hidden text-caption font-medium text-muted-foreground @max-2xl/table:block">
+          {label}
+        </span>
+      ) : null}
+      <div
+        title={
+          shouldTruncate && (typeof children === 'string' || typeof children === 'number')
+            ? String(children)
+            : undefined
+        }
+        className={cx(
+          'min-w-0 @max-2xl/table:[overflow-wrap:anywhere]',
+          shouldTruncate && 'truncate @max-2xl/table:whitespace-normal',
+        )}
+      >
+        {link && href !== undefined ? (
+          <a
+            data-testid={linkTestId}
+            href={href}
+            className="rounded-lg font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          >
+            {children}
+          </a>
+        ) : (
+          children
+        )}
+      </div>
     </td>
   );
 }

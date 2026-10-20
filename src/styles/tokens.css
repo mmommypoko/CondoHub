@@ -1,7 +1,10 @@
 :root {
   color-scheme: light;
 
-  --ui-background: #f7f6f4;
+  --ui-background: #f7f8fa;
+  --ui-nav-surface: #f0f3f3;
+  --ui-nav-active: #dfece8;
+  --ui-nav-active-foreground: #174c43;
   --ui-surface: #ffffff;
   --ui-surface-raised: #ffffff;
   --ui-overlay: rgba(28, 25, 23, 0.5);
@@ -59,8 +62,8 @@
   --ui-shadow-raised: 0 1px 2px rgb(28 25 23 / 0.06);
   --ui-shadow-overlay: 0 8px 24px rgb(28 25 23 / 0.12);
 
-  --ui-text-display: 24px;
-  --ui-leading-display: 32px;
+  --ui-text-display: 30px;
+  --ui-leading-display: 38px;
   --ui-text-title: 20px;
   --ui-leading-title: 28px;
   --ui-text-heading: 16px;
@@ -81,7 +84,7 @@
   --ui-space-gutter-md: 24px;
   --ui-space-gutter-lg: 32px;
   --ui-content-narrow: 44rem;
-  --ui-content-wide: 76rem;
+  --ui-content-wide: 80rem;
 
   --ui-duration-instant: 100ms;
   --ui-duration-fast: 150ms;
@@ -98,6 +101,9 @@
   --font-sans: var(--font-inter), var(--font-noto-sans-thai), system-ui, sans-serif;
 
   --color-background: var(--ui-background);
+  --color-nav-surface: var(--ui-nav-surface);
+  --color-nav-active: var(--ui-nav-active);
+  --color-nav-active-foreground: var(--ui-nav-active-foreground);
   --color-surface: var(--ui-surface);
   --color-surface-raised: var(--ui-surface-raised);
   --color-overlay: var(--ui-overlay);

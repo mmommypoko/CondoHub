@@ -4,10 +4,7 @@ import { Wrench } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
 import { EmptyState, FilterBar, PageHeader, Pagination } from '@/shared/ui';
-import {
-  listTickets,
-  type TicketDto,
-} from '@/modules/maintenance/application/index';
+import { listTickets, type TicketDto } from '@/modules/maintenance/application/index';
 import { isTerminalTicketStatus } from '@/modules/maintenance/ui/ticketLabels';
 import { TicketListCard } from '@/modules/maintenance/ui/TicketListCard';
 import {
@@ -23,7 +20,7 @@ async function roomLabel(roomId: string | null): Promise<string | null> {
   const room = await findRoomById(db, roomId);
   if (room === null) return 'Room unavailable';
   const building = await findBuildingById(db, room.buildingId);
-  return `${building?.code ?? 'Building'} · ${room.roomCode}`;
+  return `${building?.name ?? 'Building'} · ${room.name}`;
 }
 
 const STATUS_FILTERS = [
@@ -51,7 +48,7 @@ function statusSlug(status: string): string {
 export default async function AdminMaintenancePage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; kind?: string; page?: string }>;
+  searchParams: Promise<{ status?: string; kind?: string; page?: string; view?: string }>;
 }) {
   const actor = await getActorFromSession();
   if (actor === null) redirect('/login?returnUrl=/admin/maintenance');
@@ -60,6 +57,14 @@ export default async function AdminMaintenancePage({
   const params = await searchParams;
   const page = Math.max(1, Number(params.page ?? '1') || 1);
   const status = STATUS_FILTERS.find((entry) => entry === params.status);
+  const view =
+    status !== undefined
+      ? isTerminalTicketStatus(status)
+        ? 'history'
+        : 'open'
+      : params.view === 'history'
+        ? 'history'
+        : 'open';
   const kind =
     params.kind === 'COMMON_AREA' || params.kind === 'PROJECT_MANAGED_PRIVATE'
       ? params.kind
@@ -67,6 +72,7 @@ export default async function AdminMaintenancePage({
   const feed = await listTickets(actor, {
     page,
     pageSize: 20,
+    view,
     ...(status === undefined ? {} : { status }),
     ...(kind === undefined ? {} : { routingKind: kind }),
   });
@@ -81,28 +87,32 @@ export default async function AdminMaintenancePage({
   const totalPages = Math.max(1, Math.ceil(feed.total / 20));
   const statusQuery = status === undefined ? '' : `status=${status}`;
   const kindQuery = (target: string | undefined): string => {
-    const query = new URLSearchParams();
+    const query = new URLSearchParams({ view });
     if (target !== undefined) query.set('kind', target);
     if (status !== undefined) query.set('status', status);
     const text = query.toString();
     return text === '' ? '/admin/maintenance' : `/admin/maintenance?${text}`;
   };
   const statusHref = (target: string | undefined): string => {
-    const query = new URLSearchParams();
+    const query = new URLSearchParams({
+      view: target === undefined ? view : isTerminalTicketStatus(target) ? 'history' : 'open',
+    });
     if (kind !== undefined) query.set('kind', kind);
     if (target !== undefined) query.set('status', target);
     const text = query.toString();
     return text === '' ? '/admin/maintenance' : `/admin/maintenance?${text}`;
   };
-  const suffixParts = [statusQuery, kind === undefined ? '' : `kind=${kind}`].filter(
-    (part) => part !== '',
-  );
+  const suffixParts = [
+    `view=${view}`,
+    statusQuery,
+    kind === undefined ? '' : `kind=${kind}`,
+  ].filter((part) => part !== '');
   const suffix = suffixParts.length === 0 ? '' : `&${suffixParts.join('&')}`;
   const nowIso = systemClock.now().toISOString();
   return (
     <main
       data-testid="admin-maintenance-page"
-      className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
     >
       <PageHeader
         title="Maintenance inbox"
@@ -113,21 +123,59 @@ export default async function AdminMaintenancePage({
           </span>
         }
       />
-      <div className="flex min-w-0 flex-col gap-3">
+      <FilterBar
+        label="Request view"
+        activeValue={view}
+        options={[
+          {
+            value: 'open',
+            label: 'Open requests',
+            href: '/admin/maintenance?view=open',
+            testId: 'admin-maintenance-view-open',
+          },
+          {
+            value: 'history',
+            label: 'History',
+            href: '/admin/maintenance?view=history',
+            testId: 'admin-maintenance-view-history',
+          },
+        ]}
+      />
+      <div className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-surface p-5">
         <FilterBar
           label="Filter by category"
           activeValue={kind ?? ''}
           options={[
-            { value: '', label: 'All', href: kindQuery(undefined), testId: 'admin-maintenance-filter-all' },
-            { value: 'COMMON_AREA', label: 'Common area', href: kindQuery('COMMON_AREA'), testId: 'admin-maintenance-filter-common' },
-            { value: 'PROJECT_MANAGED_PRIVATE', label: 'Managed room', href: kindQuery('PROJECT_MANAGED_PRIVATE'), testId: 'admin-maintenance-filter-managed' },
+            {
+              value: '',
+              label: 'All',
+              href: kindQuery(undefined),
+              testId: 'admin-maintenance-filter-all',
+            },
+            {
+              value: 'COMMON_AREA',
+              label: 'Common area',
+              href: kindQuery('COMMON_AREA'),
+              testId: 'admin-maintenance-filter-common',
+            },
+            {
+              value: 'PROJECT_MANAGED_PRIVATE',
+              label: 'Managed room',
+              href: kindQuery('PROJECT_MANAGED_PRIVATE'),
+              testId: 'admin-maintenance-filter-managed',
+            },
           ]}
         />
         <FilterBar
           label="Filter by status"
           activeValue={status ?? ''}
           options={[
-            { value: '', label: 'Any status', href: statusHref(undefined), testId: 'admin-maintenance-filter-any-status' },
+            {
+              value: '',
+              label: 'Any status',
+              href: statusHref(undefined),
+              testId: 'admin-maintenance-filter-any-status',
+            },
             ...STATUS_FILTERS.map((entry) => ({
               value: entry,
               label: statusFilterLabel(entry),
@@ -137,6 +185,7 @@ export default async function AdminMaintenancePage({
           ]}
         />
       </div>
+
       {feed.rows.length === 0 ? (
         <EmptyState
           data-testid="admin-maintenance-empty"
@@ -146,14 +195,26 @@ export default async function AdminMaintenancePage({
         />
       ) : (
         <div className="flex min-w-0 flex-col gap-8">
-          <section aria-label="Open requests" className="flex min-w-0 flex-col gap-2">
-            <h2 className="text-heading leading-heading font-semibold text-foreground">Open ({open.length})</h2>
+          <section
+            hidden={view !== 'open'}
+            aria-label="Open requests"
+            className="flex min-w-0 flex-col gap-2"
+          >
+            <h2 className="text-heading leading-heading font-semibold text-foreground">
+              Open ({open.length})
+            </h2>
             {open.length === 0 ? (
-              <p data-testid="admin-maintenance-open-empty" className="text-small leading-small text-muted-foreground">
+              <p
+                data-testid="admin-maintenance-open-empty"
+                className="text-small leading-small text-muted-foreground"
+              >
                 No open requests in this view.
               </p>
             ) : (
-              <ul data-testid="admin-maintenance-open-list" className="flex min-w-0 flex-col border-t border-border">
+              <ul
+                data-testid="admin-maintenance-open-list"
+                className="flex min-w-0 flex-col divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface"
+              >
                 {open.map((row) => (
                   <TicketListCard
                     key={row.id}
@@ -167,14 +228,26 @@ export default async function AdminMaintenancePage({
               </ul>
             )}
           </section>
-          <section aria-label="Request history" className="flex min-w-0 flex-col gap-2">
-            <h2 className="text-heading leading-heading font-semibold text-foreground">History ({history.length})</h2>
+          <section
+            hidden={view !== 'history'}
+            aria-label="Request history"
+            className="flex min-w-0 flex-col gap-2"
+          >
+            <h2 className="text-heading leading-heading font-semibold text-foreground">
+              History ({history.length})
+            </h2>
             {history.length === 0 ? (
-              <p data-testid="admin-maintenance-history-empty" className="text-small leading-small text-muted-foreground">
+              <p
+                data-testid="admin-maintenance-history-empty"
+                className="text-small leading-small text-muted-foreground"
+              >
                 Closed requests will appear here.
               </p>
             ) : (
-              <ul data-testid="admin-maintenance-history-list" className="flex min-w-0 flex-col border-t border-border">
+              <ul
+                data-testid="admin-maintenance-history-list"
+                className="flex min-w-0 flex-col divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface"
+              >
                 {history.map((row) => (
                   <TicketListCard
                     key={row.id}

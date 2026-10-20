@@ -15,6 +15,7 @@ export const GET = withApi(
     requireActiveActor(ctx.actor);
     const url = new URL(request.url);
     const query = parseWithFieldErrors(roomListQuery, {
+      query: url.searchParams.get('query') ?? undefined,
       buildingId: url.searchParams.get('buildingId') ?? undefined,
       status: url.searchParams.get('status') ?? undefined,
       page: url.searchParams.get('page') ?? undefined,
@@ -24,7 +25,9 @@ export const GET = withApi(
     const filtered = rooms.filter(
       (room) =>
         (query.buildingId === undefined || room.buildingId === query.buildingId) &&
-        (query.status === undefined || room.status === query.status),
+        (query.status === undefined || room.status === query.status) &&
+        (query.query === undefined ||
+          `${room.name} ${room.roomCode}`.toLowerCase().includes(query.query.toLowerCase())),
     );
     const total = filtered.length;
     const start = (query.page - 1) * query.pageSize;
@@ -38,6 +41,7 @@ export const GET = withApi(
         floorId: room.floorId,
         buildingId: room.buildingId,
         roomCode: room.roomCode,
+        name: room.name,
         areaSqm: room.areaSqm,
         status: room.status,
       })),

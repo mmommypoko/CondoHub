@@ -1,9 +1,10 @@
 'use client';
+import { FormActions } from '@/shared/ui/FormActions';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, FormField } from '@/shared/ui';
+import { Button, FormField, useFormDialog } from '@/shared/ui';
 import { useToast } from '@/shared/ui';
 import { INPUT_CLASS } from '@/shared/ui';
 import {
@@ -38,6 +39,7 @@ export function InvoiceEditForm({
     resolver: zodResolver(invoiceEditFormSchema),
     defaultValues: { total: currentTotal, reason: '', expectedVersion: version },
   });
+  const dialog = useFormDialog(isSubmitting);
   const onSubmit = handleSubmit(
     async (values) => {
       setServerError(null);
@@ -67,6 +69,7 @@ export function InvoiceEditForm({
         return;
       }
       toast.success('Invoice total updated.');
+      dialog?.complete();
       onEdited();
     },
     (invalid) => {
@@ -75,14 +78,27 @@ export function InvoiceEditForm({
     },
   );
   return (
-    <form data-testid="invoice-edit-form" onSubmit={onSubmit} noValidate className="flex min-w-0 flex-col gap-4">
+    <form
+      data-testid="invoice-edit-form"
+      onSubmit={onSubmit}
+      noValidate
+      className="flex min-w-0 flex-col gap-4"
+    >
       {serverError !== null ? (
-        <p data-testid="invoice-edit-error" role="alert" className="text-body leading-body font-medium text-danger-foreground">
+        <p
+          data-testid="invoice-edit-error"
+          role="alert"
+          className="text-body leading-body font-medium text-danger-foreground"
+        >
           {serverError}
         </p>
       ) : null}
       {conflict ? (
-        <p data-testid="invoice-edit-conflict" role="alert" className="text-body leading-body font-medium text-danger-foreground">
+        <p
+          data-testid="invoice-edit-conflict"
+          role="alert"
+          className="text-body leading-body font-medium text-danger-foreground"
+        >
           Someone changed this invoice first. Reload the page to see the latest total.
         </p>
       ) : null}
@@ -113,11 +129,11 @@ export function InvoiceEditForm({
           {...register('reason')}
         />
       </FormField>
-      <div>
+      <FormActions onCancel={dialog?.requestClose} pending={isSubmitting}>
         <Button data-testid="invoice-edit-submit" type="submit" loading={isSubmitting} size="sm">
           Update total
         </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

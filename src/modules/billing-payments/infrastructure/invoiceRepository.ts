@@ -71,12 +71,7 @@ export async function findInvoiceById(conn: Db, id: string): Promise<InvoiceReco
 }
 
 export async function lockInvoiceForUpdate(tx: Tx, id: string): Promise<InvoiceRecord | null> {
-  const rows = await tx
-    .select()
-    .from(invoice)
-    .where(eq(invoice.id, id))
-    .for('update')
-    .limit(1);
+  const rows = await tx.select().from(invoice).where(eq(invoice.id, id)).for('update').limit(1);
   const row = rows[0];
   return row === undefined ? null : toRecord(row);
 }
@@ -248,7 +243,10 @@ export async function listInvoicesScoped(
     .orderBy(desc(invoice.createdAt), desc(invoice.id))
     .limit(input.limit)
     .offset(input.offset);
-  const counted = await conn.select({ count: sql<number>`count(*)` }).from(invoice).where(where);
+  const counted = await conn
+    .select({ count: sql<number>`count(*)` })
+    .from(invoice)
+    .where(where);
   return { rows: rows.map(toRecord), total: Number(counted[0]?.count ?? 0) };
 }
 
@@ -281,4 +279,71 @@ export async function findInvoiceByNaturalKey(
       (row.oneTimeChargeEventId ?? null) === (input.oneTimeChargeEventId ?? null),
   );
   return found === undefined ? null : toRecord(found);
+}
+
+export async function hasVisibleInvoiceForQr(
+  conn: Db,
+  input: { imageId: string; userId: string; isAdmin: boolean; at: Date },
+): Promise<boolean> {
+  const [row] = await conn
+    .select({ id: invoice.id })
+    .from(invoice)
+    .where(
+      and(
+        sql`${invoice.paymentInstructionSnapshot}->>'qrImageId' = ${input.imageId}`,
+        sql`${invoice.total} > coalesce((select sum("approved_amount") from "payment_submission" where "invoice_id" = ${invoice.id} and "state" = 'APPROVED'), 0)`,
+        input.isAdmin
+          ? inArray(invoice.kind, ['COMMON_FEE', 'PROJECT_MANAGED_RENT'])
+          : memberScopeCondition(input.userId, input.at),
+      ),
+    )
+    .limit(1);
+  return row !== undefined;
+}
+
+export async function fillMissingInvoiceInstructions(
+  conn: Db,
+  input: {
+    roomId?: string;
+    payeeType: 'PROJECT' | 'OWNER';
+    actorId: string;
+    snapshot: Record<string, unknown>;
+    at: Date;
+  },
+): Promise<string[]> {
+  const rows = await conn
+    .update(invoice)
+    .set({
+      paymentInstructionSnapshot: input.snapshot,
+      updatedAt: input.at,
+      version: sql`${invoice.version} + 1`,
+    })
+    .where(
+      and(
+        input.roomId ? eq(invoice.roomId, input.roomId) : undefined,
+        input.payeeType === 'OWNER'
+          ? and(
+              eq(invoice.kind, 'PRIVATE_RENT'),
+              sql`exists (select 1 from "private_rent_invoice_reviewer" where "invoice_id" = ${invoice.id} and "user_id" = ${input.actorId})`,
+            )
+          : inArray(invoice.kind, ['COMMON_FEE', 'PROJECT_MANAGED_RENT']),
+        or(
+          sql`${invoice.paymentInstructionSnapshot} is null`,
+          sql`${invoice.paymentInstructionSnapshot}->>'accountNumber' = 'SYSTEM-AUTO'`,
+        ),
+        sql`${invoice.total} > 0`,
+        sql`not exists (select 1 from "payment_submission" where "invoice_id" = ${invoice.id})`,
+      ),
+    )
+    .returning({ id: invoice.id });
+  return rows.map((row) => row.id);
+}
+
+export async function isInvoiceQrReferenced(conn: Db, imageId: string): Promise<boolean> {
+  const [row] = await conn
+    .select({ id: invoice.id })
+    .from(invoice)
+    .where(sql`${invoice.paymentInstructionSnapshot}->>'qrImageId' = ${imageId}`)
+    .limit(1);
+  return row !== undefined;
 }

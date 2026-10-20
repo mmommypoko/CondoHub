@@ -21,6 +21,8 @@ export function PaymentImage({
 
   useEffect(() => {
     let cancelled = false;
+    setUrl(null);
+    setFailed(false);
     async function load(): Promise<void> {
       try {
         const response = await fetch(`/api/images/${imageId}/access`);
@@ -42,7 +44,10 @@ export function PaymentImage({
 
   if (failed) {
     return (
-      <p data-testid={`${testId}-unavailable`} className="text-small leading-small text-muted-foreground">
+      <p
+        data-testid={`${testId}-unavailable`}
+        className="text-small leading-small text-muted-foreground"
+      >
         Image unavailable.
       </p>
     );

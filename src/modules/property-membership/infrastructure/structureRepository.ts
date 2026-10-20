@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import type { Db, Tx } from '@/shared/db/transaction';
 import { building, floor, room } from './schema';
 
@@ -23,6 +23,7 @@ export interface RoomRow {
   floorId: string;
   buildingId: string;
   roomCode: string;
+  name: string;
   areaSqm: string;
   status: 'ACTIVE' | 'INACTIVE';
 }
@@ -47,6 +48,7 @@ function toRoomRow(row: typeof room.$inferSelect): RoomRow {
     floorId: row.floorId,
     buildingId: row.buildingId,
     roomCode: row.roomCode,
+    name: row.name || row.roomCode,
     areaSqm: row.areaSqm,
     status: row.status,
   };
@@ -119,7 +121,10 @@ export async function updateFloor(
 ): Promise<FloorRow | null> {
   const rows = await tx
     .update(floor)
-    .set({ ...(input.code !== undefined ? { code: input.code } : {}), ...(input.label !== undefined ? { label: input.label } : {}) })
+    .set({
+      ...(input.code !== undefined ? { code: input.code } : {}),
+      ...(input.label !== undefined ? { label: input.label } : {}),
+    })
     .where(eq(floor.id, id))
     .returning();
   const row = rows[0];
@@ -133,11 +138,7 @@ export async function deleteFloor(tx: Tx, id: string): Promise<FloorRow | null> 
 }
 
 export async function listRoomsByFloor(db: Db, floorId: string): Promise<RoomRow[]> {
-  const rows = await db
-    .select()
-    .from(room)
-    .where(eq(room.floorId, floorId))
-    .orderBy(room.roomCode);
+  const rows = await db.select().from(room).where(eq(room.floorId, floorId)).orderBy(room.roomCode);
   return rows.map(toRoomRow);
 }
 
@@ -191,11 +192,15 @@ export async function insertRoom(
     floorId: string;
     buildingId: string;
     roomCode: string;
+    name?: string | undefined;
     areaSqm: string;
     status: 'ACTIVE' | 'INACTIVE';
   },
 ): Promise<RoomRow> {
-  const rows = await tx.insert(room).values(input).returning();
+  const rows = await tx
+    .insert(room)
+    .values({ ...input, name: input.name ?? input.roomCode })
+    .returning();
   const row = rows[0];
   if (row === undefined) throw new Error('Room insert returned no row.');
   return toRoomRow(row);
@@ -204,13 +209,131 @@ export async function insertRoom(
 export async function updateRoom(
   tx: Tx,
   id: string,
-  input: { areaSqm?: string | undefined; status?: 'ACTIVE' | 'INACTIVE' | undefined },
+  input: {
+    name?: string | undefined;
+    areaSqm?: string | undefined;
+    status?: 'ACTIVE' | 'INACTIVE' | undefined;
+  },
 ): Promise<RoomRow | null> {
   const rows = await tx
     .update(room)
-    .set({ ...(input.areaSqm !== undefined ? { areaSqm: input.areaSqm } : {}), ...(input.status !== undefined ? { status: input.status } : {}) })
+    .set({
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.areaSqm !== undefined ? { areaSqm: input.areaSqm } : {}),
+      ...(input.status !== undefined ? { status: input.status } : {}),
+    })
     .where(eq(room.id, id))
     .returning();
   const row = rows[0];
   return row === undefined ? null : toRoomRow(row);
+}
+
+export async function queryBuildingPage(
+  conn: Db,
+  input: { page: number; pageSize: number; query?: string | undefined },
+) {
+  const search = input.query?.trim();
+  const where = search ? ilike(building.name, `%${search.replace(/[\\%_]/g, '\\$&')}%`) : undefined;
+  const [rows, counted] = await Promise.all([
+    conn
+      .select({
+        id: building.id,
+        projectId: building.projectId,
+        code: building.code,
+        name: building.name,
+        status: building.status,
+        floorCount:
+          sql<number>`(select count(*) from ${floor} where ${floor.buildingId} = ${building.id})`.mapWith(
+            Number,
+          ),
+        roomCount:
+          sql<number>`(select count(*) from ${room} where ${room.buildingId} = ${building.id})`.mapWith(
+            Number,
+          ),
+      })
+      .from(building)
+      .where(where)
+      .orderBy(building.name, building.id)
+      .limit(input.pageSize)
+      .offset((input.page - 1) * input.pageSize),
+    conn
+      .select({ total: sql<number>`count(*)`.mapWith(Number) })
+      .from(building)
+      .where(where),
+  ]);
+  return { rows, total: counted[0]?.total ?? 0 };
+}
+
+export async function queryRoomPage(
+  conn: Db,
+  input: { roomIds: string[] | null; query?: string | undefined; page: number; pageSize: number },
+) {
+  if (input.roomIds !== null && input.roomIds.length === 0) return { rows: [], total: 0 };
+  const search = input.query?.trim();
+  const name = sql<string>`coalesce(nullif(${room.name}, ''), ${room.roomCode})`;
+  const pattern = search ? `%${search.replace(/[\\%_]/g, '\\$&')}%` : null;
+  const where = and(
+    input.roomIds === null ? undefined : inArray(room.id, input.roomIds),
+    pattern ? or(ilike(name, pattern), ilike(building.name, pattern)) : undefined,
+  );
+  const [rows, counted] = await Promise.all([
+    conn
+      .select({
+        id: room.id,
+        name,
+        buildingName: building.name,
+        floorLabel: floor.label,
+        areaSqm: room.areaSqm,
+        status: room.status,
+      })
+      .from(room)
+      .innerJoin(building, eq(room.buildingId, building.id))
+      .innerJoin(floor, eq(room.floorId, floor.id))
+      .where(where)
+      .orderBy(building.name, name, room.id)
+      .limit(input.pageSize)
+      .offset((input.page - 1) * input.pageSize),
+    conn
+      .select({ total: sql<number>`count(*)`.mapWith(Number) })
+      .from(room)
+      .innerJoin(building, eq(room.buildingId, building.id))
+      .where(where),
+  ]);
+  return { rows, total: counted[0]?.total ?? 0 };
+}
+
+export async function listRoomLabels(conn: Db, roomIds: string[]) {
+  if (roomIds.length === 0) return [];
+  const rows = await conn
+    .select({
+      id: room.id,
+      name: room.name,
+      roomCode: room.roomCode,
+      buildingName: building.name,
+      floorLabel: floor.label,
+    })
+    .from(room)
+    .innerJoin(building, eq(room.buildingId, building.id))
+    .innerJoin(floor, eq(room.floorId, floor.id))
+    .where(inArray(room.id, roomIds));
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name || row.roomCode,
+    buildingName: row.buildingName,
+    floorLabel: row.floorLabel,
+    label: `${row.buildingName} · ${row.name || row.roomCode}`,
+  }));
+}
+
+export async function updateBuildingDetails(
+  tx: Tx,
+  id: string,
+  input: { name?: string | undefined; status?: 'ACTIVE' | 'INACTIVE' | undefined },
+) {
+  const rows = await tx
+    .update(building)
+    .set({ ...input, updatedAt: new Date() })
+    .where(eq(building.id, id))
+    .returning();
+  return rows[0] ? toBuildingRow(rows[0]) : null;
 }

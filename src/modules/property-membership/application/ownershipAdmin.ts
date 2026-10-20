@@ -179,7 +179,7 @@ export async function assignOwner(
       let targetUserId = input.userId ?? null;
       let tempPassword: string | undefined;
       if (targetUserId === null && input.username !== undefined) {
-        const existing = await resolveGrantTargetByUsername(input.username);
+        const existing = await resolveGrantTargetByUsername(input.username, tx);
         if (existing !== null) targetUserId = existing.userId;
       }
       if (targetUserId === null) {

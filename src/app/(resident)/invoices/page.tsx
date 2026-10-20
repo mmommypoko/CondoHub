@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
 import { EmptyState, PageHeader, Pagination } from '@/shared/ui';
+import { getRoomLabels } from '@/modules/property-membership/application/index';
 import { listInvoices } from '@/modules/billing-payments/application/index';
 import { InvoiceTable } from '@/modules/billing-payments/ui/InvoiceTable';
 
@@ -19,15 +20,13 @@ export default async function InvoicesPage({
   if (actor.accountStatus !== 'ACTIVE') redirect('/login?returnUrl=/invoices');
   const params = await searchParams;
   const page = Math.max(1, Number(params.page ?? '1') || 1);
-  const feed = await listInvoices(
-    actor,
-    { page, pageSize: 20, at: systemClock.now() },
-  );
+  const feed = await listInvoices(actor, { page, pageSize: 20, at: systemClock.now() });
+  const roomLabels = Object.fromEntries((await getRoomLabels([...new Set(feed.rows.map((row) => row.roomId))])).map((room) => [room.id, room.label]));
   const totalPages = Math.max(1, Math.ceil(feed.total / 20));
   return (
     <main
       data-testid="invoice-list-page"
-      className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
     >
       <PageHeader
         title="Bills"
@@ -40,7 +39,7 @@ export default async function InvoicesPage({
           description="When new bills are issued for your rooms, they appear here."
         />
       ) : (
-        <InvoiceTable rows={feed.rows} basePath="/invoices" caption="Bills issued for your rooms" />
+        <InvoiceTable roomLabels={roomLabels} rows={feed.rows} basePath="/invoices" caption="Bills issued for your rooms" />
       )}
       <Pagination
         page={page}

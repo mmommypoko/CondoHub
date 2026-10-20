@@ -32,14 +32,26 @@ export type {
 export {
   createClosure,
   createFacility,
+  deleteFacility,
   getFacilityDetail,
   listFacilityPage,
+  listFacilityBookings,
   updateFacilityDetails,
 } from './facilities';
-export type { CreateFacilityInput, FacilityDetailDto, FacilityDto, FacilityPage } from './facilities';
+export type {
+  CreateFacilityInput,
+  FacilityDetailDto,
+  FacilityDto,
+  FacilityPage,
+} from './facilities';
 export { getDayAvailability, getRoomQuota } from './availability';
 export type { DayAvailabilityDto, SlotAvailabilityDto } from './availability';
-export { cancelBookingSlot, createBooking, listRoomBookings } from './bookings';
+export {
+  cancelBookingSlot,
+  createBooking,
+  getRoomBookingHistory,
+  listRoomBookings,
+} from './bookings';
 export type { BookingDto, BookingSlotDto, CancelSlotInput, CreateBookingInput } from './bookings';
 export { commitConfigChange, previewConfigChange } from './configChanges';
 export type {

@@ -20,6 +20,7 @@ export const POST = withApi(
         floorId: body.floorId,
         buildingId: body.buildingId,
         roomCode: body.roomCode,
+        name: body.name,
         areaSqm: body.areaSqm,
         status: body.status,
       },

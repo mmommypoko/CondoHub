@@ -1,5 +1,6 @@
 'use client';
 
+import { SectionCard } from '@/shared/ui';
 import { useRouter } from 'next/navigation';
 import {
   TurnoverResolveForm,
@@ -15,13 +16,15 @@ export function TurnoverResolveSection({
 }) {
   const router = useRouter();
   return (
-    <section aria-label="Resolve review" className="flex min-w-0 flex-col gap-4">
-      <h2 className="text-heading font-semibold tracking-tight text-foreground">Resolve this review</h2>
+    <SectionCard
+      title="Resolve this review"
+      description="Choose how this billing cycle should be settled."
+    >
       <TurnoverResolveForm
         review={review}
         actorIsAdmin={actorIsAdmin}
         onResolved={() => router.refresh()}
       />
-    </section>
+    </SectionCard>
   );
 }

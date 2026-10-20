@@ -162,26 +162,28 @@ test.describe('property structures: buildings, floors, rooms manage', () => {
     const { runId } = await readRunContext();
     await loginAsAdmin(page);
     const ns = `E2E-${runId}-SMUI`;
-    const code = `${ns}-B1`;
+    const name = `${ns} Tower`;
 
-    await page.goto('/admin/buildings/new');
+    await page.goto('/admin/buildings');
+    await page.getByTestId('admin-buildings-create').click();
     await expect(page.getByTestId('building-create-form')).toBeVisible();
-    await page.getByTestId('building-create-code').fill(code);
-    await page.getByTestId('building-create-name').fill(`${ns} Tower`);
+    await page.getByTestId('building-create-name').fill(name);
     await page.getByTestId('building-create-submit').click();
-    await expect(page).toHaveURL(/\/admin\/buildings$/, { timeout: 15000 });
-    await expect(page.getByTestId('admin-buildings-list')).toContainText(code);
+    await expect(page).toHaveURL(/\/admin\/buildings\?query=/, { timeout: 15000 });
+    await expect(page.getByTestId('admin-buildings-list')).toContainText(name);
 
-    const row = page.getByTestId(new RegExp(`^admin-buildings-row-`)).filter({ hasText: code });
+    const row = page.getByTestId(new RegExp(`^admin-buildings-row-`)).filter({ hasText: name });
     const rowTestId = (await row.first().getAttribute('data-testid')) ?? '';
     const uiBuildingId = rowTestId.replace('admin-buildings-row-', '');
 
     await row.first().click();
     await expect(page).toHaveURL(new RegExp(`/admin/buildings/${uiBuildingId}`));
+    await page.getByTestId('building-actions-trigger').click();
     await page.getByTestId('building-deactivate-open').click();
     await page.getByTestId('building-deactivate-submit').click();
     await expect(page.getByText('Inactive').first()).toBeVisible({ timeout: 15000 });
 
+    await page.getByTestId('building-actions-trigger').click();
     await page.getByTestId('building-reactivate-open').click();
     await page.getByTestId('building-reactivate-submit').click();
     await expect(page.getByText('Active').first()).toBeVisible({ timeout: 15000 });

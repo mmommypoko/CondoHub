@@ -1,4 +1,7 @@
 import { defineConfig } from '@playwright/test';
+import { loadDotenv } from '../src/config/dotenv';
+
+loadDotenv('.env.local');
 
 const baseURL = process.env.TEST_BASE_URL ?? 'http://localhost:3000';
 const isCI = process.env.CI !== undefined;

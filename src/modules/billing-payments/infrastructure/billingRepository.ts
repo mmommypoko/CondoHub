@@ -1,5 +1,6 @@
 import 'server-only';
-import { and, asc, eq, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, lte, sql } from 'drizzle-orm';
+import { invoiceSourceMatches } from '../domain/invoiceNaturalKey';
 import type { Db, Tx } from '@/shared/db/transaction';
 import {
   billingRule,
@@ -145,15 +146,10 @@ export async function insertInvoiceIdempotent(
       and(
         eq(invoice.roomId, input.roomId),
         eq(invoice.kind, input.kind),
-        eq(invoice.periodStart, input.periodStart),
+        input.oneTimeChargeEventId ? undefined : eq(invoice.periodStart, input.periodStart),
       ),
     );
-  const found = candidates.find(
-    (candidate) =>
-      (candidate.tenancyId ?? null) === (input.tenancyId ?? null) &&
-      (candidate.sourceRuleId ?? null) === (input.sourceRuleId ?? null) &&
-      (candidate.oneTimeChargeEventId ?? null) === (input.oneTimeChargeEventId ?? null),
-  );
+  const found = candidates.find((candidate) => invoiceSourceMatches(input.kind, candidate, input));
   if (found === undefined) throw new Error('Invoice idempotent insert found no row.');
   return { id: found.id, inserted: false };
 }
@@ -249,10 +245,7 @@ export async function insertChargeEvent(
   return toEventRow(row);
 }
 
-export async function findChargeEventById(
-  conn: Db,
-  id: string,
-): Promise<ChargeEventRecord | null> {
+export async function findChargeEventById(conn: Db, id: string): Promise<ChargeEventRecord | null> {
   const rows = await conn
     .select()
     .from(commonFeeChargeEvent)
@@ -384,9 +377,47 @@ export async function findRuleEffectiveFor(
         lte(billingRule.effectiveAt, input.at),
       ),
     )
-    .orderBy(asc(billingRule.effectiveAt));
+    .orderBy(desc(billingRule.effectiveAt), desc(billingRule.id));
   const roomRule = rows.find((row) => row.roomId === input.roomId);
   if (roomRule !== undefined) return toRuleRow(roomRule);
   const projectRule = rows.find((row) => row.roomId === null);
   return projectRule === undefined ? null : toRuleRow(projectRule);
+}
+
+export async function listRoomRentRules(
+  conn: Db,
+  roomId: string,
+  kind: 'PRIVATE_RENT' | 'PROJECT_MANAGED_RENT',
+) {
+  return (
+    await conn
+      .select()
+      .from(billingRule)
+      .where(
+        and(
+          eq(billingRule.roomId, roomId),
+          eq(billingRule.kind, kind),
+          eq(billingRule.enabled, true),
+        ),
+      )
+      .orderBy(desc(billingRule.effectiveAt), desc(billingRule.id))
+  ).map(toRuleRow);
+}
+export async function disableRentRuleAt(
+  tx: Tx,
+  roomId: string,
+  kind: 'PRIVATE_RENT' | 'PROJECT_MANAGED_RENT',
+  at: Date,
+) {
+  await tx
+    .update(billingRule)
+    .set({ enabled: false })
+    .where(
+      and(
+        eq(billingRule.roomId, roomId),
+        eq(billingRule.kind, kind),
+        eq(billingRule.effectiveAt, at),
+        eq(billingRule.enabled, true),
+      ),
+    );
 }

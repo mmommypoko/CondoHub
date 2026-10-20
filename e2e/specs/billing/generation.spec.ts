@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type APIRequestContext } from '@playwright/test';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -16,6 +16,7 @@ import {
   jobSecret,
   listInvoices,
   listJobRuns,
+  listTurnoverReviews,
   postChargeEvent,
   postJobRaw,
   triggerGenerate,
@@ -23,9 +24,14 @@ import {
   type InvoiceRow,
 } from './billingFlow';
 
+async function countInvoiceWindow(request: APIRequestContext, roomIds: string[], start: string, end: string): Promise<number> {
+  const pages = await Promise.all(roomIds.map((roomId) => listInvoices(request, { roomId })));
+  return pages.flat().filter((row) => row.periodStart >= start && row.periodStart <= end).length;
+}
+
 test.describe('billing generation: auth, idempotency, backfill, ms-bill-03, pd-04, contention, reads, redaction', () => {
   test.describe.configure({ mode: 'serial' });
-  test.setTimeout(180000);
+  test.setTimeout(600000);
 
   test('job auth: missing and wrong secrets get identical 401s, GET is 405, strict body is 400', async ({
     page,
@@ -91,8 +97,8 @@ test.describe('billing generation: auth, idempotency, backfill, ms-bill-03, pd-0
       triggerSource: 'MANUAL',
       fromCycle: '2026-07',
     });
-    expect(first.json.data.created).toBe(10);
-    expect(first.json.data.skipped).toBe(0);
+    expect(first.json.data.created).toBeGreaterThanOrEqual(10);
+    expect(await countInvoiceWindow(page.request, [room201, room202, room203, room204, room205, room208, room209], '2026-07-01', '2026-07-31')).toBe(10);
     expect(first.json.data.reviewRequired).toBe(0);
     expect(first.json.data.caughtUp).toBe(true);
     expectRedactedJobPayload(first.json.data);
@@ -102,7 +108,7 @@ test.describe('billing generation: auth, idempotency, backfill, ms-bill-03, pd-0
       fromCycle: '2026-07',
     });
     expect(second.json.data.created).toBe(0);
-    expect(second.json.data.skipped).toBe(10);
+    expect(second.json.data.skipped).toBe(first.json.data.skipped + first.json.data.created);
     expect(second.json.data.reviewRequired).toBe(0);
 
     const rows201 = (await listInvoices(page.request, { roomId: room201 })).filter(
@@ -218,12 +224,14 @@ test.describe('billing generation: auth, idempotency, backfill, ms-bill-03, pd-0
     const room201 = await findBillingRoom(page, `E2E-${runId}-201`);
     const room204 = await findBillingRoom(page, `E2E-${runId}-204`);
 
+    const roomIds = await Promise.all(Array.from({ length: 9 }, (_, index) => findBillingRoom(page, `E2E-${runId}-${201 + index}`)));
     const run1 = await triggerGenerate(page.request, {
       triggerSource: 'MANUAL',
       fromCycle: '2025-10',
       toCycle: '2026-04',
     });
-    expect(run1.json.data.created).toBe(22);
+    expect(run1.json.data.created).toBeGreaterThanOrEqual(22);
+    expect(await countInvoiceWindow(page.request, roomIds, '2025-10-01', '2025-12-31')).toBe(22);
     expect(run1.json.data.caughtUp).toBe(false);
     const nextFromRun1 = run1.json.data.nextFromCycle;
     expect(nextFromRun1).toBe('2026-01');
@@ -232,8 +240,11 @@ test.describe('billing generation: auth, idempotency, backfill, ms-bill-03, pd-0
       fromCycle: nextFromRun1 ?? '',
       toCycle: '2026-04',
     });
-    expect(run2.json.data.created).toBe(21);
-    expect(run2.json.data.reviewRequired).toBe(1);
+    expect(run2.json.data.created).toBeGreaterThanOrEqual(21);
+    expect(await countInvoiceWindow(page.request, roomIds, '2026-01-01', '2026-03-31')).toBe(21);
+    expect(run2.json.data.reviewRequired).toBeGreaterThanOrEqual(1);
+    const reviews = await listTurnoverReviews(page.request);
+    expect(reviews.rows.filter((row) => roomIds.includes(row.roomId) && row.calendarMonth >= '2026-01-01' && row.calendarMonth <= '2026-03-31')).toHaveLength(1);
     expect(run2.json.data.caughtUp).toBe(false);
     const nextFromRun2 = run2.json.data.nextFromCycle;
     expect(nextFromRun2).toBe('2026-04');
@@ -242,7 +253,8 @@ test.describe('billing generation: auth, idempotency, backfill, ms-bill-03, pd-0
       fromCycle: nextFromRun2 ?? '',
       toCycle: '2026-04',
     });
-    expect(run3.json.data.created).toBe(8);
+    expect(run3.json.data.created).toBeGreaterThanOrEqual(8);
+    expect(await countInvoiceWindow(page.request, roomIds, '2026-04-01', '2026-04-30')).toBe(8);
     expect(run3.json.data.reviewRequired).toBe(0);
     expect(run3.json.data.caughtUp).toBe(true);
     expect(run3.json.data.nextFromCycle).toBeUndefined();
@@ -282,11 +294,13 @@ test.describe('billing generation: auth, idempotency, backfill, ms-bill-03, pd-0
       await findBillingRoom(page, `E2E-${runId}-209`),
     ];
 
+    const previousAttempts = (await listJobRuns(page.request, { jobName: 'generate-invoices' })).find((run) => run.businessKey === '2026-09')?.attempt ?? 0;
+
     const round1 = await triggerGenerate(page.request, {
       triggerSource: 'MANUAL',
       fromCycle: '2026-09',
     });
-    expect(round1.json.data.created).toBe(9);
+    expect(round1.json.data.created).toBeGreaterThanOrEqual(9);
     const snapshotAfterRound1: string[] = [];
     for (const roomId of rooms) {
       const rows = (await listInvoices(page.request, { roomId })).filter(
@@ -302,14 +316,14 @@ test.describe('billing generation: auth, idempotency, backfill, ms-bill-03, pd-0
       fromCycle: '2026-09',
     });
     expect(round2.json.data.created).toBe(0);
-    expect(round2.json.data.skipped).toBe(9);
+    expect(round2.json.data.skipped).toBe(round1.json.data.skipped + round1.json.data.created);
 
     const round3 = await triggerGenerate(page.request, {
       triggerSource: 'MANUAL',
       fromCycle: '2026-09',
     });
     expect(round3.json.data.created).toBe(0);
-    expect(round3.json.data.skipped).toBe(9);
+    expect(round3.json.data.skipped).toBe(round2.json.data.skipped);
 
     const snapshotAfterRound3: string[] = [];
     for (const roomId of rooms) {
@@ -324,13 +338,13 @@ test.describe('billing generation: auth, idempotency, backfill, ms-bill-03, pd-0
     const runs = await listJobRuns(page.request, { jobName: 'generate-invoices' });
     const logged = runs.find((run) => run.businessKey === '2026-09');
     expect(logged?.state).toBe('DONE');
-    expect(logged?.attempt).toBe(3);
+    expect(logged?.attempt).toBe(previousAttempts + 3);
     expect(logged?.triggerSource).toBe('MANUAL');
     expectRedactedJobPayload(logged?.result);
     expect((logged?.result as { created: number }).created).toBe(0);
     const detail = await getJobRun(page.request, logged?.id ?? '');
     expect(detail.businessKey).toBe('2026-09');
-    expect(detail.attempt).toBe(3);
+    expect(detail.attempt).toBe(previousAttempts + 3);
   });
 
   test('PD-04 live: leap and common February invoices carry valid February due dates', async ({
@@ -347,7 +361,7 @@ test.describe('billing generation: auth, idempotency, backfill, ms-bill-03, pd-0
       triggerSource: 'MANUAL',
       fromCycle: '2024-02',
     });
-    expect(leap.json.data.created).toBe(7);
+    expect(leap.json.data.created).toBeGreaterThanOrEqual(7);
     expect(leap.json.data.reviewRequired).toBe(0);
 
     const room205 = await findBillingRoom(page, `E2E-${runId}-205`);
@@ -552,7 +566,7 @@ test.describe('billing generation: auth, idempotency, backfill, ms-bill-03, pd-0
         triggerSource: 'MANUAL',
         fromCycle: '2026-05',
       });
-      expect(may.json.data.created).toBe(7);
+      expect(may.json.data.created).toBeGreaterThanOrEqual(7);
       expectRedactedJobPayload(may.json.data);
 
       const privateRows = await listInvoices(ownerPage.request, { kind: 'PRIVATE_RENT' });

@@ -4,10 +4,7 @@ import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
 import { PageHeader } from '@/shared/ui';
 import { listEligibleRooms } from '@/modules/maintenance/application/index';
-import {
-  TicketCreateForm,
-  type TicketRoomOption,
-} from '@/modules/maintenance/ui/TicketCreateForm';
+import { TicketCreateForm, type TicketRoomOption } from '@/modules/maintenance/ui/TicketCreateForm';
 import {
   findBuildingById,
   findRoomById,
@@ -24,7 +21,7 @@ async function toOptions(roomIds: string[]): Promise<TicketRoomOption[]> {
     const building = await findBuildingById(db, room.buildingId);
     options.push({
       id: room.id,
-      label: `${building?.code ?? 'Building'} · ${room.roomCode}`,
+      label: `${building?.name ?? 'Building'} · ${room.name}`,
     });
   }
   return options.sort((left, right) => left.label.localeCompare(right.label));
@@ -43,7 +40,7 @@ export default async function MaintenanceNewPage() {
   return (
     <main
       data-testid="maintenance-new-page"
-      className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
     >
       <PageHeader
         title="New request"

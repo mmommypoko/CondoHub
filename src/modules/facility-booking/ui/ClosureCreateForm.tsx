@@ -1,4 +1,7 @@
 'use client';
+import { FormActions } from '@/shared/ui/FormActions';
+
+import { useFormDialog } from '@/shared/ui/FormDialog';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -31,6 +34,8 @@ export function ClosureCreateForm({ facilityId }: { facilityId: string }) {
     formState: { errors, isSubmitting },
   } = useForm<ClosureValues>({ resolver: zodResolver(closureSchema) });
 
+  const dialog = useFormDialog(isSubmitting);
+
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
     const startsAt = new Date(values.startsAt);
@@ -58,6 +63,7 @@ export function ClosureCreateForm({ facilityId }: { facilityId: string }) {
       return;
     }
     toast.success('Closure added.');
+    dialog?.complete();
     reset();
     router.refresh();
   });
@@ -67,7 +73,7 @@ export function ClosureCreateForm({ facilityId }: { facilityId: string }) {
       data-testid="closure-create-form"
       onSubmit={onSubmit}
       noValidate
-      className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:p-5"
+      className="flex flex-col gap-4 "
     >
       <div className="flex min-w-0 flex-col gap-1">
         <h3 className="text-body font-semibold text-foreground">Add a closure</h3>
@@ -97,7 +103,11 @@ export function ClosureCreateForm({ facilityId }: { facilityId: string }) {
             {...register('startsAt')}
           />
         </FormField>
-        <FormField label="Ends at" htmlFor="closure-create-end" error={errors.endsAt?.message ?? ''}>
+        <FormField
+          label="Ends at"
+          htmlFor="closure-create-end"
+          error={errors.endsAt?.message ?? ''}
+        >
           <input
             data-testid="closure-create-end"
             type="datetime-local"
@@ -106,7 +116,11 @@ export function ClosureCreateForm({ facilityId }: { facilityId: string }) {
           />
         </FormField>
       </div>
-      <FormField label="Reason" htmlFor="closure-create-reason" error={errors.reason?.message ?? ''}>
+      <FormField
+        label="Reason"
+        htmlFor="closure-create-reason"
+        error={errors.reason?.message ?? ''}
+      >
         <input
           data-testid="closure-create-reason"
           type="text"
@@ -114,11 +128,11 @@ export function ClosureCreateForm({ facilityId }: { facilityId: string }) {
           {...register('reason')}
         />
       </FormField>
-      <div>
+      <FormActions onCancel={dialog?.requestClose} pending={isSubmitting}>
         <Button data-testid="closure-create-submit" type="submit" loading={isSubmitting}>
           Add closure
         </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

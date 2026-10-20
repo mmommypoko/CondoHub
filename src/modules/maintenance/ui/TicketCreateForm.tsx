@@ -1,4 +1,10 @@
 'use client';
+import { FormActions } from '@/shared/ui/FormActions';
+
+import { Select } from '@/shared/ui/Select';
+import { DoorOpen as SelectIconDoorOpen } from 'lucide-react';
+
+import { useFormDialog } from '@/shared/ui/FormDialog';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -54,9 +60,13 @@ function createErrorCopy(code: string | undefined, fallback: string): string {
 export function TicketCreateForm({
   privateRooms,
   managedRooms,
+  defaultRoomId = '',
+  defaultRoutingKind = 'COMMON_AREA',
 }: {
   privateRooms: TicketRoomOption[];
   managedRooms: TicketRoomOption[];
+  defaultRoomId?: string;
+  defaultRoutingKind?: TicketCreateFormValues['routingKind'];
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -71,8 +81,8 @@ export function TicketCreateForm({
   } = useForm<TicketCreateFormValues>({
     resolver: zodResolver(ticketCreateFormSchema),
     defaultValues: {
-      routingKind: 'COMMON_AREA',
-      roomId: '',
+      routingKind: defaultRoutingKind,
+      roomId: defaultRoomId,
       locationDescription: '',
       subject: '',
       description: '',
@@ -80,6 +90,8 @@ export function TicketCreateForm({
   });
   const routingKind = watch('routingKind');
   const roomOptions = routingKind === 'PRIVATE_OWNER' ? privateRooms : managedRooms;
+
+  const dialog = useFormDialog(isSubmitting);
 
   const onSubmit = handleSubmit(
     async (values) => {
@@ -102,7 +114,10 @@ export function TicketCreateForm({
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as ErrorPayload | null;
         setServerError(
-          createErrorCopy(payload?.error?.code, payload?.error?.message ?? 'Could not submit this request. Check the form and retry.'),
+          createErrorCopy(
+            payload?.error?.code,
+            payload?.error?.message ?? 'Could not submit this request. Check the form and retry.',
+          ),
         );
         return;
       }
@@ -113,6 +128,7 @@ export function TicketCreateForm({
         return;
       }
       toast.success('Request submitted.');
+      dialog?.complete();
       router.push(`/maintenance/${id}`);
       router.refresh();
     },
@@ -141,14 +157,25 @@ export function TicketCreateForm({
   );
 
   return (
-    <form data-testid="maintenance-create-form" onSubmit={onSubmit} noValidate className="flex min-w-0 flex-col gap-5">
+    <form
+      data-testid="maintenance-create-form"
+      onSubmit={onSubmit}
+      noValidate
+      className="flex min-w-0 flex-col gap-5"
+    >
       {serverError !== null ? (
-        <p data-testid="maintenance-create-error" role="alert" className="text-body leading-body font-medium text-danger-foreground">
+        <p
+          data-testid="maintenance-create-error"
+          role="alert"
+          className="text-body leading-body font-medium text-danger-foreground"
+        >
           {serverError}
         </p>
       ) : null}
       <fieldset className="flex min-w-0 flex-col gap-2">
-        <legend className="text-body leading-body font-semibold text-foreground">Where is the problem?</legend>
+        <legend className="text-body leading-body font-semibold text-foreground">
+          Where is the problem?
+        </legend>
         <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3">
           {maintenanceRoutingKindOptions.map((kind) => {
             const meta = KIND_META[kind] ?? { label: kind, hint: '' };
@@ -158,9 +185,7 @@ export function TicketCreateForm({
                 key={kind}
                 className={cx(
                   'flex cursor-pointer items-start gap-3 rounded-lg border bg-surface p-4 text-body leading-body transition-[border-color,background-color] duration-150 ease-out motion-reduce:transition-none',
-                  selected
-                    ? 'border-primary'
-                    : 'border-border hover:border-border-strong',
+                  selected ? 'border-primary' : 'border-border hover:border-border-strong',
                 )}
               >
                 <input
@@ -180,7 +205,12 @@ export function TicketCreateForm({
                     selected ? 'border-primary bg-primary' : 'border-border-strong bg-surface',
                   )}
                 >
-                  <span className={cx('size-2 rounded-full bg-primary-foreground', selected ? 'block' : 'hidden')} />
+                  <span
+                    className={cx(
+                      'size-2 rounded-full bg-primary-foreground',
+                      selected ? 'block' : 'hidden',
+                    )}
+                  />
                 </span>
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="font-medium text-foreground">{meta.label}</span>
@@ -191,7 +221,11 @@ export function TicketCreateForm({
           })}
         </div>
         {errors.routingKind !== undefined ? (
-          <p data-testid="maintenance-create-kind-error" role="alert" className="text-body leading-body font-medium text-danger-foreground">
+          <p
+            data-testid="maintenance-create-kind-error"
+            role="alert"
+            className="text-body leading-body font-medium text-danger-foreground"
+          >
             {errors.routingKind.message}
           </p>
         ) : null}
@@ -202,9 +236,12 @@ export function TicketCreateForm({
           htmlFor="maintenance-create-room"
           {...(errors.roomId?.message === undefined ? {} : { error: errors.roomId.message })}
           required
-          {...(roomOptions.length === 0 ? { hint: 'No eligible rooms for this category. Check your memberships first.' } : {})}
+          {...(roomOptions.length === 0
+            ? { hint: 'No eligible rooms for this category. Check your memberships first.' }
+            : {})}
         >
-          <select
+          <Select
+            icon={SelectIconDoorOpen}
             data-testid="maintenance-create-room"
             required
             className={cx(INPUT_BASE_CLASS, 'h-10')}
@@ -216,10 +253,17 @@ export function TicketCreateForm({
                 {room.label}
               </option>
             ))}
-          </select>
+          </Select>
         </FormField>
       ) : null}
-      <FormField label="Location" htmlFor="maintenance-create-location" {...(errors.locationDescription?.message === undefined ? {} : { error: errors.locationDescription.message })} required>
+      <FormField
+        label="Location"
+        htmlFor="maintenance-create-location"
+        {...(errors.locationDescription?.message === undefined
+          ? {}
+          : { error: errors.locationDescription.message })}
+        required
+      >
         <input
           data-testid="maintenance-create-location"
           type="text"
@@ -230,7 +274,12 @@ export function TicketCreateForm({
           {...register('locationDescription')}
         />
       </FormField>
-      <FormField label="Subject" htmlFor="maintenance-create-subject" {...(errors.subject?.message === undefined ? {} : { error: errors.subject.message })} required>
+      <FormField
+        label="Subject"
+        htmlFor="maintenance-create-subject"
+        {...(errors.subject?.message === undefined ? {} : { error: errors.subject.message })}
+        required
+      >
         <input
           data-testid="maintenance-create-subject"
           type="text"
@@ -241,7 +290,14 @@ export function TicketCreateForm({
           {...register('subject')}
         />
       </FormField>
-      <FormField label="Details" htmlFor="maintenance-create-description" {...(errors.description?.message === undefined ? {} : { error: errors.description.message })} required>
+      <FormField
+        label="Details"
+        htmlFor="maintenance-create-description"
+        {...(errors.description?.message === undefined
+          ? {}
+          : { error: errors.description.message })}
+        required
+      >
         <textarea
           data-testid="maintenance-create-description"
           rows={5}
@@ -259,19 +315,15 @@ export function TicketCreateForm({
         maxImages={5}
         entityType="maintenance_request"
       />
-      <div className="flex flex-wrap gap-2">
+      <FormActions
+        onCancel={() => (dialog ? dialog.requestClose() : router.push('/maintenance'))}
+        pending={isSubmitting}
+        cancelTestId="maintenance-create-cancel"
+      >
         <Button data-testid="maintenance-create-submit" type="submit" loading={isSubmitting}>
           Submit request
         </Button>
-        <Button
-          data-testid="maintenance-create-cancel"
-          type="button"
-          variant="secondary"
-          onClick={() => router.push('/maintenance')}
-        >
-          Cancel
-        </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

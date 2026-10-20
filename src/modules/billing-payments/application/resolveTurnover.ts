@@ -20,10 +20,7 @@ import {
   deriveRentTotalSatang,
   resolveInvoiceTotal,
 } from '../domain/turnoverResolve';
-import {
-  evaluateTurnoverVisibility,
-  scopeForManagementMode,
-} from '../domain/turnoverVisibility';
+import { evaluateTurnoverVisibility, scopeForManagementMode } from '../domain/turnoverVisibility';
 import { rentKindFor } from '../domain/rentRecurrence';
 import { cycleForMonth } from '../domain/billingCycle';
 import { parseYearMonth } from '../domain/billingWindow';
@@ -41,7 +38,7 @@ import {
   type TurnoverReviewRecord,
 } from '../infrastructure/turnoverReviewRepository';
 import { findRuleEffectiveFor, type BillingRuleRecord } from '../infrastructure/billingRepository';
-import { findPayeeEffectiveAt } from '../infrastructure/payeeRepository';
+import { findInvoicePayee, findPayeeEffectiveAt } from '../infrastructure/payeeRepository';
 import type { InvoiceKind } from '../infrastructure/schema';
 import {
   getTurnoverIdempotencyRecord,
@@ -155,8 +152,7 @@ async function toResolveDto(
   if (review.decidedBy === null || review.decidedAt === null || review.decisionType === null) {
     return null;
   }
-  const invoices =
-    review.state === 'RESOLVED' ? await listInvoicesForReview(conn, review.id) : [];
+  const invoices = review.state === 'RESOLVED' ? await listInvoicesForReview(conn, review.id) : [];
   return {
     reviewId: review.id,
     state: review.state,
@@ -184,17 +180,23 @@ async function resolvePayeeSnapshot(
     kind: InvoiceKind;
     roomId: string;
     cycleStart: Date;
+    issuedAt: Date;
   },
 ): Promise<Record<string, unknown>> {
-  const stored = await findPayeeEffectiveAt(conn, {
-    payeeType: payeeTypeForKind(input.kind),
-    payeeId: input.roomId,
-    at: input.cycleStart,
-  });
+  const payeeKey = { payeeType: payeeTypeForKind(input.kind), payeeId: input.roomId };
+  const stored =
+    input.kind !== 'PRIVATE_RENT'
+      ? await findInvoicePayee(conn, {
+          payeeType: 'PROJECT',
+          roomId: input.roomId,
+          at: input.issuedAt,
+        })
+      : ((await findPayeeEffectiveAt(conn, { ...payeeKey, at: input.cycleStart })) ??
+        (await findPayeeEffectiveAt(conn, { ...payeeKey, at: input.issuedAt })));
   if (stored === null) {
     throw new AppError(
-      'INTERNAL_ERROR',
-      'The confirmed payee instruction is missing for this review.',
+      'VALIDATION_ERROR',
+      'Configure the receiving account in Payment settings before issuing invoices for this review.',
     );
   }
   return payeeSnapshotToRecord(
@@ -353,9 +355,7 @@ export async function resolveTurnoverReview(
       const cycle = cycleForMonth('MONTHLY', year, month, locked.cycleTimezone);
       const room = await getRoomDetail(locked.roomId);
       const kind: InvoiceKind =
-        scope === 'PROJECT_MANAGED'
-          ? 'PROJECT_MANAGED_RENT'
-          : 'PRIVATE_RENT';
+        scope === 'PROJECT_MANAGED' ? 'PROJECT_MANAGED_RENT' : 'PRIVATE_RENT';
       const rule: BillingRuleRecord | null = await findRuleEffectiveFor(tx, {
         kind,
         roomId: locked.roomId,
@@ -398,6 +398,7 @@ export async function resolveTurnoverReview(
           kind,
           roomId: locked.roomId,
           cycleStart: locked.cycleStart,
+          issuedAt: now,
         });
         const inserted = await insertTurnoverInvoice(tx, {
           roomId: locked.roomId,

@@ -1,10 +1,12 @@
 import 'server-only';
 import Link from 'next/link';
+import { Megaphone } from 'lucide-react';
 import { redirect } from 'next/navigation';
-import { Plus } from 'lucide-react';
+import { AnnouncementImage } from '@/modules/announcements/ui/AnnouncementImage';
+import { AnnouncementCreateForm } from '@/modules/announcements/ui/AnnouncementCreateForm';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
-import { ACTION_LINK_CLASS, Badge, EmptyState, PageHeader, Pagination, cx } from '@/shared/ui';
+import { Badge, EmptyState, FormDialog, PageHeader, Pagination } from '@/shared/ui';
 import { listAdminAnnouncements } from '@/modules/announcements/application/index';
 
 function statusVariant(
@@ -44,20 +46,22 @@ export default async function AdminAnnouncementsPage({
   return (
     <main
       data-testid="admin-announcements-page"
-      className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
     >
       <PageHeader
         title="Announcements"
         description="Draft, schedule, publish, hide, and edit project-wide announcements."
         actions={
-          <Link
-            data-testid="admin-announcements-create"
-            href="/admin/announcements/new"
-            className={cx(ACTION_LINK_CLASS, 'shrink-0')}
+          <FormDialog
+            triggerLabel="New announcement"
+            title="New announcement"
+            description="Write an update, add images, and choose when it will be published."
+            triggerTestId="admin-announcements-create"
+            testId="announcement-create-dialog"
+            size="lg"
           >
-            <Plus aria-hidden="true" className="size-4" />
-            New announcement
-          </Link>
+            <AnnouncementCreateForm />
+          </FormDialog>
         }
       />
       {feed.rows.length === 0 ? (
@@ -67,38 +71,65 @@ export default async function AdminAnnouncementsPage({
           description="Create the first announcement to inform residents."
         />
       ) : (
-        <ul data-testid="admin-announcements-list" className="flex min-w-0 flex-col gap-3">
+        <ul
+          data-testid="admin-announcements-list"
+          className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-surface"
+        >
           {feed.rows.map((row) => (
             <li
               key={row.id}
-              className="flex min-w-0 flex-col gap-2 rounded-lg border border-border bg-surface p-4"
+              className="flex min-w-0 gap-4 border-b border-border p-4 last:border-b-0 hover:bg-secondary/30 sm:gap-6 sm:p-6"
             >
-              <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                <Link
-                  data-testid={`admin-announcements-row-${row.id}`}
-                  href={`/admin/announcements/${row.id}`}
-                  className="min-w-0 flex-1 basis-40 break-words text-body leading-body font-semibold text-foreground underline-offset-2 hover:text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
-                >
-                  {row.title}
-                </Link>
-                <Badge data-testid={`admin-announcements-status-${row.id}`} variant={statusVariant(row.status)}>
-                  {row.status}
-                </Badge>
+              <div className="w-20 shrink-0 sm:w-40">
+                {row.images[0] ? (
+                  <AnnouncementImage
+                    imageId={row.images[0].id}
+                    testId={`admin-announcement-preview-${row.id}`}
+                    compact
+                  />
+                ) : (
+                  <div
+                    aria-hidden="true"
+                    className="flex aspect-video items-center justify-center rounded-lg border border-border bg-background text-muted-foreground"
+                  >
+                    <Megaphone className="size-5" />
+                  </div>
+                )}
               </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs tabular-nums text-muted-foreground">
-                <span>Publish: {formatDate(row.publishAt)}</span>
-                <span aria-hidden="true">·</span>
-                <span>Revision {row.revision}</span>
-                <span aria-hidden="true">·</span>
-                <span>
-                  {row.images.length} {row.images.length === 1 ? 'image' : 'images'}
-                </span>
-                {row.editedAt !== null ? (
-                  <>
-                    <span aria-hidden="true">·</span>
-                    <span>Edited</span>
-                  </>
-                ) : null}
+              <div className="flex min-w-0 flex-1 flex-col gap-3">
+                <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                  <Link
+                    data-testid={`admin-announcements-row-${row.id}`}
+                    href={`/admin/announcements/${row.id}`}
+                    className="min-w-0 flex-1 basis-40 break-words text-body leading-body font-semibold text-foreground underline-offset-2 hover:text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                  >
+                    {row.title}
+                  </Link>
+                  <Badge
+                    data-testid={`admin-announcements-status-${row.id}`}
+                    variant={statusVariant(row.status)}
+                  >
+                    {row.status}
+                  </Badge>
+                </div>
+                <p className="line-clamp-3 whitespace-pre-line break-words text-body leading-relaxed text-body-secondary">
+                  {row.body}
+                </p>
+                <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-xs tabular-nums text-muted-foreground">
+                  <span>Publish: {formatDate(row.publishAt)}</span>
+                  <span aria-hidden="true">·</span>
+                  <span>Revision {row.revision}</span>
+                  <span aria-hidden="true">·</span>
+                  <span>
+                    {row.images.length} {row.images.length === 1 ? 'image' : 'images'}
+                  </span>
+                  {row.editedAt !== null ? (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span>Edited</span>
+                    </>
+                  ) : null}
+                </div>
               </div>
             </li>
           ))}

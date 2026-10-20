@@ -38,7 +38,7 @@ export default async function AnnouncementDetailPage({
     return (
       <main
         data-testid="announcement-detail-page"
-        className="mx-auto w-full max-w-5xl p-4 sm:p-6"
+        className="mx-auto w-full max-w-[var(--ui-content-wide)] p-4 sm:p-6"
       >
         <EmptyState
           data-testid="announcement-detail-missing"
@@ -61,7 +61,7 @@ export default async function AnnouncementDetailPage({
   return (
     <main
       data-testid="announcement-detail-page"
-      className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
     >
       <Link
         data-testid="announcement-detail-back"
@@ -71,11 +71,11 @@ export default async function AnnouncementDetailPage({
         <ArrowLeft aria-hidden="true" className="size-4" />
         Back to announcements
       </Link>
-      <article className="flex min-w-0 flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:p-6">
+      <article className="flex min-w-0 flex-col gap-4 max-w-4xl rounded-xl border border-border bg-surface p-5 sm:p-8">
         <div className="flex min-w-0 flex-col gap-2">
           <h1
             data-testid="announcement-detail-title"
-            className="break-words text-title leading-title font-semibold tracking-tight text-foreground"
+            className="break-words text-display leading-display font-semibold tracking-tight text-foreground"
           >
             {detail.title}
           </h1>
@@ -90,12 +90,15 @@ export default async function AnnouncementDetailPage({
         </div>
         <p
           data-testid="announcement-detail-body"
-          className="whitespace-pre-wrap break-words text-body leading-body text-foreground"
+          className="whitespace-pre-wrap break-words text-body leading-relaxed text-body-secondary"
         >
           {detail.body}
         </p>
         {detail.images.length > 0 ? (
-          <div className="flex min-w-0 flex-col gap-3 border-t border-border pt-4" aria-label="Attached images">
+          <div
+            className="flex min-w-0 flex-col gap-3 border-t border-border pt-4"
+            aria-label="Attached images"
+          >
             {detail.images.map((image, index) => (
               <AnnouncementImage
                 key={image.id}

@@ -1,4 +1,10 @@
 'use client';
+import { FormActions } from '@/shared/ui/FormActions';
+
+import { Select } from '@/shared/ui/Select';
+import { CircleCheck as SelectIconCircleCheck } from 'lucide-react';
+
+import { useFormDialog } from '@/shared/ui/FormDialog';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -8,7 +14,6 @@ import { useRouter } from 'next/navigation';
 import { Button, FormField, INPUT_CLASS, serverErrorMessage, useToast } from '@/shared/ui';
 
 const createSchema = z.object({
-  code: z.string().trim().min(1, 'Code is required.').max(64),
   name: z.string().trim().min(1, 'Name is required.').max(255),
   status: z.enum(['ACTIVE', 'INACTIVE']),
 });
@@ -25,29 +30,35 @@ export function BuildingCreateForm({ projectId }: { projectId: string }) {
     formState: { errors, isSubmitting },
   } = useForm<CreateValues>({
     resolver: zodResolver(createSchema),
-    defaultValues: { code: '', name: '', status: 'ACTIVE' },
+    defaultValues: { name: '', status: 'ACTIVE' },
   });
+
+  const dialog = useFormDialog(isSubmitting);
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
-    const response = await fetch('/api/admin/buildings', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        projectId,
-        code: values.code,
-        name: values.name,
-        status: values.status,
-      }),
-    });
-    if (!response.ok) {
-      const payload: unknown = await response.json().catch(() => null);
-      setServerError(serverErrorMessage(payload, 'Could not create the building.'));
-      return;
+    try {
+      const response = await fetch('/api/admin/buildings', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          projectId,
+          name: values.name,
+          status: values.status,
+        }),
+      });
+      if (!response.ok) {
+        const payload: unknown = await response.json().catch(() => null);
+        setServerError(serverErrorMessage(payload, 'Could not create the building.'));
+        return;
+      }
+      toast.success('Building created.');
+      dialog?.complete();
+      router.push(`/admin/buildings?query=${encodeURIComponent(values.name)}`);
+      router.refresh();
+    } catch {
+      setServerError('Could not reach the server. Check your connection and try again.');
     }
-    toast.success('Building created.');
-    router.push('/admin/buildings');
-    router.refresh();
   });
 
   return (
@@ -55,7 +66,7 @@ export function BuildingCreateForm({ projectId }: { projectId: string }) {
       data-testid="building-create-form"
       onSubmit={onSubmit}
       noValidate
-      className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 sm:p-5"
+      className="flex flex-col gap-4 "
     >
       {serverError !== null ? (
         <p
@@ -66,44 +77,42 @@ export function BuildingCreateForm({ projectId }: { projectId: string }) {
           {serverError}
         </p>
       ) : null}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <FormField label="Code" htmlFor="building-create-code" error={errors.code?.message ?? ''} required>
-          <input
-            data-testid="building-create-code"
-            type="text"
-            required
-            className={INPUT_CLASS}
-            {...register('code')}
-          />
-        </FormField>
-        <FormField label="Name" htmlFor="building-create-name" error={errors.name?.message ?? ''} required>
+      <div className="grid grid-cols-1 gap-4">
+        <FormField
+          label="Building name"
+          htmlFor="building-create-name"
+          error={errors.name?.message ?? ''}
+          required
+        >
           <input
             data-testid="building-create-name"
             type="text"
             required
+            placeholder="e.g. North tower"
             className={INPUT_CLASS}
             {...register('name')}
           />
         </FormField>
       </div>
       <FormField label="Status" htmlFor="building-create-status">
-        <select
+        <Select
+          icon={SelectIconCircleCheck}
           data-testid="building-create-status"
           className={INPUT_CLASS}
           {...register('status')}
         >
           <option value="ACTIVE">Active</option>
           <option value="INACTIVE">Inactive</option>
-        </select>
+        </Select>
       </FormField>
-      <div className="flex flex-wrap gap-2">
+      <FormActions
+        onCancel={() => (dialog ? dialog.requestClose() : router.push('/admin/buildings'))}
+        pending={isSubmitting}
+      >
         <Button data-testid="building-create-submit" type="submit" loading={isSubmitting}>
           Create building
         </Button>
-        <Button type="button" variant="secondary" onClick={() => router.push('/admin/buildings')}>
-          Cancel
-        </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

@@ -6,12 +6,16 @@ import { writeAudit } from '@/shared/observability/audit';
 import type { QuotaKind } from '@/shared/utils/clock';
 import { assertValidSchedule, type FacilitySchedule } from '../domain/schedule';
 import {
+  queryFacilityPage,
+  queryFacilityBookingPage,
   findFacilityById,
+  hasUpcomingConfirmedSlots,
+  lockFacilityForUpdate,
+  markFacilityDeleted,
   insertClosure,
   insertFacility,
   insertFacilityConfig,
   listClosuresForFacility,
-  listFacilities,
   listFacilityConfigs,
   updateFacility,
   type FacilityRecord,
@@ -57,20 +61,25 @@ export interface FacilityPage {
 
 export async function listFacilityPage(
   actor: Actor,
-  input: { status?: 'ACTIVE' | 'INACTIVE' | undefined; page: number; pageSize: number },
+  input: {
+    status?: 'ACTIVE' | 'INACTIVE' | undefined;
+    query?: string | undefined;
+    page: number;
+    pageSize: number;
+  },
 ): Promise<FacilityPage> {
   requireUsableActor(actor);
-  const all = await listFacilities(db);
-  const filtered =
-    input.status === undefined ? all : all.filter((row) => row.status === input.status);
-  const total = filtered.length;
-  const start = (input.page - 1) * input.pageSize;
-  return { rows: filtered.slice(start, start + input.pageSize).map(toFacilityDto), total };
+  const result = await queryFacilityPage(db, {
+    ...input,
+    page: Math.max(1, input.page),
+    pageSize: Math.min(100, Math.max(1, input.pageSize)),
+  });
+  return { rows: result.rows.map(toFacilityDto), total: result.total };
 }
 
 export interface CreateFacilityInput {
   projectId: string;
-  code: string;
+  code?: string | undefined;
   name: string;
   description?: string | null | undefined;
   status: 'ACTIVE' | 'INACTIVE';
@@ -127,7 +136,7 @@ export async function createFacility(
     const facilityId = await db.transaction(async (tx) => {
       const created = await insertFacility(tx, {
         projectId: input.projectId,
-        code: input.code,
+        code: input.code ?? `fac_${crypto.randomUUID()}`,
         name: input.name,
         description: input.description ?? null,
         status: input.status,
@@ -224,8 +233,7 @@ export async function getFacilityDetail(
       .filter((config) => config.effectiveAt.getTime() <= at.getTime())
       .sort(
         (left, right) =>
-          right.effectiveAt.getTime() - left.effectiveAt.getTime() ||
-          right.version - left.version,
+          right.effectiveAt.getTime() - left.effectiveAt.getTime() || right.version - left.version,
       )[0] ?? null;
   const pending = configs.find((config) => config.isPending) ?? null;
   return {
@@ -307,6 +315,55 @@ export async function createClosure(
       endsAt: created.endsAt.toISOString(),
       reason: created.reason,
     };
+  } catch (error) {
+    throw mapPgError(error);
+  }
+}
+
+export async function listFacilityBookings(
+  actor: Actor,
+  input: { facilityId: string; page: number; pageSize: number },
+) {
+  requireAdmin(actor);
+  const facility = await findFacilityById(db, input.facilityId);
+  if (!facility) throw new AppError('RESOURCE_NOT_FOUND');
+  return queryFacilityBookingPage(
+    db,
+    input.facilityId,
+    Math.max(1, input.page),
+    Math.min(100, Math.max(1, input.pageSize)),
+  );
+}
+
+export async function deleteFacility(
+  actor: Actor,
+  facilityId: string,
+  ctx: BookingCtx,
+): Promise<{ id: string }> {
+  requireAdmin(actor);
+  const now = ctx.clock.now();
+  try {
+    return await db.transaction(async (tx) => {
+      const before = await lockFacilityForUpdate(tx, facilityId);
+      if (!before) throw new AppError('RESOURCE_NOT_FOUND');
+      if (await hasUpcomingConfirmedSlots(tx, facilityId, now)) {
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'Cancel active or upcoming bookings before deleting this facility.',
+        );
+      }
+      await markFacilityDeleted(tx, facilityId, now);
+      await writeAudit(tx, {
+        actorId: actor.userId,
+        action: 'facility.deleted',
+        resourceType: 'facility',
+        resourceId: facilityId,
+        requestId: ctx.requestId,
+        before: { status: before.status },
+        after: { deletedAt: now.toISOString() },
+      });
+      return { id: facilityId };
+    });
   } catch (error) {
     throw mapPgError(error);
   }

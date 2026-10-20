@@ -1,11 +1,12 @@
 import 'server-only';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
-import { ACTION_LINK_CLASS, EmptyState, cx } from '@/shared/ui';
+import { EmptyState, FormDialog } from '@/shared/ui';
 import { getCommonFeeEvent } from '@/modules/billing-payments/application/index';
 import { isUuid } from '@/shared/utils/idempotency';
+import { ChargeEventCreateForm } from '@/modules/billing-payments/ui/ChargeEventCreateForm';
 import { ChargeEventDetailCard } from '@/modules/billing-payments/ui/ChargeEventDetailCard';
 
 export const dynamic = 'force-dynamic';
@@ -26,7 +27,7 @@ export default async function AdminBillingEventDetailPage({
   return (
     <main
       data-testid="charge-event-detail-page"
-      className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
     >
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
         <Link
@@ -37,14 +38,14 @@ export default async function AdminBillingEventDetailPage({
           <ArrowLeft aria-hidden="true" className="size-4" />
           Back to billing events
         </Link>
-        <Link
-          data-testid="charge-event-detail-new"
-          href="/admin/billing/events/new"
-          className={cx(ACTION_LINK_CLASS, 'shrink-0')}
+        <FormDialog
+          triggerLabel="New billing event"
+          title="New one-time event"
+          triggerTestId="charge-event-detail-new"
+          testId="charge-event-create-dialog"
         >
-          <Plus aria-hidden="true" className="size-4" />
-          New event
-        </Link>
+          <ChargeEventCreateForm />
+        </FormDialog>
       </div>
       <ChargeEventDetailCard event={detail} />
       <EmptyState

@@ -1,7 +1,15 @@
 import 'server-only';
 import { redirect } from 'next/navigation';
 import { getActorFromSession } from '@/shared/auth/actor';
-import { Badge, DataTable, DataTableCell, DataTableRow, EmptyState, PageHeader, Pagination } from '@/shared/ui';
+import {
+  Badge,
+  DataTable,
+  DataTableCell,
+  DataTableRow,
+  EmptyState,
+  PageHeader,
+  Pagination,
+} from '@/shared/ui';
 import { listAdminJobRuns } from '@/modules/billing-payments/application/index';
 import type { AdminJobResult } from '@/modules/billing-payments/domain/jobRedaction';
 import { formatInstant, jobRunStateVariant } from '@/modules/billing-payments/ui/billingLabels';
@@ -35,20 +43,17 @@ export default async function AdminBillingJobRunsPage({
     params.state === 'RUNNING' || params.state === 'DONE' || params.state === 'ERROR'
       ? params.state
       : undefined;
-  const feed = await listAdminJobRuns(
-    actor,
-    {
-      page,
-      pageSize: 20,
-      ...(state === undefined ? {} : { state }),
-    },
-  );
+  const feed = await listAdminJobRuns(actor, {
+    page,
+    pageSize: 20,
+    ...(state === undefined ? {} : { state }),
+  });
   const totalPages = Math.max(1, Math.ceil(feed.total / 20));
   const suffix = state === undefined ? '' : `&state=${state}`;
   return (
     <main
       data-testid="job-run-list-page"
-      className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
     >
       <PageHeader
         title="Billing job runs"
@@ -60,9 +65,24 @@ export default async function AdminBillingJobRunsPage({
         activeValue={state ?? 'ALL'}
         options={[
           { value: 'ALL', testId: 'job-run-filter-all', href: BASE_PATH, label: 'All' },
-          { value: 'DONE', testId: 'job-run-filter-done', href: `${BASE_PATH}?state=DONE`, label: 'Done' },
-          { value: 'ERROR', testId: 'job-run-filter-error', href: `${BASE_PATH}?state=ERROR`, label: 'Errors' },
-          { value: 'RUNNING', testId: 'job-run-filter-running', href: `${BASE_PATH}?state=RUNNING`, label: 'Running' },
+          {
+            value: 'DONE',
+            testId: 'job-run-filter-done',
+            href: `${BASE_PATH}?state=DONE`,
+            label: 'Done',
+          },
+          {
+            value: 'ERROR',
+            testId: 'job-run-filter-error',
+            href: `${BASE_PATH}?state=ERROR`,
+            label: 'Errors',
+          },
+          {
+            value: 'RUNNING',
+            testId: 'job-run-filter-running',
+            href: `${BASE_PATH}?state=RUNNING`,
+            label: 'Running',
+          },
         ]}
       />
       {feed.rows.length === 0 ? (
@@ -85,11 +105,18 @@ export default async function AdminBillingJobRunsPage({
         >
           {feed.rows.map((row) => (
             <DataTableRow key={row.id} rowKey={row.id}>
-              <DataTableCell link href={`${BASE_PATH}/${row.id}`} linkTestId={`job-run-row-${row.id}`}>
+              <DataTableCell
+                link
+                href={`${BASE_PATH}/${row.id}`}
+                linkTestId={`job-run-row-${row.id}`}
+              >
                 {row.jobName} · {row.businessKey}
               </DataTableCell>
               <DataTableCell>
-                <Badge data-testid={`job-run-state-${row.id}`} variant={jobRunStateVariant(row.state)}>
+                <Badge
+                  data-testid={`job-run-state-${row.id}`}
+                  variant={jobRunStateVariant(row.state)}
+                >
                   {row.state}
                 </Badge>
               </DataTableCell>

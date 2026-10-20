@@ -1,4 +1,10 @@
 'use client';
+import { FormActions } from '@/shared/ui/FormActions';
+
+import { Select } from '@/shared/ui/Select';
+import { Building2 as SelectIconBuilding2 } from 'lucide-react';
+
+import { useFormDialog } from '@/shared/ui/FormDialog';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -7,9 +13,7 @@ import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import { Button, FormField, INPUT_CLASS, serverErrorMessage, useToast } from '@/shared/ui';
 
-const dateString = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD.');
+const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD.');
 
 const createSchema = z
   .object({
@@ -53,31 +57,40 @@ export function TenancyCreateForm({
     defaultValues: {
       startsAt: '',
       endsAt: '',
-      managementMode: 'PRIVATE_OWNER_MANAGED',
+      managementMode: allowProjectManaged ? 'PROJECT_MANAGED' : 'PRIVATE_OWNER_MANAGED',
     },
   });
 
+  const dialog = useFormDialog(isSubmitting);
+
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
-    const response = await fetch(`/api/rooms/${roomId}/tenancies`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        startsAt: toEffectiveAt(values.startsAt),
-        ...(values.endsAt === '' || values.endsAt === undefined
-          ? {}
-          : { endsAt: toEffectiveAt(values.endsAt) }),
-        managementMode: values.managementMode,
-      }),
-    });
-    if (!response.ok) {
-      const payload: unknown = await response.json().catch(() => null);
-      setServerError(serverErrorMessage(payload, 'Could not create the tenancy.'));
-      return;
+    try {
+      const response = await fetch(`/api/rooms/${roomId}/tenancies`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({
+          startsAt: toEffectiveAt(values.startsAt),
+          ...(values.endsAt === '' || values.endsAt === undefined
+            ? {}
+            : { endsAt: toEffectiveAt(values.endsAt) }),
+          managementMode: values.managementMode,
+        }),
+      });
+      if (!response.ok) {
+        const payload: unknown = await response.json().catch(() => null);
+        setServerError(serverErrorMessage(payload, 'Could not create the rental period.'));
+        return;
+      }
+      const created: { data: { id: string } } = await response.json();
+      toast.success('Rental period created.');
+      dialog?.complete();
+      reset();
+      router.push(`/rooms/${roomId}/rental?tenancyId=${created.data.id}`);
+      router.refresh();
+    } catch {
+      setServerError('Could not reach the server. Check your connection and try again.');
     }
-    toast.success('Tenancy created.');
-    reset();
-    router.refresh();
   });
 
   return (
@@ -85,7 +98,7 @@ export function TenancyCreateForm({
       data-testid="room-tenancy-create-form"
       onSubmit={onSubmit}
       noValidate
-      className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4 sm:p-5"
+      className="flex flex-col gap-5"
     >
       {serverError !== null ? (
         <p
@@ -97,7 +110,12 @@ export function TenancyCreateForm({
         </p>
       ) : null}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <FormField label="Start date" htmlFor="room-tenancy-create-start" error={errors.startsAt?.message ?? ''} required>
+        <FormField
+          label="Start date"
+          htmlFor="room-tenancy-create-start"
+          error={errors.startsAt?.message ?? ''}
+          required
+        >
           <input
             data-testid="room-tenancy-create-start"
             type="date"
@@ -106,7 +124,11 @@ export function TenancyCreateForm({
             {...register('startsAt')}
           />
         </FormField>
-        <FormField label="End date (optional)" htmlFor="room-tenancy-create-end" error={errors.endsAt?.message ?? ''}>
+        <FormField
+          label="End date (optional)"
+          htmlFor="room-tenancy-create-end"
+          error={errors.endsAt?.message ?? ''}
+        >
           <input
             data-testid="room-tenancy-create-end"
             type="date"
@@ -117,25 +139,27 @@ export function TenancyCreateForm({
       </div>
       {allowProjectManaged ? (
         <FormField label="Management" htmlFor="room-tenancy-create-mode">
-          <select
+          <Select
+            icon={SelectIconBuilding2}
             data-testid="room-tenancy-create-mode"
             className={INPUT_CLASS}
             {...register('managementMode')}
           >
             <option value="PRIVATE_OWNER_MANAGED">Owner managed</option>
             <option value="PROJECT_MANAGED">Project managed</option>
-          </select>
+          </Select>
         </FormField>
       ) : (
         <p className="text-sm leading-6 text-muted-foreground">
-          New tenancies are owner managed. Project-managed periods are created by an admin.
+          The room owner receives rent and handles room repairs. Project-managed rentals are set up
+          by an admin.
         </p>
       )}
-      <div className="flex flex-wrap gap-2">
+      <FormActions onCancel={dialog?.requestClose} pending={isSubmitting}>
         <Button data-testid="room-tenancy-create-submit" type="submit" loading={isSubmitting}>
-          Create tenancy
+          Create rental period
         </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

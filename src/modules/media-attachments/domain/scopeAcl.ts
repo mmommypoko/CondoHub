@@ -13,6 +13,7 @@ export type ScopeDenyReason =
 export type ScopeEntityRef = { type: string; id: string } | null;
 
 export interface ScopeAclImage {
+  imageId?: string;
   scope: ImageScope;
   entityRef: ScopeEntityRef;
 }

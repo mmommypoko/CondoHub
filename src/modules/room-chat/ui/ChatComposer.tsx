@@ -1,10 +1,10 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ImagePlus, SendHorizontal, X } from 'lucide-react';
-import { Button, FormField, TEXTAREA_CLASS, cx } from '@/shared/ui';
+import { Button, FormField } from '@/shared/ui';
 import {
   CHAT_COMPOSER_TEXT_MAX,
   chatComposerFormSchema,
@@ -56,10 +56,14 @@ export function ChatComposer({
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [attachment, setAttachment] = useState<ChatComposerAttachment | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const {
     register,
+    control,
     handleSubmit,
     setFocus,
     reset,
@@ -69,7 +73,37 @@ export function ChatComposer({
     defaultValues: { text: '' },
   });
 
+  const draft = useWatch({ control, name: 'text' });
+  const textField = register('text');
+
+  useEffect(() => {
+    if (previewFile === null) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(previewFile);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [previewFile]);
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea === null) return;
+    textarea.style.height = '0px';
+    textarea.style.height = `${Math.min(144, Math.max(56, textarea.scrollHeight))}px`;
+  }, [draft]);
+
+  function clearAttachment(): void {
+    setAttachment(null);
+    setPreviewFile(null);
+  }
+
   async function uploadFile(file: File): Promise<void> {
+    if (uploading || sending) return;
+    if (file.size > 5_000_000) {
+      setUploadError('The image is too large. Choose an image up to 5 MB.');
+      return;
+    }
     if (!ACCEPTED.includes(file.type)) {
       setUploadError('Unsupported file type. Supported types: JPEG, PNG, WebP.');
       return;
@@ -108,6 +142,7 @@ export function ChatComposer({
       }
       const completed = (await completeResponse.json()) as CompleteEnvelope;
       setAttachment({ imageId: completed.data.imageId, fileName: file.name });
+      setPreviewFile(file);
     } catch (uploadFailure) {
       setUploadError(uploadFailure instanceof Error ? uploadFailure.message : 'Upload failed.');
     } finally {
@@ -118,6 +153,7 @@ export function ChatComposer({
 
   const onSubmit = handleSubmit(
     (values) => {
+      if (uploading || sending) return;
       const text = values.text.trim();
       if (text === '' && attachment === null) {
         setFocus('text');
@@ -125,7 +161,7 @@ export function ChatComposer({
       }
       onSend({ text, attachment });
       reset();
-      setAttachment(null);
+      clearAttachment();
       setUploadError(null);
     },
     () => setFocus('text'),
@@ -136,28 +172,8 @@ export function ChatComposer({
       data-testid={`${testIdPrefix}-composer`}
       onSubmit={onSubmit}
       noValidate
-      className="flex min-w-0 flex-col gap-2.5 rounded-lg border border-border bg-surface p-3 shadow-raised sm:p-4"
+      className="flex min-w-0 shrink-0 flex-col gap-2.5 border-t border-border bg-surface p-3 sm:px-5 sm:py-4"
     >
-      <FormField
-        label="Message"
-        htmlFor={`${testIdPrefix}-composer-text`}
-        {...(errors.text?.message === undefined ? {} : { error: errors.text.message })}
-        errorTestId={`${testIdPrefix}-composer-text-error`}
-      >
-        <textarea
-          data-testid={`${testIdPrefix}-composer-text`}
-          rows={3}
-          maxLength={CHAT_COMPOSER_TEXT_MAX}
-          placeholder="Write a message to the room."
-          className={cx(TEXTAREA_CLASS, 'resize-y leading-6')}
-          {...register('text')}
-          onKeyDown={(event) => {
-            if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return;
-            event.preventDefault();
-            void onSubmit();
-          }}
-        />
-      </FormField>
       <input
         ref={inputRef}
         data-testid={`${testIdPrefix}-composer-upload-input`}
@@ -173,15 +189,30 @@ export function ChatComposer({
         }}
       />
       {attachment !== null ? (
-        <div data-testid={`${testIdPrefix}-composer-attachment`} className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-border bg-neutral px-3 py-2 text-sm">
-          <span className="min-w-0 truncate text-foreground">{attachment.fileName}</span>
+        <div
+          data-testid={`${testIdPrefix}-composer-attachment`}
+          className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-background p-2 text-sm"
+        >
+          {previewUrl !== null ? (
+            <img
+              src={previewUrl}
+              alt="Image ready to send"
+              data-testid={`${testIdPrefix}-composer-preview`}
+              className="size-12 shrink-0 rounded-lg object-cover"
+            />
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium text-foreground">{attachment.fileName}</p>
+            <p className="text-xs text-muted-foreground">Ready to send</p>
+          </div>
           <Button
             data-testid={`${testIdPrefix}-composer-attachment-remove`}
             type="button"
             variant="ghost"
             size="sm"
             aria-label={`Remove ${attachment.fileName}`}
-            onClick={() => setAttachment(null)}
+            disabled={sending}
+            onClick={clearAttachment}
           >
             <X aria-hidden="true" className="size-4" />
             Remove
@@ -189,33 +220,79 @@ export function ChatComposer({
         </div>
       ) : null}
       {uploading ? (
-        <p data-testid={`${testIdPrefix}-composer-upload-progress`} role="status" className="text-small leading-small text-muted-foreground">
+        <p
+          data-testid={`${testIdPrefix}-composer-upload-progress`}
+          role="status"
+          className="text-small leading-small text-muted-foreground"
+        >
           Uploading the image.
         </p>
       ) : null}
       {uploadError !== null ? (
-        <p data-testid={`${testIdPrefix}-composer-upload-error`} role="alert" className="text-body leading-body font-medium text-danger-foreground">
+        <p
+          data-testid={`${testIdPrefix}-composer-upload-error`}
+          role="alert"
+          className="text-body leading-body font-medium text-danger-foreground"
+        >
           {uploadError}
         </p>
       ) : null}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          data-testid={`${testIdPrefix}-composer-attach`}
-          type="button"
-          variant="secondary"
-          size="sm"
-          loading={uploading}
-          disabled={attachment !== null || sending}
-          onClick={() => inputRef.current?.click()}
+      <div className="rounded-xl border border-input-border bg-background p-2 focus-within:border-focus-ring focus-within:ring-1 focus-within:ring-focus-ring">
+        <FormField
+          label="Message"
+          className="[&>label]:sr-only"
+          htmlFor={`${testIdPrefix}-composer-text`}
+          {...(errors.text?.message === undefined ? {} : { error: errors.text.message })}
+          errorTestId={`${testIdPrefix}-composer-text-error`}
         >
-          <ImagePlus aria-hidden="true" className="size-4" />
-          Attach image
-        </Button>
-        <Button data-testid={`${testIdPrefix}-composer-send`} type="submit" loading={sending} size="sm">
-          <SendHorizontal aria-hidden="true" className="size-4" />
-          Send
-        </Button>
-        <p className="w-full text-xs text-muted-foreground sm:ml-auto sm:w-auto">JPEG, PNG, or WebP. Up to 5 MB, 1 image per message.</p>
+          <textarea
+            data-testid={`${testIdPrefix}-composer-text`}
+            rows={2}
+            maxLength={CHAT_COMPOSER_TEXT_MAX}
+            placeholder="Write a message to the room."
+            className="w-full min-w-0 resize-none rounded-lg border-0 bg-transparent px-2 py-1.5 text-body leading-6 text-foreground placeholder:text-input-placeholder focus:outline-none"
+            {...textField}
+            ref={(node) => {
+              textField.ref(node);
+              textareaRef.current = node;
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return;
+              event.preventDefault();
+              void onSubmit();
+            }}
+          />
+        </FormField>
+        <div className="flex items-center gap-2 pt-1">
+          <Button
+            data-testid={`${testIdPrefix}-composer-attach`}
+            type="button"
+            variant="ghost"
+            size="sm"
+            title="Attach a JPEG, PNG, or WebP image up to 5 MB"
+            loading={uploading}
+            disabled={attachment !== null || sending}
+            onClick={() => inputRef.current?.click()}
+            className="min-h-10 rounded-lg"
+          >
+            <ImagePlus aria-hidden="true" className="size-4" />
+            <span className="text-small">Attach image</span>
+          </Button>
+          <span className="ml-auto hidden text-xs text-muted-foreground lg:block">
+            Enter to send · Shift + Enter for a new line
+          </span>
+          <Button
+            data-testid={`${testIdPrefix}-composer-send`}
+            type="submit"
+            loading={sending}
+            disabled={uploading || (draft.trim() === '' && attachment === null)}
+            size="sm"
+            className="ml-auto min-h-10 rounded-lg lg:ml-2"
+          >
+            <SendHorizontal aria-hidden="true" className="size-4" />
+            Send
+          </Button>
+        </div>
       </div>
     </form>
   );

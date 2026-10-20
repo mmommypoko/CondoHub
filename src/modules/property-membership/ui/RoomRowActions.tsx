@@ -1,4 +1,5 @@
 'use client';
+import { Pencil, Power, PowerOff } from 'lucide-react';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -8,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { Button, Dialog, FormField, INPUT_CLASS, serverErrorMessage, useToast } from '@/shared/ui';
 
 const editSchema = z.object({
+  name: z.string().trim().min(1, 'Room name is required.').max(255),
   areaSqm: z
     .string()
     .trim()
@@ -46,10 +48,12 @@ function impactCopy(impact: DisableImpact): string {
 
 export function RoomRowActions({
   roomId,
+  name,
   areaSqm,
   status,
 }: {
   roomId: string;
+  name: string;
   areaSqm: string;
   status: 'ACTIVE' | 'INACTIVE';
 }) {
@@ -66,7 +70,7 @@ export function RoomRowActions({
     formState: { errors, isSubmitting },
   } = useForm<EditValues>({
     resolver: zodResolver(editSchema),
-    defaultValues: { areaSqm },
+    defaultValues: { name, areaSqm },
   });
 
   const onEdit = handleSubmit(async (values) => {
@@ -74,7 +78,7 @@ export function RoomRowActions({
     const response = await fetch(`/api/admin/rooms/${roomId}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ areaSqm: values.areaSqm }),
+      body: JSON.stringify({ name: values.name, areaSqm: values.areaSqm }),
     });
     if (!response.ok) {
       const payload: unknown = await response.json().catch(() => null);
@@ -132,6 +136,7 @@ export function RoomRowActions({
           size="sm"
           onClick={() => setEditOpen(true)}
         >
+          <Pencil aria-hidden="true" className="size-4" />
           Edit
         </Button>
         {status === 'ACTIVE' ? (
@@ -141,6 +146,7 @@ export function RoomRowActions({
             size="sm"
             onClick={() => setDeactivateOpen(true)}
           >
+            <PowerOff aria-hidden="true" className="size-4" />
             Deactivate
           </Button>
         ) : (
@@ -150,20 +156,22 @@ export function RoomRowActions({
             size="sm"
             onClick={() => setDeactivateOpen(true)}
           >
+            <Power aria-hidden="true" className="size-4" />
             Reactivate
           </Button>
         )}
       </span>
       <Dialog
         open={editOpen}
+        busy={isSubmitting}
         onClose={() => setEditOpen(false)}
         title="Edit room"
-        description="Update the room area."
+        description="Update the room name and area."
         size="sm"
         testId="room-edit-dialog"
         actions={
           <>
-            <Button variant="secondary" onClick={() => setEditOpen(false)}>
+            <Button variant="secondary" disabled={isSubmitting} onClick={() => setEditOpen(false)}>
               Cancel
             </Button>
             <Button
@@ -192,6 +200,14 @@ export function RoomRowActions({
             </p>
           ) : null}
           <FormField
+            label="Room name"
+            htmlFor="room-edit-name"
+            error={errors.name?.message ?? ''}
+            required
+          >
+            <input data-testid="room-edit-name" className={INPUT_CLASS} {...register('name')} />
+          </FormField>
+          <FormField
             label="Area (sqm)"
             htmlFor="room-edit-area"
             error={errors.areaSqm?.message ?? ''}
@@ -211,6 +227,7 @@ export function RoomRowActions({
       </Dialog>
       <Dialog
         open={deactivateOpen}
+        busy={busy}
         onClose={() => setDeactivateOpen(false)}
         title={status === 'ACTIVE' ? 'Deactivate this room?' : 'Reactivate this room?'}
         description={
@@ -222,7 +239,7 @@ export function RoomRowActions({
         testId="room-status-confirm"
         actions={
           <>
-            <Button variant="secondary" onClick={() => setDeactivateOpen(false)}>
+            <Button variant="secondary" disabled={busy} onClick={() => setDeactivateOpen(false)}>
               Cancel
             </Button>
             <Button

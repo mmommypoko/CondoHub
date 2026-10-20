@@ -1,12 +1,11 @@
-"use client";
+'use client';
 
-import { useEffect, useRef } from "react";
-import type { ReactNode, RefObject } from "react";
-import { X } from "lucide-react";
-import { cx } from "./cx";
+import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
+import { cx } from './cx';
 
-export type DialogSize = "sm" | "md" | "lg";
-
+export type DialogSize = 'sm' | 'md' | 'lg' | 'xl';
 export interface DialogProps {
   open: boolean;
   onClose: () => void;
@@ -16,90 +15,20 @@ export interface DialogProps {
   actions?: ReactNode | undefined;
   size?: DialogSize | undefined;
   testId?: string | undefined;
+  presentation?: 'dialog' | 'sheet';
+  className?: string | undefined;
+  busy?: boolean | undefined;
 }
 
-const SIZE_STYLES: Record<DialogSize, string> = {
-  sm: "max-w-[25rem]",
-  md: "max-w-[28rem]",
-  lg: "max-w-[35rem]",
+let activeOverlays = 0;
+let previousBodyOverflow = '';
+
+const SIZES: Record<DialogSize, string> = {
+  sm: 'max-w-[25rem]',
+  md: 'max-w-[32rem]',
+  lg: 'max-w-[42rem]',
+  xl: 'max-w-[56rem]',
 };
-
-const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
-export function useOverlayDismiss(open: boolean, onClose: () => void) {
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        onClose();
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown, true);
-    return () => document.removeEventListener("keydown", handleKeyDown, true);
-  }, [open, onClose]);
-}
-
-export function useOverlayFocusTrap(
-  open: boolean,
-  containerRef: RefObject<HTMLElement | null>,
-) {
-  const restoreRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    restoreRef.current = document.activeElement as HTMLElement | null;
-    const container = containerRef.current;
-    const focusables = container
-      ? Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
-          (element) => element.offsetParent !== null,
-        )
-      : [];
-    const first = focusables[0];
-    if (first) {
-      first.focus();
-    } else if (container) {
-      container.focus();
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Tab" || !container) {
-        return;
-      }
-      const items = Array.from(
-        container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-      ).filter((element) => element.offsetParent !== null && !element.hasAttribute("disabled"));
-      if (items.length === 0) {
-        event.preventDefault();
-        return;
-      }
-      const firstItem = items[0] as HTMLElement;
-      const lastItem = items[items.length - 1] as HTMLElement;
-      if (event.shiftKey && document.activeElement === firstItem) {
-        event.preventDefault();
-        lastItem.focus();
-      } else if (!event.shiftKey && document.activeElement === lastItem) {
-        event.preventDefault();
-        firstItem.focus();
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown, true);
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown, true);
-      document.body.style.overflow = previousOverflow;
-      restoreRef.current?.focus();
-    };
-  }, [open, containerRef]);
-}
 
 export function Dialog({
   open,
@@ -108,47 +37,84 @@ export function Dialog({
   description,
   children,
   actions,
-  size = "md",
+  size = 'md',
   testId,
+  presentation = 'dialog',
+  className,
+  busy = false,
 }: DialogProps) {
-  const panelRef = useRef<HTMLDivElement | null>(null);
-  useOverlayDismiss(open, onClose);
-  useOverlayFocusTrap(open, panelRef);
-
-  if (!open) {
-    return null;
-  }
-
-  const titleId = testId ? `${testId}-title` : undefined;
-  const descriptionId = description && testId ? `${testId}-description` : undefined;
-
-  return (
-    <div className="fixed inset-0 z-[var(--ui-z-overlay)] flex items-center justify-center p-4">
+  const ref = useRef<HTMLDialogElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const descriptionId = useId();
+  useEffect(() => {
+    const element = ref.current;
+    if (!open || !element) return;
+    const previousFocus = document.activeElement;
+    if (activeOverlays === 0) previousBodyOverflow = document.body.style.overflow;
+    activeOverlays += 1;
+    element.showModal();
+    const firstField = bodyRef.current?.querySelector<HTMLElement>(
+      'input:not([type="hidden"]):not(:disabled), select:not(:disabled), textarea:not(:disabled)',
+    );
+    firstField?.focus({ preventScroll: true });
+    document.body.style.overflow = 'hidden';
+    return () => {
+      element.close();
+      activeOverlays -= 1;
+      if (activeOverlays === 0) document.body.style.overflow = previousBodyOverflow;
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+    };
+  }, [open]);
+  if (!open || typeof document === 'undefined') return null;
+  return createPortal(
+    <dialog
+      ref={ref}
+      data-testid={testId}
+      aria-labelledby={titleId}
+      aria-busy={busy || undefined}
+      aria-describedby={description ? descriptionId : undefined}
+      onCancel={(event) => {
+        event.preventDefault();
+        if (!busy) onClose();
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          const rect = event.currentTarget.getBoundingClientRect();
+          if (
+            event.clientX < rect.left ||
+            event.clientX > rect.right ||
+            event.clientY < rect.top ||
+            event.clientY > rect.bottom
+          )
+            if (!busy) onClose();
+        }
+      }}
+      className={cx(
+        'w-[calc(100%-2rem)] max-h-[calc(100dvh-2rem)] overflow-hidden border border-border bg-surface-raised p-0 text-foreground shadow-overlay backdrop:bg-overlay',
+        presentation === 'sheet'
+          ? 'animate-ui-sheet fixed inset-y-0 left-auto right-0 m-0 h-dvh max-h-dvh w-full max-w-md rounded-l-xl'
+          : 'animate-ui-dialog m-auto rounded-2xl',
+        presentation === 'dialog' && SIZES[size],
+        className,
+      )}
+    >
       <div
-        aria-hidden="true"
-        onClick={onClose}
-        className="animate-ui-fade absolute inset-0 bg-overlay"
-      />
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={descriptionId}
-        tabIndex={-1}
-        data-testid={testId}
         className={cx(
-          "animate-ui-dialog relative flex max-h-[calc(100vh-2rem)] w-full flex-col rounded-lg border border-border bg-surface-raised shadow-overlay focus-visible:outline-none",
-          SIZE_STYLES[size],
+          'flex max-h-[calc(100dvh-2rem)] flex-col',
+          presentation === 'sheet' && 'h-dvh max-h-dvh',
         )}
       >
-        <div className="flex items-start gap-3 border-b border-border px-5 pt-4 pb-4">
+        <div className="flex shrink-0 items-start gap-4 border-b border-border px-5 py-5 sm:px-6">
           <div className="min-w-0 flex-1">
-            <h2 id={titleId} className="text-title leading-title font-semibold text-foreground">
+            <h2 id={titleId} className="text-title font-semibold tracking-tight">
               {title}
             </h2>
             {description ? (
-              <p id={descriptionId} className="mt-0.5 text-small leading-small text-muted-foreground">
+              <p
+                id={descriptionId}
+                className="mt-1 text-small leading-relaxed text-muted-foreground"
+              >
                 {description}
               </p>
             ) : null}
@@ -156,20 +122,34 @@ export function Dialog({
           <button
             type="button"
             onClick={onClose}
+            disabled={busy}
             aria-label="Close dialog"
             data-testid={testId ? `${testId}-close` : undefined}
-            className="rounded-lg p-1.5 text-muted-foreground transition-[background-color,color] duration-fast ease-out hover:bg-ghost-hover hover:text-foreground focus-visible:outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground enabled:hover:bg-ghost-hover disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
           >
             <X aria-hidden="true" className="size-5" />
           </button>
         </div>
-        <div className="overflow-y-auto px-5 py-4">{children}</div>
+        <div
+          ref={bodyRef}
+          data-ui-dialog-body
+          className={cx(
+            'min-h-0 min-w-0 overflow-x-hidden overflow-y-auto px-5 py-5 sm:px-6',
+            presentation === 'sheet' && 'flex-1',
+          )}
+        >
+          {children}
+        </div>
         {actions ? (
-          <div className="flex flex-col-reverse gap-2 border-t border-border px-5 py-4 sm:flex-row sm:justify-end">
+          <div
+            data-ui-dialog-actions
+            className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border bg-background px-5 py-4 sm:px-6 [&>button]:min-h-10"
+          >
             {actions}
           </div>
         ) : null}
       </div>
-    </div>
+    </dialog>,
+    document.body,
   );
 }

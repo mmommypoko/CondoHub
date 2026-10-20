@@ -56,7 +56,10 @@ export interface QuotaEnvelope {
   data: { quotaKind: string; quotaLimit: number; quotaUsed: number; periodKey: string };
 }
 
-function openDays(open: string, close: string): Record<string, { open: Array<{ start: string; end: string }>; breaks: never[] }> {
+function openDays(
+  open: string,
+  close: string,
+): Record<string, { open: Array<{ start: string; end: string }>; breaks: never[] }> {
   const days: Record<string, { open: Array<{ start: string; end: string }>; breaks: never[] }> = {};
   for (const day of ['0', '1', '2', '3', '4', '5', '6']) {
     days[day] = { open: [{ start: open, end: close }], breaks: [] };
@@ -64,11 +67,17 @@ function openDays(open: string, close: string): Record<string, { open: Array<{ s
   return days;
 }
 
-export function wideOpenSchedule(): Record<string, { open: Array<{ start: string; end: string }>; breaks: never[] }> {
+export function wideOpenSchedule(): Record<
+  string,
+  { open: Array<{ start: string; end: string }>; breaks: never[] }
+> {
   return openDays('00:00', '24:00');
 }
 
-export function daytimeSchedule(): Record<string, { open: Array<{ start: string; end: string }>; breaks: never[] }> {
+export function daytimeSchedule(): Record<
+  string,
+  { open: Array<{ start: string; end: string }>; breaks: never[] }
+> {
   return openDays('08:00', '20:00');
 }
 
@@ -107,7 +116,7 @@ export async function createFacility(
 export async function findRoom(page: Page, roomCode: string): Promise<string> {
   const listed = await apiJson<RoomListEnvelope>(page.request, {
     method: 'GET',
-    path: '/api/rooms?pageSize=100',
+    path: `/api/rooms?pageSize=100&query=${encodeURIComponent(roomCode)}`,
   });
   expect(listed.status).toBe(200);
   const room = listed.json.data.find((candidate) => candidate.roomCode === roomCode);

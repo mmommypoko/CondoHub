@@ -4,6 +4,7 @@ import { db } from '@/shared/db/client';
 import { mapPgError, AppError } from '@/shared/utils/errors';
 import { writeAudit } from '@/shared/observability/audit';
 import {
+  queryBuildingPage,
   deleteFloor as deleteFloorRow,
   findBuildingById,
   findFloorById,
@@ -16,6 +17,7 @@ import {
   listRoomsByBuilding,
   listRoomsByFloor,
   updateBuildingStatus,
+  updateBuildingDetails as updateBuildingDetailsRow,
   updateFloor as updateFloorRow,
   updateRoom,
   type BuildingRow,
@@ -47,13 +49,21 @@ export interface RoomImpactPreview {
 
 export async function createBuilding(
   actor: Actor,
-  input: { projectId: string; code: string; name: string; status: 'ACTIVE' | 'INACTIVE' },
+  input: {
+    projectId: string;
+    code?: string | undefined;
+    name: string;
+    status: 'ACTIVE' | 'INACTIVE';
+  },
   ctx: PropertyCtx,
 ): Promise<BuildingRow> {
   requireAdmin(actor);
   try {
     return await db.transaction(async (tx) => {
-      const created = await insertBuilding(tx, input);
+      const created = await insertBuilding(tx, {
+        ...input,
+        code: input.code ?? `bld_${crypto.randomUUID()}`,
+      });
       await writeAudit(tx, {
         actorId: actor.userId,
         action: 'building.created',
@@ -73,7 +83,7 @@ export async function createBuilding(
 
 export async function createFloor(
   actor: Actor,
-  input: { buildingId: string; code: string; label: string },
+  input: { buildingId: string; code?: string | undefined; label: string },
   ctx: PropertyCtx,
 ): Promise<FloorRow> {
   requireAdmin(actor);
@@ -81,7 +91,10 @@ export async function createFloor(
   if (building === null) throw new AppError('RESOURCE_NOT_FOUND');
   try {
     return await db.transaction(async (tx) => {
-      const created = await insertFloor(tx, input);
+      const created = await insertFloor(tx, {
+        ...input,
+        code: input.code ?? `flr_${crypto.randomUUID()}`,
+      });
       await writeAudit(tx, {
         actorId: actor.userId,
         action: 'floor.created',
@@ -104,7 +117,8 @@ export async function createRoom(
   input: {
     floorId: string;
     buildingId: string;
-    roomCode: string;
+    roomCode?: string | undefined;
+    name?: string | undefined;
     areaSqm: string;
     status: 'ACTIVE' | 'INACTIVE';
   },
@@ -117,7 +131,11 @@ export async function createRoom(
   }
   try {
     return await db.transaction(async (tx) => {
-      const created = await insertRoom(tx, input);
+      const created = await insertRoom(tx, {
+        ...input,
+        roomCode: input.roomCode ?? `rom_${crypto.randomUUID()}`,
+        name: input.name ?? input.roomCode ?? 'Room',
+      });
       await writeAudit(tx, {
         actorId: actor.userId,
         action: 'room.created',
@@ -184,12 +202,16 @@ export async function disableRoom(
 export async function updateRoomDetails(
   actor: Actor,
   roomId: string,
-  input: { areaSqm?: string | undefined; status?: 'ACTIVE' | 'INACTIVE' | undefined },
+  input: {
+    name?: string | undefined;
+    areaSqm?: string | undefined;
+    status?: 'ACTIVE' | 'INACTIVE' | undefined;
+  },
   ctx: PropertyCtx,
 ): Promise<RoomRow> {
   requireAdmin(actor);
-  if (input.areaSqm === undefined && input.status === undefined) {
-    throw new AppError('VALIDATION_ERROR', 'Provide an area or status to update.');
+  if (input.name === undefined && input.areaSqm === undefined && input.status === undefined) {
+    throw new AppError('VALIDATION_ERROR', 'Provide a name, area, or status to update.');
   }
   const room = await findRoomById(db, roomId);
   if (room === null) throw new AppError('RESOURCE_NOT_FOUND');
@@ -203,8 +225,8 @@ export async function updateRoomDetails(
         resourceType: 'room',
         resourceId: roomId,
         requestId: ctx.requestId,
-        before: { areaSqm: room.areaSqm, status: room.status },
-        after: { areaSqm: next.areaSqm, status: next.status },
+        before: { name: room.name, areaSqm: room.areaSqm, status: room.status },
+        after: { name: next.name, areaSqm: next.areaSqm, status: next.status },
       });
       return next;
     });
@@ -276,7 +298,10 @@ export async function updateFloor(
   if (floor === null) throw new AppError('RESOURCE_NOT_FOUND');
   try {
     return await db.transaction(async (tx) => {
-      const next = await updateFloorRow(tx, input.floorId, { code: input.code, label: input.label });
+      const next = await updateFloorRow(tx, input.floorId, {
+        code: input.code,
+        label: input.label,
+      });
       if (next === null) throw new AppError('RESOURCE_NOT_FOUND');
       await writeAudit(tx, {
         actorId: actor.userId,
@@ -341,4 +366,43 @@ export async function listBuildingStructures(
 export async function listAllBuildings(actor: Actor): Promise<BuildingRow[]> {
   requireAdmin(actor);
   return listBuildings(db);
+}
+
+export async function listBuildingPage(
+  actor: Actor,
+  input: { page: number; pageSize: number; query?: string | undefined },
+) {
+  requireAdmin(actor);
+  return queryBuildingPage(db, {
+    ...input,
+    page: Math.max(1, input.page),
+    pageSize: Math.min(100, Math.max(1, input.pageSize)),
+  });
+}
+
+export async function updateBuildingDetails(
+  actor: Actor,
+  buildingId: string,
+  input: { name?: string | undefined; status?: 'ACTIVE' | 'INACTIVE' | undefined },
+  ctx: PropertyCtx,
+) {
+  requireAdmin(actor);
+  const existing = await findBuildingById(db, buildingId);
+  if (!existing) throw new AppError('RESOURCE_NOT_FOUND');
+  if (input.name === undefined && input.status === undefined)
+    throw new AppError('VALIDATION_ERROR');
+  return db.transaction(async (tx) => {
+    const updated = await updateBuildingDetailsRow(tx, buildingId, input);
+    if (!updated) throw new AppError('RESOURCE_NOT_FOUND');
+    await writeAudit(tx, {
+      actorId: actor.userId,
+      action: 'building.updated',
+      resourceType: 'building',
+      resourceId: buildingId,
+      requestId: ctx.requestId,
+      before: { name: existing.name, status: existing.status },
+      after: { name: updated.name, status: updated.status },
+    });
+    return updated;
+  });
 }

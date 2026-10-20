@@ -5,10 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { isUuid } from '@/shared/utils/idempotency';
 import { getTurnoverReview } from '@/modules/billing-payments/application/index';
-import {
-  getRentalPeriods,
-  getRoomDetail,
-} from '@/modules/property-membership/application/index';
+import { getRentalPeriods, getRoomDetail } from '@/modules/property-membership/application/index';
 import {
   TurnoverReviewDetailCard,
   type TurnoverReviewCandidateWindow,
@@ -36,12 +33,12 @@ export default async function AdminTurnoverReviewDetailPage({
   if (!isUuid(id)) redirect(BASE_PATH);
   const review = await getTurnoverReview(actor, id);
   if (review === null) redirect(BASE_PATH);
-  let roomCode = review.roomId;
+  let roomName = review.roomId;
   try {
     const room = await getRoomDetail(review.roomId);
-    roomCode = room.roomCode;
+    roomName = room.name;
   } catch {
-    roomCode = review.roomId;
+    roomName = review.roomId;
   }
   let candidates: TurnoverReviewCandidateWindow[] = [];
   try {
@@ -70,7 +67,7 @@ export default async function AdminTurnoverReviewDetailPage({
   return (
     <main
       data-testid="turnover-review-detail-page"
-      className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
     >
       <Link
         data-testid="turnover-review-detail-back"
@@ -83,7 +80,7 @@ export default async function AdminTurnoverReviewDetailPage({
       <TurnoverReviewDetailCard
         review={{
           id: review.id,
-          roomCode,
+          roomName,
           calendarMonth: review.calendarMonth,
           cycleStart: review.calendarMonth,
           state: review.state,

@@ -15,11 +15,11 @@ export default async function AdminFacilityNewPage() {
   return (
     <main
       data-testid="admin-facility-new-page"
-      className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
     >
       <PageHeader
         title="New facility"
-        description="Set the code, opening hours, slot length, seats, quota, and advance window."
+        description="Set the name, opening hours, capacity, and booking rules."
         backHref="/admin/facilities"
         backLabel="Back to facilities"
         backTestId="admin-facility-new-back"

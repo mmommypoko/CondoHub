@@ -2,8 +2,21 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, X } from 'lucide-react';
-import { Badge, Button, DataTable, DataTableCell, DataTableRow, Dialog, EmptyState, INPUT_CLASS, Pagination, cx, useToast } from '@/shared/ui';
+import { Search, UserPlus, X } from 'lucide-react';
+import {
+  Badge,
+  Button,
+  DataTable,
+  DataTableCell,
+  DataTableRow,
+  Dialog,
+  EmptyState,
+  INPUT_CLASS,
+  Pagination,
+  SectionCard,
+  cx,
+  useToast,
+} from '@/shared/ui';
 import { UserProvisionForm, extractProvisionedAccount } from './UserProvisionForm';
 
 export interface AdminUserRow {
@@ -47,8 +60,11 @@ export function UsersTable({ users, total, page, pageSize, query }: UsersTablePr
   const { toast } = useToast();
   const [search, setSearch] = useState(query);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [oncePassword, setOncePassword] = useState<{ userId: string; password: string } | null>(null);
+  const [oncePassword, setOncePassword] = useState<{ userId: string; password: string } | null>(
+    null,
+  );
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  const [provisionPending, setProvisionPending] = useState(false);
   const [provisionOpen, setProvisionOpen] = useState(false);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -98,7 +114,8 @@ export function UsersTable({ users, total, page, pageSize, query }: UsersTablePr
     else void setStatus(action.user.id, action.kind === 'suspend' ? 'SUSPENDED' : 'ACTIVE');
   }
 
-  const pendingLabel = pendingAction === null ? '' : (pendingAction.user.username ?? pendingAction.user.email);
+  const pendingLabel =
+    pendingAction === null ? '' : (pendingAction.user.username ?? pendingAction.user.email);
   const pendingTitle =
     pendingAction?.kind === 'reset'
       ? 'Reset this password?'
@@ -114,139 +131,161 @@ export function UsersTable({ users, total, page, pageSize, query }: UsersTablePr
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-small leading-small text-muted-foreground">
-          {total === 1 ? '1 account' : `${total} accounts`}
-        </p>
-        <Button data-testid="admin-users-provision-open" onClick={() => setProvisionOpen(true)}>
-          Provision user
-        </Button>
-      </div>
-      <Dialog
-        open={provisionOpen}
-        onClose={() => setProvisionOpen(false)}
-        title="Provision user"
-        description="Create a system-wide account. A temporary password is shown once."
-        size="sm"
-        testId="admin-users-provision"
-      >
-        <UserProvisionForm
-          onCancel={() => setProvisionOpen(false)}
-          onDone={(userId, tempPassword) => {
-            setProvisionOpen(false);
-            if (tempPassword !== null) {
-              setOncePassword({ userId, password: tempPassword });
-              toast.success('User provisioned. Temporary password shown once.');
-            } else {
-              toast.success('User already provisioned.');
-            }
-            router.refresh();
-          }}
-        />
-      </Dialog>
-      <form
-        data-testid="admin-users-search"
-        className="flex flex-wrap gap-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const params = new URLSearchParams();
-          if (search !== '') params.set('query', search);
-          router.push(`/admin/users?${params.toString()}`);
-        }}
-      >
-        <div className="relative min-w-0 flex-1">
-          <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            data-testid="admin-users-search-input"
-            type="search"
-            aria-label="Search users"
-            placeholder="Search by username, email, or name"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            className={cx(INPUT_CLASS, 'pr-3 pl-9')}
-          />
-        </div>
-        <Button type="submit">Search</Button>
-      </form>
-      {oncePassword !== null ? (
-        <div
-          data-testid="admin-users-temp-password"
-          role="alert"
-          className="flex flex-col gap-2 rounded-lg border border-warning-border bg-warning p-4"
-        >
-          <p className="text-body leading-body font-medium text-foreground">
-            Temporary password — shown once. Copy it now; it cannot be shown again.
-          </p>
-          <p className="font-mono text-body leading-body break-all text-foreground">{oncePassword.password}</p>
-          <div>
-            <Button variant="secondary" size="sm" onClick={() => setOncePassword(null)}>
-              <X aria-hidden="true" className="size-4" />
-              Dismiss
-            </Button>
-          </div>
-        </div>
-      ) : null}
-      <DataTable
-        testId="admin-users-table"
-        caption="Admin user accounts"
-        columns={[
-          { key: 'username', header: 'Username' },
-          { key: 'name', header: 'Name' },
-          { key: 'email', header: 'Email' },
-          { key: 'status', header: 'Status' },
-          { key: 'actions', header: 'Actions' },
-        ]}
-        emptyState={
-          <EmptyState title="No users found" description="Try a different search." />
+      <SectionCard
+        title="Accounts"
+        description={`${total} ${total === 1 ? 'account' : 'accounts'} in your community`}
+        action={
+          <Button data-testid="admin-users-provision-open" onClick={() => setProvisionOpen(true)}>
+            <UserPlus aria-hidden="true" className="size-4" />
+            New user
+          </Button>
         }
       >
-        {users.map((row) => (
-          <DataTableRow key={row.id} rowKey={row.id}>
-            <DataTableCell>{row.username ?? '—'}</DataTableCell>
-            <DataTableCell>{row.name}</DataTableCell>
-            <DataTableCell>{row.email}</DataTableCell>
-            <DataTableCell>
-              <span className="flex flex-wrap items-center gap-1.5">
-                <Badge variant={row.accountStatus === 'ACTIVE' ? 'success' : 'danger'}>
-                  {row.accountStatus === 'ACTIVE' ? 'Active' : 'Suspended'}
-                </Badge>
-                {row.mustChangePassword ? <Badge variant="warning">Must change password</Badge> : null}
-              </span>
-            </DataTableCell>
-            <DataTableCell>
-              <span className="flex flex-wrap gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  loading={busyId === row.id}
-                  onClick={() => setPendingAction({ kind: 'reset', user: row })}
-                >
-                  Reset password
-                </Button>
-                {row.accountStatus === 'ACTIVE' ? (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    loading={busyId === row.id}
-                    onClick={() => setPendingAction({ kind: 'suspend', user: row })}
+        <Dialog
+          open={provisionOpen}
+          busy={provisionPending}
+          onClose={() => setProvisionOpen(false)}
+          title="Provision user"
+          description="Create a system-wide account. A temporary password is shown once."
+          size="sm"
+          testId="admin-users-provision"
+        >
+          <UserProvisionForm
+            onPendingChange={setProvisionPending}
+            onCancel={() => setProvisionOpen(false)}
+            onDone={(userId, tempPassword) => {
+              setProvisionOpen(false);
+              if (tempPassword !== null) {
+                setOncePassword({ userId, password: tempPassword });
+                toast.success('User provisioned. Temporary password shown once.');
+              } else {
+                toast.success('User already provisioned.');
+              }
+              router.refresh();
+            }}
+          />
+        </Dialog>
+        <form
+          data-testid="admin-users-search"
+          className="mb-5 flex flex-wrap gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const params = new URLSearchParams();
+            if (search !== '') params.set('query', search);
+            router.push(`/admin/users?${params.toString()}`);
+          }}
+        >
+          <div className="relative min-w-0 flex-1">
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+            />
+            <input
+              data-testid="admin-users-search-input"
+              type="search"
+              aria-label="Search users"
+              placeholder="Search by username, email, or name"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className={cx(INPUT_CLASS, 'pr-3 pl-9')}
+            />
+          </div>
+          <Button type="submit">Search</Button>
+        </form>
+        {oncePassword !== null ? (
+          <div
+            data-testid="admin-users-temp-password"
+            role="alert"
+            className="flex flex-col gap-2 rounded-lg border border-warning-border bg-warning p-4"
+          >
+            <p className="text-body leading-body font-medium text-foreground">
+              Temporary password — shown once. Copy it now; it cannot be shown again.
+            </p>
+            <p className="font-mono text-body leading-body break-all text-foreground">
+              {oncePassword.password}
+            </p>
+            <div>
+              <Button variant="secondary" size="sm" onClick={() => setOncePassword(null)}>
+                <X aria-hidden="true" className="size-4" />
+                Dismiss
+              </Button>
+            </div>
+          </div>
+        ) : null}
+        <DataTable
+          testId="admin-users-table"
+          caption="Admin user accounts"
+          columns={[
+            { key: 'username', header: 'Username', width: 170, truncate: true },
+            { key: 'name', header: 'Name', width: 230, truncate: true },
+            { key: 'email', header: 'Email', width: 230, truncate: true },
+            { key: 'status', header: 'Status', width: 170 },
+            { key: 'actions', header: 'Actions', width: 250 },
+          ]}
+          emptyState={<EmptyState title="No users found" description="Try a different search." />}
+        >
+          {users.map((row) => (
+            <DataTableRow key={row.id} rowKey={row.id}>
+              <DataTableCell>{row.username ?? '—'}</DataTableCell>
+              <DataTableCell>
+                <span className="flex min-w-0 items-center gap-3">
+                  <span
+                    aria-hidden="true"
+                    className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-caption font-semibold"
                   >
-                    Suspend
-                  </Button>
-                ) : (
+                    {row.name.slice(0, 2).toUpperCase()}
+                  </span>
+                  <span title={row.name} className="truncate font-medium text-foreground">
+                    {row.name}
+                  </span>
+                </span>
+              </DataTableCell>
+              <DataTableCell>{row.email}</DataTableCell>
+              <DataTableCell>
+                <span className="flex flex-wrap items-center gap-1.5">
+                  <Badge variant={row.accountStatus === 'ACTIVE' ? 'success' : 'danger'}>
+                    {row.accountStatus === 'ACTIVE' ? 'Active' : 'Suspended'}
+                  </Badge>
+                  {row.mustChangePassword ? (
+                    <Badge variant="warning">Must change password</Badge>
+                  ) : null}
+                </span>
+              </DataTableCell>
+              <DataTableCell>
+                <span className="flex flex-wrap gap-2">
                   <Button
                     variant="secondary"
                     size="sm"
                     loading={busyId === row.id}
-                    onClick={() => setPendingAction({ kind: 'reactivate', user: row })}
+                    onClick={() => setPendingAction({ kind: 'reset', user: row })}
                   >
-                    Reactivate
+                    Reset password
                   </Button>
-                )}
-              </span>
-            </DataTableCell>
-          </DataTableRow>
-        ))}
-      </DataTable>
+                  {row.accountStatus === 'ACTIVE' ? (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      loading={busyId === row.id}
+                      onClick={() => setPendingAction({ kind: 'suspend', user: row })}
+                    >
+                      Suspend
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      loading={busyId === row.id}
+                      onClick={() => setPendingAction({ kind: 'reactivate', user: row })}
+                    >
+                      Reactivate
+                    </Button>
+                  )}
+                </span>
+              </DataTableCell>
+            </DataTableRow>
+          ))}
+        </DataTable>
+      </SectionCard>
       <Dialog
         open={pendingAction !== null}
         onClose={() => setPendingAction(null)}
@@ -280,7 +319,10 @@ export function UsersTable({ users, total, page, pageSize, query }: UsersTablePr
           </>
         }
       >
-        <p data-testid="admin-users-confirm-hint" className="text-small leading-small text-muted-foreground">
+        <p
+          data-testid="admin-users-confirm-hint"
+          className="text-small leading-small text-muted-foreground"
+        >
           {pendingAction?.kind === 'reset'
             ? 'The user must change the temporary password at next login.'
             : pendingAction?.kind === 'suspend'

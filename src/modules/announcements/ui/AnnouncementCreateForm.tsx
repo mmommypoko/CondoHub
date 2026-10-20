@@ -1,4 +1,7 @@
 'use client';
+import { FormActions } from '@/shared/ui/FormActions';
+
+import { useFormDialog } from '@/shared/ui/FormDialog';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -51,6 +54,8 @@ export function AnnouncementCreateForm() {
   });
   const publishMode = watch('publishMode');
 
+  const dialog = useFormDialog(isSubmitting);
+
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
     const response = await fetch('/api/admin/announcements', {
@@ -67,10 +72,13 @@ export function AnnouncementCreateForm() {
       const payload = (await response.json().catch(() => null)) as {
         error?: { message?: string };
       } | null;
-      setServerError(payload?.error?.message ?? 'Could not create this announcement. Check the form and retry.');
+      setServerError(
+        payload?.error?.message ?? 'Could not create this announcement. Check the form and retry.',
+      );
       return;
     }
     toast.success('Announcement created.');
+    dialog?.complete();
     router.push('/admin/announcements');
     router.refresh();
   });
@@ -83,11 +91,20 @@ export function AnnouncementCreateForm() {
       className="flex min-w-0 flex-col gap-4"
     >
       {serverError !== null ? (
-        <p data-testid="announcement-create-error" role="alert" className="text-body leading-body font-medium text-danger-foreground">
+        <p
+          data-testid="announcement-create-error"
+          role="alert"
+          className="text-body leading-body font-medium text-danger-foreground"
+        >
           {serverError}
         </p>
       ) : null}
-      <FormField label="Title" htmlFor="announcement-create-title" {...(errors.title?.message === undefined ? {} : { error: errors.title.message })} required>
+      <FormField
+        label="Title"
+        htmlFor="announcement-create-title"
+        {...(errors.title?.message === undefined ? {} : { error: errors.title.message })}
+        required
+      >
         <input
           data-testid="announcement-create-title"
           type="text"
@@ -96,7 +113,12 @@ export function AnnouncementCreateForm() {
           {...register('title')}
         />
       </FormField>
-      <FormField label="Body" htmlFor="announcement-create-body" {...(errors.body?.message === undefined ? {} : { error: errors.body.message })} required>
+      <FormField
+        label="Body"
+        htmlFor="announcement-create-body"
+        {...(errors.body?.message === undefined ? {} : { error: errors.body.message })}
+        required
+      >
         <textarea
           data-testid="announcement-create-body"
           rows={6}
@@ -137,22 +159,21 @@ export function AnnouncementCreateForm() {
       ) : null}
       <AnnouncementImageUploader
         images={images}
-        onChange={setImages}
+        onChange={(next) => {
+          setImages(next);
+          dialog?.markDirty();
+        }}
         testIdPrefix="announcement-create"
       />
-      <div className="flex flex-wrap gap-2">
+      <FormActions
+        onCancel={() => (dialog ? dialog.requestClose() : router.push('/admin/announcements'))}
+        pending={isSubmitting}
+        cancelTestId="announcement-create-cancel"
+      >
         <Button data-testid="announcement-create-submit" type="submit" loading={isSubmitting}>
           Create announcement
         </Button>
-        <Button
-          data-testid="announcement-create-cancel"
-          type="button"
-          variant="secondary"
-          onClick={() => router.push('/admin/announcements')}
-        >
-          Cancel
-        </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

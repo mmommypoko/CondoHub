@@ -1,4 +1,5 @@
 import 'server-only';
+import { PROJECT_PAYEE_ID } from '@/config/project';
 import { and, desc, eq, lte } from 'drizzle-orm';
 import type { Db } from '@/shared/db/transaction';
 import { paymentInstruction } from './schema';
@@ -74,4 +75,35 @@ export async function insertPayeeInstruction(
   const row = rows[0];
   if (row === undefined) throw new Error('Payment instruction insert returned no row.');
   return toRecord(row);
+}
+
+export async function findPayeeInstructionById(
+  conn: Db,
+  id: string,
+): Promise<PaymentInstructionRecord | null> {
+  const [row] = await conn
+    .select()
+    .from(paymentInstruction)
+    .where(eq(paymentInstruction.id, id))
+    .limit(1);
+  return row ? toRecord(row) : null;
+}
+
+export async function findInvoicePayee(
+  conn: Db,
+  input: { payeeType: 'PROJECT' | 'OWNER'; roomId: string; at: Date },
+) {
+  if (input.payeeType === 'PROJECT') {
+    const shared = await findPayeeEffectiveAt(conn, {
+      payeeType: 'PROJECT',
+      payeeId: PROJECT_PAYEE_ID,
+      at: input.at,
+    });
+    if (shared) return shared;
+  }
+  return findPayeeEffectiveAt(conn, {
+    payeeType: input.payeeType,
+    payeeId: input.roomId,
+    at: input.at,
+  });
 }

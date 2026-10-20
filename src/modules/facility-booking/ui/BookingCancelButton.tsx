@@ -79,6 +79,7 @@ export function BookingCancelButton({
       </Button>
       <Dialog
         open={open}
+        busy={isSubmitting}
         onClose={() => setOpen(false)}
         title="Cancel this slot"
         description={
@@ -90,7 +91,13 @@ export function BookingCancelButton({
         size="sm"
         actions={
           <>
-            <Button type="button" size="sm" variant="secondary" onClick={() => setOpen(false)}>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={isSubmitting}
+              onClick={() => setOpen(false)}
+            >
               Keep slot
             </Button>
             <Button
@@ -121,7 +128,11 @@ export function BookingCancelButton({
               {serverError}
             </p>
           ) : null}
-          <FormField label="Reason" htmlFor={`${testId}-reason`} error={errors.reason?.message ?? ''}>
+          <FormField
+            label="Reason"
+            htmlFor={`${testId}-reason`}
+            error={errors.reason?.message ?? ''}
+          >
             <input
               data-testid={`${testId}-reason`}
               type="text"

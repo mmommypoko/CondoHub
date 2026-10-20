@@ -1,17 +1,20 @@
 import { Badge, DataTable, DataTableCell, DataTableRow } from '@/shared/ui';
 import type { TurnoverReviewDto } from '@/modules/billing-payments/application/index';
-import { turnoverStateLabel, turnoverStateVariant } from '@/modules/billing-payments/ui/billingLabels';
+import {
+  turnoverStateLabel,
+  turnoverStateVariant,
+} from '@/modules/billing-payments/ui/billingLabels';
 
 export function TurnoverTable({
   rows,
-  roomCodes,
+  roomNames,
   basePath,
   prefix,
   caption,
   showMode,
 }: {
   rows: TurnoverReviewDto[];
-  roomCodes: Map<string, string>;
+  roomNames: Map<string, string>;
   basePath: string;
   prefix: 'owner-turnover-review' | 'turnover-review';
   caption: string;
@@ -32,20 +35,28 @@ export function TurnoverTable({
       {rows.map((row) => (
         <DataTableRow key={row.id} rowKey={row.id}>
           <DataTableCell link href={`${basePath}/${row.id}`} linkTestId={`${prefix}-row-${row.id}`}>
-            {roomCodes.get(row.roomId) ?? row.roomId} · {row.calendarMonth}
+            {roomNames.get(row.roomId) ?? row.roomId} · {row.calendarMonth}
           </DataTableCell>
           {showMode ? (
             <DataTableCell>
-              <span>{row.managementModeAtCreation === 'PROJECT_MANAGED' ? 'Project-managed' : 'Private'}</span>
+              <span>
+                {row.managementModeAtCreation === 'PROJECT_MANAGED' ? 'Project-managed' : 'Private'}
+              </span>
             </DataTableCell>
           ) : null}
           <DataTableCell>
             <span className="inline-flex flex-wrap items-center gap-2">
-              <Badge data-testid={`${prefix}-state-${row.id}`} variant={turnoverStateVariant(row.state)}>
+              <Badge
+                data-testid={`${prefix}-state-${row.id}`}
+                variant={turnoverStateVariant(row.state)}
+              >
                 {turnoverStateLabel(row.state)}
               </Badge>
               {row.blocked ? (
-                <span data-testid={`${prefix}-blocked-${row.id}`} className="text-small font-medium text-danger-foreground">
+                <span
+                  data-testid={`${prefix}-blocked-${row.id}`}
+                  className="text-small font-medium text-danger-foreground"
+                >
                   Blocked
                 </span>
               ) : null}

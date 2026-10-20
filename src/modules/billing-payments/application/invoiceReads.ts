@@ -80,7 +80,11 @@ function toDto(
     state,
     approvedTotal: { amount: satangToDecimalString(balance.approvedTotal), currency: 'THB' },
     outstanding: { amount: satangToDecimalString(outstanding), currency: 'THB' },
-    overdue: isOverdue({ projectToday: today, dueDate: row.dueDate, outstandingSatang: outstanding }),
+    overdue: isOverdue({
+      projectToday: today,
+      dueDate: row.dueDate,
+      outstandingSatang: outstanding,
+    }),
     pendingOnPaid: state === 'PAID' && balance.pendingCount > 0,
   };
 }
@@ -100,10 +104,7 @@ async function windowsFor(
   return listMembershipWindowsByUser(userId);
 }
 
-function windowTenantOverlap(
-  windows: MembershipWindowRef[],
-  row: InvoiceRecord,
-): boolean {
+function windowTenantOverlap(windows: MembershipWindowRef[], row: InvoiceRecord): boolean {
   if (row.tenancyId === null) return false;
   return windows.some(
     (window) =>
@@ -117,7 +118,11 @@ function windowTenantOverlap(
   );
 }
 
-function windowResidentOfRoom(windows: MembershipWindowRef[], row: InvoiceRecord, at: Date): boolean {
+function windowResidentOfRoom(
+  windows: MembershipWindowRef[],
+  row: InvoiceRecord,
+  at: Date,
+): boolean {
   return windows.some(
     (window) =>
       window.roomId === row.roomId &&
@@ -313,4 +318,26 @@ export async function requireInvoiceForAction(
     action,
   );
   return row;
+}
+
+export async function getInvoiceUiPermissions(actor: Actor, id: string, at: Date) {
+  assertActive(actor);
+  const row = await findInvoiceById(db, id);
+  if (!row) throw new AppError('RESOURCE_NOT_FOUND');
+  const [{ context }, balance] = await Promise.all([
+    probeInvoiceAccess(actor, row, at),
+    db.transaction((tx) => readInvoiceBalance(tx, id)),
+  ]);
+  const grants = {
+    ...context,
+    invoicePaid: deriveInvoiceState(row.total, balance.approvedTotal) === 'PAID',
+    pendingOnInvoice: balance.pendingCount > 0,
+  };
+  if (!evaluateInvoiceAccess(grants, 'VIEW').allowed) throw new AppError('RESOURCE_NOT_FOUND');
+  return {
+    canEdit: evaluateInvoiceAccess(grants, 'EDIT').allowed,
+    canApprove: evaluateInvoiceAccess(grants, 'REVIEW_APPROVE').allowed,
+    canReject: evaluateInvoiceAccess(grants, 'REVIEW_REJECT').allowed,
+    canSubmit: evaluateInvoiceAccess(grants, 'SUBMIT_PAYMENT').allowed,
+  };
 }

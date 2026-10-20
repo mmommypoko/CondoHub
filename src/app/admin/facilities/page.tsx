@@ -1,75 +1,105 @@
 import 'server-only';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Plus } from 'lucide-react';
+import { CalendarDays } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
-import { ACTION_LINK_CLASS, Badge, EmptyState, PageHeader, Pagination } from '@/shared/ui';
+import {
+  Badge,
+  EmptyState,
+  FormDialog,
+  PageHeader,
+  Pagination,
+  ResourceCard,
+  SearchField,
+} from '@/shared/ui';
 import { listFacilityPage } from '@/modules/facility-booking/application/index';
+import { FacilityCreateForm } from '@/modules/facility-booking/ui/FacilityCreateForm';
+import { listAllBuildings } from '@/modules/property-membership/application/index';
 
-export default async function AdminFacilitiesPage({
+export default async function FacilitiesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; query?: string }>;
 }) {
   const actor = await getActorFromSession();
-  if (actor === null) redirect('/login?returnUrl=/admin/facilities');
-  if (!actor.isSystemAdmin) redirect('/');
+  if (actor === null) redirect('/login');
   if (actor.mustChangePassword) redirect('/change-password');
+  if (!actor.isSystemAdmin) redirect('/');
   const params = await searchParams;
-  const page = Math.max(1, Number(params.page ?? '1') || 1);
-  const feed = await listFacilityPage(actor, { page, pageSize: 20 });
-  const totalPages = Math.max(1, Math.ceil(feed.total / 20));
+  const page = Math.max(1, Math.floor(Number(params.page) || 1));
+  const query = (params.query ?? '').slice(0, 255);
+  const feed = await listFacilityPage(actor, { page, pageSize: 12, query });
+  const buildings = await listAllBuildings(actor);
+  const projectId = buildings[0]?.projectId ?? '00000000-0000-4000-8000-000000000000';
   return (
     <main
       data-testid="admin-facilities-page"
-      className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
     >
       <PageHeader
         title="Facilities"
-        description="Create facilities, manage opening hours, closures, quota, and future configs."
+        description="Manage the spaces that bring your community together."
         actions={
-          <Link
-            data-testid="admin-facilities-create"
-            href="/admin/facilities/new"
-            className={ACTION_LINK_CLASS}
+          <FormDialog
+            triggerLabel="New facility"
+            title="New facility"
+            description="Set up a shared space and its booking rules."
+            triggerTestId="admin-facilities-create"
+            testId="facility-create-dialog"
+            size="lg"
           >
-            <Plus aria-hidden="true" className="size-4" />
-            New facility
-          </Link>
+            <FacilityCreateForm projectId={projectId} />
+          </FormDialog>
         }
       />
+      <SearchField query={query} label="Search facilities" total={feed.total} />
       {feed.rows.length === 0 ? (
         <EmptyState
           data-testid="admin-facilities-empty"
-          title="No facilities yet"
-          description="Create the first facility to open booking for residents."
+          icon={CalendarDays}
+          title={query ? 'No matching facilities' : 'No facilities yet'}
+          description={
+            query
+              ? 'Try a different facility name.'
+              : 'Shared spaces will appear here when they are available.'
+          }
         />
       ) : (
-        <ul data-testid="admin-facilities-list" className="flex flex-col divide-y divide-border rounded-lg border border-border bg-surface">
+        <ul
+          data-testid="admin-facilities-list"
+          className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3"
+        >
           {feed.rows.map((row) => (
-            <li key={row.id} className="flex min-w-0 flex-col gap-1 px-4 py-3 sm:px-5">
-              <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                <Link
-                  data-testid={`admin-facilities-row-${row.id}`}
-                  href={`/admin/facilities/${row.id}`}
-                  className="min-w-0 flex-1 basis-40 break-words rounded-md text-body font-semibold text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
-                >
-                  {row.name}
-                </Link>
-                <Badge variant={row.status === 'ACTIVE' ? 'success' : 'neutral'}>{row.status}</Badge>
-              </div>
-              <p className="ui-tabular text-small text-muted-foreground">
-                Code {row.code} · {row.capacity} {row.capacity === 1 ? 'seat' : 'seats'}
-              </p>
+            <li key={row.id}>
+              <ResourceCard
+                href={`/admin/facilities/${row.id}`}
+                title={row.name}
+                description={row.description}
+                icon={CalendarDays}
+                testId={`admin-facilities-row-${row.id}`}
+                status={
+                  <Badge variant={row.status === 'ACTIVE' ? 'success' : 'neutral'}>
+                    {row.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+                  </Badge>
+                }
+                metadata={
+                  <>
+                    <span>
+                      {row.capacity} {row.capacity === 1 ? 'space' : 'spaces'} per slot
+                    </span>
+                    <span className="ml-auto font-medium text-link">Manage facility</span>
+                  </>
+                }
+              />
             </li>
           ))}
         </ul>
       )}
       <Pagination
         page={page}
-        totalPages={totalPages}
+        totalPages={Math.ceil(feed.total / 12)}
         totalItems={feed.total}
         pagePath="/admin/facilities"
+        querySuffix={query ? `&query=${encodeURIComponent(query)}` : ''}
         testId="admin-facilities-pages"
         nextTestId="admin-facilities-next"
         prevTestId="admin-facilities-prev"

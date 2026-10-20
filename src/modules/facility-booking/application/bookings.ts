@@ -35,12 +35,14 @@ import {
   insertRefundCredit,
   listAdjustmentsForRoomFacility,
   listBookingsForRoom,
+  listBookingFacilityLabels,
   listClosuresOverlapping,
   listConfirmedSlotsInRange,
   listQuotaConsumingSlots,
   listSlotsForBooking,
   lockBookingSlotForUpdate,
   lockEffectiveConfigForUpdate,
+  lockFacilityForUpdate,
   updateBookingSlotState,
   type FacilityConfigRecord,
 } from '../infrastructure/facilityRepository';
@@ -178,7 +180,10 @@ export async function createBooking(
     });
     if (existing !== null) {
       if (existing.requestHash !== requestHash) {
-        throw new AppError('VALIDATION_ERROR', 'The Idempotency-Key was already used with a different request.');
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'The Idempotency-Key was already used with a different request.',
+        );
       }
       if (existing.resultRefId !== null) {
         const replay = await toBookingDto(db, existing.resultRefId);
@@ -189,6 +194,10 @@ export async function createBooking(
   }
   try {
     return await db.transaction(async (tx) => {
+      const currentFacility = await lockFacilityForUpdate(tx, input.facilityId);
+      if (!currentFacility) throw new AppError('RESOURCE_NOT_FOUND');
+      if (currentFacility.status !== 'ACTIVE')
+        throw new AppError('VALIDATION_ERROR', 'The facility is not open for booking.');
       const config = await lockEffectiveConfigForUpdate(tx, input.facilityId, now);
       if (config === null) {
         throw new AppError('VALIDATION_ERROR', 'The facility has no effective configuration.');
@@ -223,8 +232,15 @@ export async function createBooking(
         facilityId: input.facilityId,
         periodKeys,
       });
-      const capacity = resolveSlotCapacity(facility.capacity);
-      await assertCapacityAvailable(tx, input.facilityId, starts, ends, capacity, config.slotMinutes);
+      const capacity = resolveSlotCapacity(currentFacility.capacity);
+      await assertCapacityAvailable(
+        tx,
+        input.facilityId,
+        starts,
+        ends,
+        capacity,
+        config.slotMinutes,
+      );
       await assertQuotaAvailable(tx, input.roomId, input.facilityId, starts, config);
       const created = await insertBooking(tx, {
         roomId: input.roomId,
@@ -321,7 +337,10 @@ async function assertQuotaAvailable(
       slots: slots.map((slot) => ({ id: slot.id, startsAt: slot.startsAt, state: slot.state })),
       credits: credits
         .filter((credit) => credit.periodKey === periodKey)
-        .map((credit) => ({ bookingSlotId: credit.bookingSlotId, signedSlots: credit.signedSlots })),
+        .map((credit) => ({
+          bookingSlotId: credit.bookingSlotId,
+          signedSlots: credit.signedSlots,
+        })),
       periodKey,
       kind: config.quotaKind,
     });
@@ -379,7 +398,8 @@ export async function cancelBookingSlot(
         canceledBy: actor.userId,
         refundQuota: refund,
       });
-      if (updated === null) throw new AppError('VALIDATION_ERROR', 'The slot changed. Please reload and retry.');
+      if (updated === null)
+        throw new AppError('VALIDATION_ERROR', 'The slot changed. Please reload and retry.');
       if (refund) {
         const config = await findEffectiveConfig(tx, slot.facilityId, now);
         if (config === null) {
@@ -442,4 +462,19 @@ export async function listRoomBookings(
     if (dto !== null) dtos.push(dto);
   }
   return dtos;
+}
+
+export async function getRoomBookingHistory(actor: Actor, roomId: string, at: Date) {
+  const bookings = await listRoomBookings(actor, { roomId }, at);
+  const labels = await listBookingFacilityLabels(db, [
+    ...new Set(bookings.map((booking) => booking.facilityId)),
+  ]);
+  return {
+    bookings,
+    facilities: labels.map((row) => ({
+      id: row.id,
+      name: row.name,
+      deleted: row.deletedAt !== null,
+    })),
+  };
 }

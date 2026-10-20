@@ -6,11 +6,13 @@ import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
 import {
   getInvoice,
+  getInvoiceUiPermissions,
   getPaymentInstruction,
   listInvoiceRevisions,
   listPaymentSubmissions,
 } from '@/modules/billing-payments/application/index';
 import { isUuid } from '@/shared/utils/idempotency';
+import { getRoomLabels } from '@/modules/property-membership/application/index';
 import { InvoiceDetailCard } from '@/modules/billing-payments/ui/InvoiceDetailCard';
 import { InvoicePaymentSections } from '@/modules/billing-payments/ui/InvoicePaymentSections';
 
@@ -30,15 +32,17 @@ export default async function AdminBillingInvoiceDetailPage({
   const now = systemClock.now();
   const detail = await getInvoice(actor, id, now);
   if (detail === null) redirect('/admin/billing/invoices');
-  const [submissions, revisions, instruction] = await Promise.all([
+  const [submissions, revisions, instruction, permissions] = await Promise.all([
     listPaymentSubmissions(actor, id, now),
     listInvoiceRevisions(actor, id, now),
     getPaymentInstruction(actor, id, now),
+    getInvoiceUiPermissions(actor, id, now),
   ]);
+  const roomLabel = (await getRoomLabels([detail.roomId]))[0]?.label;
   return (
     <main
       data-testid="invoice-detail-page"
-      className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
     >
       <Link
         data-testid="invoice-detail-back"
@@ -48,13 +52,14 @@ export default async function AdminBillingInvoiceDetailPage({
         <ArrowLeft aria-hidden="true" className="size-4" />
         Back to invoices
       </Link>
-      <InvoiceDetailCard invoice={detail} />
+      <InvoiceDetailCard invoice={detail} roomLabel={roomLabel} />
       <InvoicePaymentSections
         invoice={detail}
         submissions={submissions}
         revisions={revisions}
         instruction={instruction}
         actorIsAdmin
+        permissions={permissions}
       />
     </main>
   );

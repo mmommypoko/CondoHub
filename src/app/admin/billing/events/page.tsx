@@ -1,12 +1,19 @@
 import 'server-only';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Plus } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { db } from '@/shared/db/client';
 import { listOpenChargeEvents } from '@/modules/billing-payments/infrastructure/billingRepository';
 import { satangToDecimalString } from '@/shared/utils/money';
-import { ACTION_LINK_CLASS, Badge, DataTable, DataTableCell, DataTableRow, EmptyState, PageHeader } from '@/shared/ui';
+import {
+  Badge,
+  DataTable,
+  DataTableCell,
+  DataTableRow,
+  EmptyState,
+  FormDialog,
+  PageHeader,
+} from '@/shared/ui';
+import { ChargeEventCreateForm } from '@/modules/billing-payments/ui/ChargeEventCreateForm';
 import { BillingSectionNav } from '@/modules/billing-payments/ui/BillingSectionNav';
 
 export const dynamic = 'force-dynamic';
@@ -25,20 +32,20 @@ export default async function AdminBillingEventsPage() {
   return (
     <main
       data-testid="charge-event-list-page"
-      className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6"
+      className="mx-auto flex w-full max-w-[var(--ui-content-wide)] flex-col gap-7 px-4 py-7 sm:px-6 lg:p-8"
     >
       <PageHeader
         title="One-time billing events"
         description="Open events waiting for invoice issuance. Issued and cancelled events stay out of this list."
         actions={
-          <Link
-            data-testid="charge-event-list-new"
-            href="/admin/billing/events/new"
-            className={ACTION_LINK_CLASS}
+          <FormDialog
+            triggerLabel="New billing event"
+            title="New one-time event"
+            triggerTestId="charge-event-list-new"
+            testId="charge-event-create-dialog"
           >
-            <Plus aria-hidden="true" className="size-4" />
-            New event
-          </Link>
+            <ChargeEventCreateForm />
+          </FormDialog>
         }
       />
       <BillingSectionNav current="events" counts={{ events: rows.length }} />
@@ -47,16 +54,6 @@ export default async function AdminBillingEventsPage() {
           data-testid="charge-event-list-empty"
           title="No open events"
           description="Create a one-time event to bill every active room once."
-          action={
-            <Link
-              data-testid="charge-event-list-empty-new"
-              href="/admin/billing/events/new"
-              className={ACTION_LINK_CLASS}
-            >
-              <Plus aria-hidden="true" className="size-4" />
-              New event
-            </Link>
-          }
         />
       ) : (
         <DataTable
@@ -71,7 +68,11 @@ export default async function AdminBillingEventsPage() {
         >
           {rows.map((row) => (
             <DataTableRow key={row.id} rowKey={row.id}>
-              <DataTableCell link href={`/admin/billing/events/${row.id}`} linkTestId={`charge-event-row-${row.id}`}>
+              <DataTableCell
+                link
+                href={`/admin/billing/events/${row.id}`}
+                linkTestId={`charge-event-row-${row.id}`}
+              >
                 Event {row.eventEffectiveDate}
               </DataTableCell>
               <DataTableCell>
@@ -80,7 +81,9 @@ export default async function AdminBillingEventsPage() {
                 </Badge>
               </DataTableCell>
               <DataTableCell numeric>
-                <span data-testid={`charge-event-amount-${row.id}`}>{formatAmount(row.configuredAmount)}</span>
+                <span data-testid={`charge-event-amount-${row.id}`}>
+                  {formatAmount(row.configuredAmount)}
+                </span>
               </DataTableCell>
               <DataTableCell numeric>
                 <span>Created {row.createdAt.toISOString().slice(0, 10)}</span>

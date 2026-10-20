@@ -10,11 +10,7 @@ import {
   getRentalPeriods,
   resolveActorRooms,
 } from '@/modules/property-membership/application/index';
-import {
-  cycleForMonth,
-  isCycleStartMonth,
-  type CommonFeeFrequency,
-} from '../domain/billingCycle';
+import { cycleForMonth, isCycleStartMonth, type CommonFeeFrequency } from '../domain/billingCycle';
 import {
   decideRentCycle,
   managementModeAt,
@@ -22,8 +18,10 @@ import {
   type TenancyOverlapInput,
 } from '../domain/rentRecurrence';
 import { recurringFeeDueDateForCycle, rentDueDateForCycle } from '../domain/dueDatePolicy';
+import { selectRentRule } from '../domain/rentRulePolicy';
 import { feeAmountSatang } from '../domain/feeCalc';
 import { decideFeeSnapshot } from '../domain/snapshotPolicy';
+import { findInvoicePayee } from '../infrastructure/payeeRepository';
 import { payeeSnapshotToRecord, systemAutoPayee } from '../domain/payeePolicy';
 import { cycleError, type CycleError } from '../domain/cycleError';
 import {
@@ -69,7 +67,9 @@ export interface GenerateInvoicesDeps {
   rooms?: RoomCycleInput[] | undefined;
   rules?: BillingRuleRecord[] | undefined;
   openEvents?: ChargeEventRecord[] | undefined;
-  getOwners?: ((roomId: string, at: Date) => Promise<{ userId: string; ownershipId: string }[]>) | undefined;
+  getOwners?:
+    | ((roomId: string, at: Date) => Promise<{ userId: string; ownershipId: string }[]>)
+    | undefined;
   getTenancies?: ((roomId: string, month: string) => Promise<TenancyOverlapInput[]>) | undefined;
 }
 
@@ -88,6 +88,20 @@ function emptyCycleCounts(): GenerateCycleCounts {
 async function defaultRooms(actor: Actor, at: Date): Promise<RoomCycleInput[]> {
   const rows = await resolveActorRooms(actor, at);
   return rows.map((row) => ({ id: row.id, areaSqm: row.areaSqm, status: row.status }));
+}
+
+async function effectivePayee(
+  conn: Db,
+  roomId: string,
+  kind: string,
+  at: Date,
+): Promise<Record<string, unknown>> {
+  const stored = await findInvoicePayee(conn, {
+    payeeType: kind === 'PRIVATE_RENT' ? 'OWNER' : 'PROJECT',
+    roomId,
+    at,
+  });
+  return payeeSnapshotToRecord(stored ?? systemAutoPayee());
 }
 
 async function generateRentForRoom(
@@ -159,14 +173,8 @@ async function generateRentForRoom(
     return;
   }
   const kind = rentKindFor(decision.tenancy.managementMode);
-  const rule = input.rules.find(
-    (candidate) =>
-      candidate.kind === kind &&
-      candidate.frequency === 'MONTHLY' &&
-      candidate.effectiveAt.getTime() <= cycle.cycleStart.getTime() &&
-      (candidate.roomId === null || candidate.roomId === input.room.id),
-  );
-  if (rule === undefined) {
+  const rule = selectRentRule(input.rules, input.room.id, kind, cycle.cycleStart);
+  if (rule === null) {
     input.counts.cycleErrors.push(
       cycleError(input.room.id, input.cycleYm, 'The rent rule is missing for this cycle.'),
     );
@@ -191,7 +199,7 @@ async function generateRentForRoom(
     snapshotBoundaryAt: input.issuedAt,
     snapshotTimezone: PROJECT_TIMEZONE,
     issuedAt: input.issuedAt,
-    paymentInstructionSnapshot: payeeSnapshotToRecord(systemAutoPayee()),
+    paymentInstructionSnapshot: await effectivePayee(tx, input.room.id, kind, input.issuedAt),
     version: 1,
   });
   if (!inserted.inserted) {
@@ -205,7 +213,10 @@ async function generateRentForRoom(
     const reviewers = await input.getOwners(input.room.id, input.issuedAt);
     await insertRentInvoiceReviewers(tx, {
       invoiceId: inserted.id,
-      reviewers: reviewers.map((owner) => ({ userId: owner.userId, ownershipId: owner.ownershipId })),
+      reviewers: reviewers.map((owner) => ({
+        userId: owner.userId,
+        ownershipId: owner.ownershipId,
+      })),
       at: input.issuedAt,
     });
   }
@@ -241,18 +252,27 @@ async function generateFeesForRoom(
       (candidate) =>
         candidate.kind === 'COMMON_FEE' &&
         candidate.frequency === frequency &&
-        candidate.effectiveAt.getTime() <= cycleForMonth(
-          frequency as CommonFeeFrequency,
-          input.year,
-          input.month,
-          PROJECT_TIMEZONE,
-        ).cycleStart.getTime() &&
+        candidate.effectiveAt.getTime() <=
+          cycleForMonth(
+            frequency as CommonFeeFrequency,
+            input.year,
+            input.month,
+            PROJECT_TIMEZONE,
+          ).cycleStart.getTime() &&
         (candidate.roomId === null || candidate.roomId === input.room.id),
     );
     if (rule === undefined) continue;
-    const cycle = cycleForMonth(frequency as CommonFeeFrequency, input.year, input.month, PROJECT_TIMEZONE);
+    const cycle = cycleForMonth(
+      frequency as CommonFeeFrequency,
+      input.year,
+      input.month,
+      PROJECT_TIMEZONE,
+    );
     const owners = await input.getOwners(input.room.id, cycle.cycleStart);
-    const boundaryTenancies = await input.getTenancies(input.room.id, cycle.periodStart.slice(0, 7));
+    const boundaryTenancies = await input.getTenancies(
+      input.room.id,
+      cycle.periodStart.slice(0, 7),
+    );
     const boundaryMode = managementModeAt(boundaryTenancies, cycle.cycleStart);
     const snapshot = decideFeeSnapshot({
       ownersAtBoundary: owners,
@@ -282,7 +302,12 @@ async function generateFeesForRoom(
       snapshotBoundaryAt: cycle.cycleStart,
       snapshotTimezone: PROJECT_TIMEZONE,
       issuedAt: input.issuedAt,
-      paymentInstructionSnapshot: payeeSnapshotToRecord(systemAutoPayee()),
+      paymentInstructionSnapshot: await effectivePayee(
+        tx,
+        input.room.id,
+        'COMMON_FEE',
+        input.issuedAt,
+      ),
       version: 1,
     });
     if (!inserted.inserted) {
@@ -293,7 +318,10 @@ async function generateFeesForRoom(
     if (snapshot.outcome === 'SNAPSHOT') {
       await insertFeeResponsibleOwners(tx, {
         invoiceId: inserted.id,
-        owners: snapshot.owners.map((owner) => ({ userId: owner.userId, ownershipId: owner.ownershipId })),
+        owners: snapshot.owners.map((owner) => ({
+          userId: owner.userId,
+          ownershipId: owner.ownershipId,
+        })),
         at: input.issuedAt,
       });
     }
@@ -322,9 +350,7 @@ export async function generateInvoicesForCycle(
   const counts = emptyCycleCounts();
   const rooms = deps.rooms ?? (await defaultRooms(actor, issuedAt));
   const rules = deps.rules ?? (await listEnabledRules(database));
-  const getOwners =
-    deps.getOwners ??
-    ((roomId: string, at: Date) => getOwnersAt(roomId, at));
+  const getOwners = deps.getOwners ?? ((roomId: string, at: Date) => getOwnersAt(roomId, at));
   const getTenancies =
     deps.getTenancies ??
     (async (roomId: string, monthKey: string): Promise<TenancyOverlapInput[]> => {
@@ -386,13 +412,17 @@ export async function generateOneTimeEventInvoices(
   if (event === null || event === undefined) throw new AppError('RESOURCE_NOT_FOUND');
   if (event.status !== 'OPEN') return counts;
   parseCalendarDate(event.eventEffectiveDate);
-  const range = eventServiceRange(event.eventEffectiveDate, event.projectTimezone ?? PROJECT_TIMEZONE);
-  const boundary = eventMidnight(event.eventEffectiveDate, event.projectTimezone ?? PROJECT_TIMEZONE);
+  const range = eventServiceRange(
+    event.eventEffectiveDate,
+    event.projectTimezone ?? PROJECT_TIMEZONE,
+  );
+  const boundary = eventMidnight(
+    event.eventEffectiveDate,
+    event.projectTimezone ?? PROJECT_TIMEZONE,
+  );
   const rooms = deps.rooms ?? (await defaultRooms(actor, issuedAt));
   const rules = deps.rules ?? (await listEnabledRules(database));
-  const getOwners =
-    deps.getOwners ??
-    ((roomId: string, at: Date) => getOwnersAt(roomId, at));
+  const getOwners = deps.getOwners ?? ((roomId: string, at: Date) => getOwnersAt(roomId, at));
   const getTenancies =
     deps.getTenancies ??
     (async (roomId: string, monthKey: string): Promise<TenancyOverlapInput[]> => {
@@ -418,14 +448,20 @@ export async function generateOneTimeEventInvoices(
         managementMode: boundaryMode ?? 'UNKNOWN',
       });
       if (snapshot.outcome === 'CYCLE_ERROR') {
-        counts.cycleErrors.push(cycleError(room.id, event.eventEffectiveDate.slice(0, 7), snapshot.reason));
+        counts.cycleErrors.push(
+          cycleError(room.id, event.eventEffectiveDate.slice(0, 7), snapshot.reason),
+        );
         return;
       }
       let total = event.configuredAmount;
       if (total === null) {
         if (fallbackRule === undefined) {
           counts.cycleErrors.push(
-            cycleError(room.id, event.eventEffectiveDate.slice(0, 7), 'The one-time amount is required.'),
+            cycleError(
+              room.id,
+              event.eventEffectiveDate.slice(0, 7),
+              'The one-time amount is required.',
+            ),
           );
           return;
         }
@@ -448,7 +484,7 @@ export async function generateOneTimeEventInvoices(
         snapshotBoundaryAt: boundary,
         snapshotTimezone: event.projectTimezone ?? PROJECT_TIMEZONE,
         issuedAt,
-        paymentInstructionSnapshot: payeeSnapshotToRecord(systemAutoPayee()),
+        paymentInstructionSnapshot: await effectivePayee(tx, room.id, 'COMMON_FEE', issuedAt),
         version: 1,
       });
       if (!inserted.inserted) {
@@ -459,7 +495,10 @@ export async function generateOneTimeEventInvoices(
       if (snapshot.outcome === 'SNAPSHOT') {
         await insertFeeResponsibleOwners(tx, {
           invoiceId: inserted.id,
-          owners: snapshot.owners.map((owner) => ({ userId: owner.userId, ownershipId: owner.ownershipId })),
+          owners: snapshot.owners.map((owner) => ({
+            userId: owner.userId,
+            ownershipId: owner.ownershipId,
+          })),
           at: issuedAt,
         });
       }

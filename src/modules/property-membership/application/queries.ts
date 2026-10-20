@@ -4,12 +4,9 @@ import { db } from '@/shared/db/client';
 import type { Db } from '@/shared/db/transaction';
 import { AppError } from '@/shared/utils/errors';
 import { systemClock } from '@/shared/utils/clock';
+import { canViewRoom } from '../domain/roomVisibility';
 import { covers } from '../domain/intervals';
-import {
-  isOwnerAt as isOwnerAtInterval,
-  ownersAt,
-  type OwnershipInterval,
-} from '../domain/ownershipPolicy';
+import { isOwnerAt as isOwnerAtInterval, type OwnershipInterval } from '../domain/ownershipPolicy';
 import { activeTenancyAt, type TenancyInterval } from '../domain/tenancyPolicy';
 import {
   isActiveResident,
@@ -27,6 +24,8 @@ import {
 import { type PmAction, type RoomActVerdict } from '../domain/pmActions';
 import { findUserById } from '@/modules/identity-access/infrastructure/userRepository';
 import {
+  queryRoomPage,
+  listRoomLabels,
   findRoomById,
   listAllRooms,
   listRoomsByIds,
@@ -83,6 +82,7 @@ export interface RoomDetail {
   floorId: string;
   buildingId: string;
   roomCode: string;
+  name: string;
   areaSqm: string;
   status: 'ACTIVE' | 'INACTIVE';
 }
@@ -173,8 +173,9 @@ export async function canActInRoom(
     case 'VIEW_CHAT':
     case 'SEND_CHAT':
     case 'SUBMIT_MAINTENANCE':
+      return residentNow ? { allowed: true } : { allowed: false, reason: 'NO_CURRENT_ACCESS' };
     case 'VIEW_ROOM':
-      return residentNow
+      return canViewRoom(residentNow, ownerNow)
         ? { allowed: true }
         : { allowed: false, reason: 'NO_CURRENT_ACCESS' };
     case 'PAY_INVOICE':
@@ -184,9 +185,7 @@ export async function canActInRoom(
         : { allowed: false, reason: 'NO_CURRENT_ACCESS' };
     case 'MANAGE_MEMBERS': {
       const activeRow = tenancies.find(
-        (row) =>
-          row.state === 'ACTIVE' &&
-          covers({ start: row.startsAt, end: row.endsAt }, at),
+        (row) => row.state === 'ACTIVE' && covers({ start: row.startsAt, end: row.endsAt }, at),
       );
       if (ownerNow && activeRow?.managementMode !== 'PROJECT_MANAGED') {
         return { allowed: true };
@@ -197,9 +196,7 @@ export async function canActInRoom(
           membership.memberRole === 'MAIN' &&
           covers({ start: membership.startAt, end: membership.endAt }, at),
       );
-      return mainNow
-        ? { allowed: true }
-        : { allowed: false, reason: 'NO_CURRENT_ACCESS' };
+      return mainNow ? { allowed: true } : { allowed: false, reason: 'NO_CURRENT_ACCESS' };
     }
     case 'GRANT_CO_OWNER':
       return ownerNow ? { allowed: true } : { allowed: false, reason: 'NOT_ROOM_OWNER' };
@@ -210,9 +207,7 @@ export async function canActInRoom(
       const activeTenancy = activeTenancyAt(tenancyIntervals, roomId, at);
       if (activeTenancy === null) return { allowed: false, reason: 'NO_CURRENT_ACCESS' };
       const activeRow = tenancies.find(
-        (row) =>
-          row.state === 'ACTIVE' &&
-          covers({ start: row.startsAt, end: row.endsAt }, at),
+        (row) => row.state === 'ACTIVE' && covers({ start: row.startsAt, end: row.endsAt }, at),
       );
       if (activeRow === undefined) return { allowed: false, reason: 'NO_CURRENT_ACCESS' };
       const allowed = canManageTenancy(activeRow.managementMode, {
@@ -360,8 +355,7 @@ export async function getEligibleMaintenanceRooms(
       userId,
       at,
     );
-    const owner = ownersAt(ownershipIntervals, roomId, at).includes(userId);
-    if (!resident && !owner) continue;
+    if (!resident) continue;
     const mode = modes.get(roomId) ?? null;
     if (routingKind === 'PRIVATE_OWNER' && mode === 'PROJECT_MANAGED') continue;
     if (routingKind === 'PROJECT_MANAGED_PRIVATE' && mode !== 'PROJECT_MANAGED') continue;
@@ -379,7 +373,7 @@ export async function isOwnerAt(roomId: string, userId: string, at: Date): Promi
 
 export async function resolveActorRooms(actor: Actor, at: Date): Promise<RoomRow[]> {
   if (actor.isSystemAdmin) return listAllRooms(db);
-  const roomIds = await getActiveResidentRooms(actor.userId, at);
+  const roomIds = await visibleRoomIds(actor.userId, at);
   return listRoomsByIds(db, roomIds);
 }
 
@@ -390,6 +384,7 @@ export async function getRoomDetail(roomId: string): Promise<RoomDetail> {
     floorId: room.floorId,
     buildingId: room.buildingId,
     roomCode: room.roomCode,
+    name: room.name,
     areaSqm: room.areaSqm,
     status: room.status,
   };
@@ -402,9 +397,7 @@ export interface MembershipWindowRef {
   end: Date | null;
 }
 
-export async function listMembershipWindowsByUser(
-  userId: string,
-): Promise<MembershipWindowRef[]> {
+export async function listMembershipWindowsByUser(userId: string): Promise<MembershipWindowRef[]> {
   await requireKnownActor(userId);
   const memberships = await listMembershipsByUser(db, userId);
   return memberships.map((membership) => ({
@@ -416,3 +409,38 @@ export async function listMembershipWindowsByUser(
 }
 
 export { membershipOverlapsServiceWindow, roomResidencyScope, tenantOverlapScope };
+
+export async function listActorRoomPage(
+  actor: Actor,
+  input: { query?: string | undefined; page: number; pageSize: number },
+  at: Date,
+) {
+  if (actor.accountStatus !== 'ACTIVE' || actor.mustChangePassword)
+    throw new AppError('ACCESS_DENIED');
+  const roomIds = actor.isSystemAdmin ? null : await visibleRoomIds(actor.userId, at);
+  return queryRoomPage(db, {
+    ...input,
+    roomIds,
+    page: Math.max(1, input.page),
+    pageSize: Math.min(100, Math.max(1, input.pageSize)),
+  });
+}
+
+export async function getRoomLabels(roomIds: string[]) {
+  return listRoomLabels(db, roomIds);
+}
+
+async function visibleRoomIds(userId: string, at: Date): Promise<string[]> {
+  const [residentRooms, ownerships] = await Promise.all([
+    getActiveResidentRooms(userId, at),
+    listOwnershipIntervalsByUser(db, userId),
+  ]);
+  return [
+    ...new Set([
+      ...residentRooms,
+      ...ownerships
+        .filter((row) => covers({ start: row.startAt, end: row.endAt }, at))
+        .map((row) => row.roomId),
+    ]),
+  ].sort();
+}

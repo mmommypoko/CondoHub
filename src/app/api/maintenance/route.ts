@@ -24,6 +24,7 @@ export const GET = withApi(
       roomId: url.searchParams.get('roomId') ?? undefined,
       routingKind: url.searchParams.get('routingKind') ?? undefined,
       status: url.searchParams.get('status') ?? undefined,
+      view: url.searchParams.get('view') ?? undefined,
     });
     const page = await listTickets(ctx.actor, {
       page: query.page,
@@ -31,6 +32,7 @@ export const GET = withApi(
       ...(query.roomId !== undefined ? { roomId: query.roomId } : {}),
       ...(query.routingKind !== undefined ? { routingKind: query.routingKind } : {}),
       ...(query.status !== undefined ? { status: query.status } : {}),
+      ...(query.view !== undefined ? { view: query.view } : {}),
     });
     return paged(page.rows, { page: query.page, pageSize: query.pageSize, total: page.total });
   },
