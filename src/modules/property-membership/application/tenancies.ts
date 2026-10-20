@@ -7,7 +7,11 @@ import { canPlaceTenancy } from '../domain/tenancyPolicy';
 import { canManageTenancy } from '../domain/managementModeGuards';
 import { isOwnerAt, type OwnershipInterval } from '../domain/ownershipPolicy';
 import type { ManagementMode } from '../infrastructure/schema';
-import { findRoomById } from '../infrastructure/structureRepository';
+import {
+  findRoomById,
+  lockPropertyScope,
+  isRoomOperational,
+} from '../infrastructure/structureRepository';
 import { listOwnershipsByRoom } from '../infrastructure/ownershipRepository';
 import {
   endTenancy,
@@ -15,10 +19,18 @@ import {
   insertTenancy,
   listActiveTenanciesByRoom,
   listTenanciesByRoom,
+  lockTenancyById,
+  cancelTenancy,
   type TenancyRow,
 } from '../infrastructure/tenancyRepository';
 import { endMembership, listMembershipsByTenancy } from '../infrastructure/membershipRepository';
 import type { PropertyCtx } from './ctx';
+import type { Tx } from '@/shared/db/transaction';
+
+export async function lockTenancyForBilling(tx: Tx, tenancyId: string): Promise<boolean> {
+  const tenancy = await lockTenancyById(tx, tenancyId);
+  return tenancy !== null && tenancy.state !== 'CANCELLED';
+}
 
 export interface CreateTenancyInput {
   roomId: string;
@@ -76,6 +88,13 @@ export async function createTenancy(
   }
   try {
     return await db.transaction(async (tx) => {
+      if (!(await lockPropertyScope(tx, 'room', input.roomId)))
+        throw new AppError('RESOURCE_NOT_FOUND');
+      if (!ctx.isSeedActor && !(await isRoomOperational(tx, input.roomId)))
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'Reactivate the room, floor and building before starting a rental.',
+        );
       const created = await insertTenancy(tx, {
         roomId: input.roomId,
         startsAt,
@@ -137,6 +156,12 @@ export async function endTenancyAt(
   if (!managed) throw new AppError('ACCESS_DENIED');
   try {
     return await db.transaction(async (tx) => {
+      const current = await lockTenancyById(tx, tenancy.id);
+      if (!current || current.state !== 'ACTIVE')
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'This rental period is no longer active. Reload and try again.',
+        );
       const ended = await endTenancy(tx, tenancy.id, endsAt);
       if (ended === null) throw new AppError('RESOURCE_NOT_FOUND');
       const memberships = await listMembershipsByTenancy(tx, tenancy.id);
@@ -158,6 +183,58 @@ export async function endTenancyAt(
   } catch (error) {
     throw mapPgError(error);
   }
+}
+
+export async function cancelScheduledTenancy(
+  actor: Actor,
+  tenancyId: string,
+  ctx: PropertyCtx,
+): Promise<TenancyRow> {
+  if (actor.accountStatus !== 'ACTIVE') throw new AppError('ACCESS_DENIED');
+  if (actor.mustChangePassword) throw new AppError('FIRST_LOGIN_PASSWORD_CHANGE_REQUIRED');
+  const now = ctx.clock.now();
+  return db.transaction(async (tx) => {
+    const tenancy = await lockTenancyById(tx, tenancyId);
+    if (!tenancy) throw new AppError('RESOURCE_NOT_FOUND');
+    const ownerships = await listOwnershipsByRoom(tx, tenancy.roomId);
+    const managed = canManageTenancy(tenancy.managementMode, {
+      actorIsSystemAdmin: actor.isSystemAdmin,
+      actorIsActiveOwner: isOwnerAt(
+        ownerships.map((row) => ({
+          roomId: row.roomId,
+          userId: row.userId,
+          start: row.startAt,
+          end: row.endAt,
+        })),
+        tenancy.roomId,
+        actor.userId,
+        now,
+      ),
+    });
+    if (!managed) throw new AppError('ACCESS_DENIED');
+    if (tenancy.state !== 'ACTIVE')
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'This rental period is no longer active. Reload and try again.',
+      );
+    if (tenancy.startsAt <= now)
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'This rental has started. End the rental period instead.',
+      );
+    const cancelled = await cancelTenancy(tx, tenancy.id);
+    if (!cancelled) throw new AppError('VERSION_CONFLICT');
+    await writeAudit(tx, {
+      actorId: actor.userId,
+      action: 'tenancy.cancelled',
+      resourceType: 'rental_period',
+      resourceId: tenancy.id,
+      requestId: ctx.requestId,
+      before: { state: tenancy.state },
+      after: { state: 'CANCELLED' },
+    });
+    return cancelled;
+  });
 }
 
 export async function listRoomTenancies(roomId: string): Promise<TenancyRow[]> {

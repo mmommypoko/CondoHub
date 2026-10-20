@@ -15,6 +15,7 @@ export const user = pgTable("user", {
   username: text("username").unique(),
   phone: text("phone"),
   accountStatus: text("account_status").default("ACTIVE").notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   mustChangePassword: boolean("must_change_password").default(true).notNull(),
   isSystemAdmin: boolean("is_system_admin").default(false).notNull(),
 });

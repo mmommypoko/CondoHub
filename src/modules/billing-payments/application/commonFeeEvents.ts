@@ -10,6 +10,7 @@ import { satangToDecimalString } from '@/shared/utils/money';
 import {
   findChargeEventById,
   insertChargeEvent,
+  listChargeEvents,
 } from '../infrastructure/billingRepository';
 import { parseCalendarDate } from '../domain/billingWindow';
 import type { BillingCtx } from './ctx';
@@ -114,4 +115,13 @@ export async function getCommonFeeEvent(
   assertAdmin(actor);
   const row = await findChargeEventById(conn, id);
   return row === null ? null : toDto(row);
+}
+
+export async function listCommonFeeEvents(
+  actor: Actor,
+  status: 'OPEN' | 'ISSUED' | 'CANCELLED' = 'OPEN',
+  conn: Db = db,
+): Promise<ChargeEventDto[]> {
+  assertAdmin(actor);
+  return (await listChargeEvents(conn, status)).map(toDto);
 }

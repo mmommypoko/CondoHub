@@ -67,3 +67,5 @@ export { Select } from './Select';
 export type { SelectProps } from './Select';
 
 export { FormActions } from './FormActions';
+export { ResourceDeleteControl } from './ResourceDeleteControl';
+export { ResourceStatusControl } from './ResourceStatusControl';

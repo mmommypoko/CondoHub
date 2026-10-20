@@ -113,6 +113,7 @@ export const floorPatchBody = z
   .object({
     code: z.string().trim().min(1).max(64).optional(),
     label: z.string().trim().min(1).max(255).optional(),
+    status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
   })
   .strict();
 
@@ -170,12 +171,15 @@ export const tenancyBody = z
 
 export type TenancyBody = z.infer<typeof tenancyBody>;
 
-export const tenancyPatchBody = z
-  .object({
-    action: z.literal('END'),
-    endsAt: z.string().datetime({ offset: true }).optional(),
-  })
-  .strict();
+export const tenancyPatchBody = z.discriminatedUnion('action', [
+  z
+    .object({
+      action: z.literal('END'),
+      endsAt: z.string().datetime({ offset: true }).optional(),
+    })
+    .strict(),
+  z.object({ action: z.literal('CANCEL') }).strict(),
+]);
 
 export type TenancyPatchBody = z.infer<typeof tenancyPatchBody>;
 

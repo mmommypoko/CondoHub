@@ -3,13 +3,14 @@ import { expect, type Page, type TestInfo } from '@playwright/test';
 export async function installOverlayAudit(page: Page, testInfo: TestInfo, prefix: string) {
   const seen = new Set<string>();
   await page.addLocatorHandler(
-    page.locator('dialog[open]').last(),
+    page.locator('dialog[open]:not([aria-busy="true"])').last(),
     async (dialog) => {
-      const id = (await dialog.getAttribute('data-testid')) ?? 'dialog';
-      const title = (await dialog.getByRole('heading').first().textContent()) ?? '';
-      const firstForm = dialog.locator('form').first();
-      const form = (await firstForm.count()) ? await firstForm.getAttribute('data-testid') : null;
-      const preview = await dialog.getByTestId('config-change-preview-result').count();
+      const { id, title, form, preview } = await dialog.evaluate((element) => ({
+        id: element.getAttribute('data-testid') ?? 'dialog',
+        title: element.querySelector('h2')?.textContent ?? '',
+        form: element.querySelector('form')?.getAttribute('data-testid') ?? null,
+        preview: element.querySelector('[data-testid="config-change-preview-result"]') ? 1 : 0,
+      }));
       const key = `${id}:${title}:${form ?? 'content'}:${preview}`;
       if (seen.has(key)) return;
       seen.add(key);

@@ -47,7 +47,7 @@ export function BuildingStatusControl({
       {deactivating ? (
         <Button
           data-testid="building-deactivate-open"
-          variant="destructive"
+          variant="secondary"
           size="sm"
           onClick={() => setConfirmOpen(true)}
         >
@@ -86,7 +86,7 @@ export function BuildingStatusControl({
               data-testid={
                 deactivating ? 'building-deactivate-submit' : 'building-reactivate-submit'
               }
-              variant={deactivating ? 'destructive' : 'primary'}
+              variant="primary"
               loading={busy}
               onClick={() => void confirm()}
             >
@@ -106,7 +106,7 @@ export function BuildingStatusControl({
         ) : (
           <p className="text-sm leading-6 text-muted-foreground">
             {deactivating
-              ? 'Existing rooms, tenancies, and memberships stay untouched.'
+              ? 'Existing tenancies, memberships, bills and history stay recorded. Each room keeps its own status.'
               : 'Rooms keep whatever status they already have.'}
           </p>
         )}

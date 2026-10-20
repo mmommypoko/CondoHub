@@ -1,13 +1,9 @@
 import { createHash } from 'node:crypto';
 import { AppError } from './errors';
+import { isUuid } from './uuid';
+export { UUID_REGEX, isUuid } from './uuid';
 
 export const IDEMPOTENCY_KEY_HEADER = 'idempotency-key';
-
-export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export function isUuid(value: unknown): value is string {
-  return typeof value === 'string' && UUID_REGEX.test(value);
-}
 
 export type HeaderReader =
   | { get(name: string): string | null }
@@ -52,5 +48,7 @@ function canonicalize(value: unknown): unknown {
 }
 
 export function hashRequestBody(body: unknown): string {
-  return createHash('sha256').update(JSON.stringify(canonicalize(body)) ?? 'null').digest('hex');
+  return createHash('sha256')
+    .update(JSON.stringify(canonicalize(body)) ?? 'null')
+    .digest('hex');
 }

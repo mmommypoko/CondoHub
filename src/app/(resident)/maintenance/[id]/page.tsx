@@ -9,12 +9,7 @@ import { getTicket } from '@/modules/maintenance/application/index';
 import { TicketDetailSections } from '@/modules/maintenance/ui/TicketDetailSections';
 import type { TicketTransitionAction } from '@/modules/maintenance/ui/TicketTransitionForm';
 import { isTerminalTicketStatus } from '@/modules/maintenance/ui/ticketLabels';
-import {
-  findBuildingById,
-  findRoomById,
-} from '@/modules/property-membership/infrastructure/structureRepository';
-import { isTicketRecipient } from '@/modules/maintenance/infrastructure/ticketRepository';
-import { db } from '@/shared/db/client';
+import { getRoomLabels } from '@/modules/property-membership/application/index';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,23 +61,12 @@ export default async function MaintenanceDetailPage({
       </main>
     );
   }
-  let roomLabel: string | null = null;
-  if (ticket.roomId !== null) {
-    const room = await findRoomById(db, ticket.roomId);
-    if (room === null) {
-      roomLabel = 'Room unavailable';
-    } else {
-      const building = await findBuildingById(db, room.buildingId);
-      roomLabel = `${building?.name ?? 'Building'} · ${room.name}`;
-    }
-  }
-  const isRecipient =
-    !actor.isSystemAdmin && ticket.routingKind === 'PRIVATE_OWNER'
-      ? await isTicketRecipient(db, { ticketId: ticket.id, userId: actor.userId })
-      : false;
+  const roomLabel = ticket.roomId
+    ? ((await getRoomLabels([ticket.roomId]))[0]?.label ?? 'Room unavailable')
+    : null;
   const transitionMode = actor.isSystemAdmin
     ? 'none'
-    : reporterTransitionMode(ticket.status, ticket.reporterId === actor.userId, isRecipient);
+    : reporterTransitionMode(ticket.status, ticket.reporterId === actor.userId, ticket.canHandle);
   return (
     <main
       data-testid="maintenance-detail-page"

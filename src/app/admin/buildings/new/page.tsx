@@ -1,7 +1,7 @@
 import 'server-only';
 import { redirect } from 'next/navigation';
 import { getActorFromSession } from '@/shared/auth/actor';
-import { PageHeader } from '@/shared/ui';
+import { PageHeader, SectionCard } from '@/shared/ui';
 import { listAllBuildings } from '@/modules/property-membership/application/index';
 import { BuildingCreateForm } from '@/modules/property-membership/ui/BuildingCreateForm';
 
@@ -24,7 +24,9 @@ export default async function AdminBuildingNewPage() {
         backLabel="Back to buildings"
         backTestId="admin-building-new-back"
       />
-      <BuildingCreateForm projectId={projectId} />
+      <SectionCard title="Building details" className="max-w-2xl">
+        <BuildingCreateForm projectId={projectId} />
+      </SectionCard>
     </main>
   );
 }

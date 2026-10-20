@@ -1,5 +1,5 @@
 import 'server-only';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import type { Db, Tx } from '@/shared/db/transaction';
 import { announcement, announcementRevision } from './schema';
 
@@ -36,7 +36,9 @@ export interface AnnouncementRevisionRecord {
   createdAt: Date;
 }
 
-function toRevisionRecord(row: typeof announcementRevision.$inferSelect): AnnouncementRevisionRecord {
+function toRevisionRecord(
+  row: typeof announcementRevision.$inferSelect,
+): AnnouncementRevisionRecord {
   return {
     id: row.id,
     announcementId: row.announcementId,
@@ -48,7 +50,11 @@ function toRevisionRecord(row: typeof announcementRevision.$inferSelect): Announ
 }
 
 export async function findAnnouncementById(db: Db, id: string): Promise<AnnouncementRecord | null> {
-  const rows = await db.select().from(announcement).where(eq(announcement.id, id)).limit(1);
+  const rows = await db
+    .select()
+    .from(announcement)
+    .where(and(eq(announcement.id, id), isNull(announcement.deletedAt)))
+    .limit(1);
   const row = rows[0];
   return row === undefined ? null : toRecord(row);
 }
@@ -60,7 +66,7 @@ export async function findAnnouncementByIdForUpdate(
   const rows = await tx
     .select()
     .from(announcement)
-    .where(eq(announcement.id, id))
+    .where(and(eq(announcement.id, id), isNull(announcement.deletedAt)))
     .limit(1)
     .for('update');
   const row = rows[0];
@@ -71,6 +77,7 @@ export async function listAllAnnouncements(db: Db): Promise<AnnouncementRecord[]
   const rows = await db
     .select()
     .from(announcement)
+    .where(isNull(announcement.deletedAt))
     .orderBy(desc(announcement.publishAt), desc(announcement.id));
   return rows.map(toRecord);
 }
@@ -154,4 +161,11 @@ export async function listAnnouncementRevisions(
     .where(eq(announcementRevision.announcementId, announcementId))
     .orderBy(desc(announcementRevision.version));
   return rows.map(toRevisionRecord);
+}
+
+export async function markAnnouncementDeleted(tx: Tx, id: string, now: Date): Promise<void> {
+  await tx
+    .update(announcement)
+    .set({ deletedAt: now, hiddenAt: now })
+    .where(eq(announcement.id, id));
 }

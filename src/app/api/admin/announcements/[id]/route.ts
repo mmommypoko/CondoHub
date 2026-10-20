@@ -1,4 +1,5 @@
 import 'server-only';
+import { isUuid } from '@/shared/utils/idempotency';
 import { revalidatePath } from 'next/cache';
 import { withApi } from '@/shared/auth/withApi';
 import { requireAdmin } from '@/shared/auth/guards';
@@ -6,6 +7,7 @@ import { AppError } from '@/shared/utils/errors';
 import { RATE_LIMIT_PRESETS } from '@/shared/utils/rateLimit';
 import { systemClock } from '@/shared/utils/clock';
 import {
+  deleteAnnouncement,
   announcementPatchBody,
   createAnnouncementCtx,
   getAnnouncementDetail,
@@ -18,7 +20,7 @@ export const GET = withApi(
     requireAdmin(ctx.actor);
     const params = await route?.params;
     const id = params?.id;
-    if (id === undefined || id === '') {
+    if (id === undefined || !isUuid(id)) {
       throw new AppError('VALIDATION_ERROR', 'The announcement id is invalid.');
     }
     const detail = await getAnnouncementDetail(ctx.actor, id, systemClock.now());
@@ -33,7 +35,7 @@ export const PATCH = withApi(
     requireAdmin(ctx.actor);
     const params = await route?.params;
     const id = params?.id;
-    if (id === undefined || id === '') {
+    if (id === undefined || !isUuid(id)) {
       throw new AppError('VALIDATION_ERROR', 'The announcement id is invalid.');
     }
     const body = parseWithFieldErrors(announcementPatchBody, await request.json());
@@ -64,6 +66,25 @@ export const PATCH = withApi(
       status: updated.status,
       images: updated.images,
     };
+  },
+  { rateLimit: RATE_LIMIT_PRESETS.generalApi ?? { capacity: 300, windowMs: 60_000 } },
+);
+
+export const DELETE = withApi(
+  async (_request, ctx, route) => {
+    requireAdmin(ctx.actor);
+    const id = (await route?.params)?.id;
+    if (!id || !isUuid(id))
+      throw new AppError('VALIDATION_ERROR', 'The announcement id is invalid.');
+    const result = await deleteAnnouncement(
+      ctx.actor,
+      id,
+      createAnnouncementCtx({ requestId: ctx.requestId }),
+    );
+    revalidatePath('/announcements');
+    revalidatePath(`/announcements/${id}`);
+    revalidatePath('/admin/announcements');
+    return result;
   },
   { rateLimit: RATE_LIMIT_PRESETS.generalApi ?? { capacity: 300, windowMs: 60_000 } },
 );

@@ -4,9 +4,10 @@ import { db } from '@/shared/db/client';
 import { AppError } from '@/shared/utils/errors';
 import { writeAudit } from '@/shared/observability/audit';
 import { createTxInternalAdapter } from '../infrastructure/txAdapter';
-import { deleteUserSessions, findUserById } from '../infrastructure/userRepository';
+import { deleteUserSessions, lockUserById } from '../infrastructure/userRepository';
 import { emitRevokeFanOut } from '../infrastructure/revokeFanOut';
 import type { IdentityCtx } from './ctx';
+import { lockCurrentLifecycleAdministrator } from './lifecycleAuthorization';
 
 export interface SetAccountStatusResult {
   userId: string;
@@ -20,14 +21,17 @@ export async function setAccountStatus(
   accountStatus: AccountStatus,
   ctx: IdentityCtx,
 ): Promise<SetAccountStatusResult> {
-  if (!actor.isSystemAdmin) throw new AppError('ACCESS_DENIED');
+  if (!actor.isSystemAdmin || actor.accountStatus !== 'ACTIVE') throw new AppError('ACCESS_DENIED');
+  if (actor.mustChangePassword) throw new AppError('FIRST_LOGIN_PASSWORD_CHANGE_REQUIRED');
   if (actor.userId === userId) throw new AppError('ACCESS_DENIED');
   const outcome = await db.transaction(async (tx) => {
-    const target = await findUserById(tx, userId);
-    if (target === null) throw new AppError('RESOURCE_NOT_FOUND');
+    await lockCurrentLifecycleAdministrator(tx, actor.userId);
+    const target = await lockUserById(tx, userId);
+    if (target === null || target.deletedAt !== null) throw new AppError('RESOURCE_NOT_FOUND');
     const authCtx = await createTxInternalAdapter(tx);
     await authCtx.adapter.updateUser(userId, { accountStatus });
-    const revokedSessions = accountStatus === 'SUSPENDED' ? await deleteUserSessions(tx, userId) : 0;
+    const revokedSessions =
+      accountStatus === 'SUSPENDED' ? await deleteUserSessions(tx, userId) : 0;
     await writeAudit(tx, {
       actorId: actor.userId,
       action: accountStatus === 'SUSPENDED' ? 'user.suspended' : 'user.unsuspended',

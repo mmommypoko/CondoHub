@@ -5,6 +5,20 @@ import { AppError } from '@/shared/utils/errors';
 import { RATE_LIMIT_PRESETS } from '@/shared/utils/rateLimit';
 import { isUuid } from '@/shared/utils/idempotency';
 import { getCommonFeeEvent } from '@/modules/billing-payments/application/index';
+import {
+  cancelCommonFeeEvent,
+  commonFeeEventCancelBody,
+  createBillingCtx,
+  parseWithFieldErrors,
+} from '@/modules/billing-payments/application/index';
+
+export const PATCH = withApi(async (request, ctx, route) => {
+  requireAdmin(ctx.actor);
+  const id = (await route?.params)?.id;
+  if (!id || !isUuid(id)) throw new AppError('VALIDATION_ERROR', 'The charge event id is invalid.');
+  parseWithFieldErrors(commonFeeEventCancelBody, await request.json());
+  return cancelCommonFeeEvent(ctx.actor, id, createBillingCtx({ requestId: ctx.requestId }));
+});
 
 export const GET = withApi(
   async (_request, ctx, route) => {

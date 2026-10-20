@@ -1,4 +1,5 @@
 import 'server-only';
+import { isUuid } from '@/shared/utils/idempotency';
 import { withApi } from '@/shared/auth/withApi';
 import { requireAdmin } from '@/shared/auth/guards';
 import { AppError } from '@/shared/utils/errors';
@@ -16,12 +17,16 @@ export const PATCH = withApi(
     requireAdmin(ctx.actor);
     const params = await route?.params;
     const floorId = params?.floorId;
-    if (floorId === undefined || floorId === '') {
+    if (floorId === undefined || !isUuid(floorId)) {
       throw new AppError('VALIDATION_ERROR', 'The floor id is invalid.');
     }
     const body = parseWithFieldErrors(floorPatchBody, await request.json());
     const propertyCtx = createPropertyCtx({ requestId: ctx.requestId });
-    return updateFloor(ctx.actor, { floorId, code: body.code, label: body.label }, propertyCtx);
+    return updateFloor(
+      ctx.actor,
+      { floorId, code: body.code, label: body.label, status: body.status },
+      propertyCtx,
+    );
   },
   { rateLimit: RATE_LIMIT_PRESETS.generalApi ?? { capacity: 300, windowMs: 60_000 } },
 );
@@ -31,7 +36,7 @@ export const DELETE = withApi(
     requireAdmin(ctx.actor);
     const params = await route?.params;
     const floorId = params?.floorId;
-    if (floorId === undefined || floorId === '') {
+    if (floorId === undefined || !isUuid(floorId)) {
       throw new AppError('VALIDATION_ERROR', 'The floor id is invalid.');
     }
     const propertyCtx = createPropertyCtx({ requestId: ctx.requestId });

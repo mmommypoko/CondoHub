@@ -4,7 +4,7 @@ import { db } from '@/shared/db/client';
 import { AppError } from '@/shared/utils/errors';
 import { writeAudit } from '@/shared/observability/audit';
 import { createTxInternalAdapter } from '../infrastructure/txAdapter';
-import { deleteUserSessions, findUserById } from '../infrastructure/userRepository';
+import { deleteUserSessions, lockUserById } from '../infrastructure/userRepository';
 import { emitRevokeFanOut } from '../infrastructure/revokeFanOut';
 import type { IdentityCtx } from './ctx';
 
@@ -23,8 +23,8 @@ export async function resetPassword(
   if (actor.userId === userId) throw new AppError('ACCESS_DENIED');
   const tempPassword = ctx.tempPasswords.generate();
   const outcome = await db.transaction(async (tx) => {
-    const target = await findUserById(tx, userId);
-    if (target === null) throw new AppError('RESOURCE_NOT_FOUND');
+    const target = await lockUserById(tx, userId);
+    if (target === null || target.deletedAt !== null) throw new AppError('RESOURCE_NOT_FOUND');
     const authCtx = await createTxInternalAdapter(tx);
     const hash = await authCtx.hashPassword(tempPassword);
     await authCtx.adapter.updatePassword(userId, hash);

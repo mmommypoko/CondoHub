@@ -6,21 +6,20 @@ import { useFormDialog } from '@/shared/ui/FormDialog';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import { Badge, Button, FormField, INPUT_BASE_CLASS, cx, useToast } from '@/shared/ui';
+import { AnnouncementPublishingFields } from './AnnouncementPublishingFields';
+import {
+  announcementFormSchema,
+  publishingTimestamp,
+  publishModeFor,
+  publishTimeInput,
+  type AnnouncementFormValues,
+} from './announcementFormSchema';
 import {
   AnnouncementImageUploader,
   type UploadedImage,
 } from '@/modules/announcements/ui/AnnouncementImageUploader';
-
-const editSchema = z.object({
-  title: z.string().trim().min(1, 'Title is required.').max(255),
-  body: z.string().trim().min(1, 'Body is required.').max(20000),
-  publishAt: z.string().optional(),
-});
-
-type EditValues = z.infer<typeof editSchema>;
 
 export interface EditInitialImage {
   imageId: string;
@@ -36,14 +35,6 @@ export interface EditRevision {
 
 interface ErrorPayload {
   error?: { message?: string };
-}
-
-function toLocalInput(value: string | null): string {
-  if (value === null) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  const pad = (part: number): string => String(part).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 export function AnnouncementEditForm({
@@ -79,29 +70,25 @@ export function AnnouncementEditForm({
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
-  } = useForm<EditValues>({
-    resolver: zodResolver(editSchema),
+  } = useForm<AnnouncementFormValues>({
+    resolver: zodResolver(announcementFormSchema),
     defaultValues: {
       title: initialTitle,
       body: initialBody,
-      publishAt: toLocalInput(initialPublishAt),
+      publishAt: publishTimeInput(initialPublishAt),
+      publishMode: publishModeFor(initialPublishAt),
     },
   });
+  const publishMode = watch('publishMode');
+  const published = initialPublishAt !== null && publishModeFor(initialPublishAt) === 'now';
 
   const dialog = useFormDialog(isSubmitting || busyAction);
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
-    let publishAt: string | null = null;
-    if (values.publishAt !== undefined && values.publishAt !== '') {
-      const parsed = new Date(values.publishAt);
-      if (Number.isNaN(parsed.getTime())) {
-        setServerError('The publish date is invalid.');
-        return;
-      }
-      publishAt = parsed.toISOString();
-    }
+    const publishAt = publishingTimestamp(values.publishMode, values.publishAt, initialPublishAt);
     const response = await fetch(`/api/admin/announcements/${announcementId}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
@@ -121,7 +108,6 @@ export function AnnouncementEditForm({
     }
     toast.success('Announcement saved.');
     dialog?.complete();
-    router.push('/admin/announcements');
     router.refresh();
   });
 
@@ -169,10 +155,13 @@ export function AnnouncementEditForm({
           </p>
         ) : null}
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-3">
-          <span className="text-small leading-small text-muted-foreground">Visibility:</span>
+          <span className="text-small leading-small text-muted-foreground">Current status:</span>
           {hiddenAt === null ? (
-            <Badge data-testid="announcement-edit-visible" variant="success">
-              Visible
+            <Badge
+              data-testid="announcement-edit-visible"
+              variant={published ? 'success' : initialPublishAt ? 'info' : 'neutral'}
+            >
+              {published ? 'Visible' : initialPublishAt ? 'Scheduled' : 'Draft'}
             </Badge>
           ) : (
             <Badge data-testid="announcement-edit-hidden" variant="danger">
@@ -180,7 +169,7 @@ export function AnnouncementEditForm({
             </Badge>
           )}
           <span className="flex-1" />
-          {hiddenAt === null ? (
+          {hiddenAt === null && initialPublishAt !== null ? (
             <Button
               data-testid="announcement-edit-hide-btn"
               type="button"
@@ -191,7 +180,7 @@ export function AnnouncementEditForm({
             >
               Hide
             </Button>
-          ) : (
+          ) : hiddenAt !== null ? (
             <Button
               data-testid="announcement-edit-restore-btn"
               type="button"
@@ -202,7 +191,7 @@ export function AnnouncementEditForm({
             >
               Restore
             </Button>
-          )}
+          ) : null}
         </div>
         <FormField
           label="Title"
@@ -232,14 +221,13 @@ export function AnnouncementEditForm({
             {...register('body')}
           />
         </FormField>
-        <FormField label="Publish at (empty means draft)" htmlFor="announcement-edit-publish-at">
-          <input
-            data-testid="announcement-edit-publish-at"
-            type="datetime-local"
-            className={cx(INPUT_BASE_CLASS, 'h-10')}
-            {...register('publishAt')}
-          />
-        </FormField>
+        <AnnouncementPublishingFields
+          mode={publishMode}
+          register={register}
+          error={errors.publishAt?.message}
+          prefix="announcement-edit"
+          currentlyPublished={published}
+        />
         <AnnouncementImageUploader
           images={images}
           onChange={(next) => {

@@ -42,7 +42,9 @@ export default async function AdminTurnoverReviewDetailPage({
   }
   let candidates: TurnoverReviewCandidateWindow[] = [];
   try {
-    const periods = await getRentalPeriods(review.roomId, review.calendarMonth.slice(0, 7));
+    const periods = await getRentalPeriods(review.roomId, review.calendarMonth.slice(0, 7), {
+      includeCancelled: true,
+    });
     const byId = new Map(periods.map((period) => [period.id, period]));
     candidates = review.candidateTenancyIds.map((tenancyId) => {
       const period = byId.get(tenancyId);
@@ -78,6 +80,7 @@ export default async function AdminTurnoverReviewDetailPage({
         Back to turnover reviews
       </Link>
       <TurnoverReviewDetailCard
+        invoiceBasePath="/admin/billing/invoices"
         review={{
           id: review.id,
           roomName,
@@ -102,10 +105,12 @@ export default async function AdminTurnoverReviewDetailPage({
             version: review.version,
             state: review.state,
             blocked: review.blocked,
-            candidates: candidates.map((candidate) => ({
-              tenancyId: candidate.tenancyId,
-              label: `${candidate.startsAt} to ${candidate.endsAt ?? 'present'}`,
-            })),
+            candidates: candidates
+              .filter((candidate) => candidate.state !== 'CANCELLED')
+              .map((candidate) => ({
+                tenancyId: candidate.tenancyId,
+                label: `${candidate.startsAt} to ${candidate.endsAt ?? 'present'}`,
+              })),
           }}
           actorIsAdmin
         />

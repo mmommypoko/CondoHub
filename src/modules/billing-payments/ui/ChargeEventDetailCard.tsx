@@ -4,12 +4,21 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { ACTION_LINK_CLASS, Badge, EmptyState, cx } from '@/shared/ui';
 import type { ChargeEventDto } from '@/modules/billing-payments/application/index';
+import { getChargeEventNote } from '../domain/chargeEventContext';
+import { ChargeEventIssuanceControl } from './ChargeEventIssuanceControl';
 import {
   chargeEventStatusVariant,
   formatInstant,
 } from '@/modules/billing-payments/ui/billingLabels';
 
-export function ChargeEventDetailCard({ event }: { event: ChargeEventDto }) {
+export function ChargeEventDetailCard({
+  event,
+  rooms = [],
+}: {
+  event: ChargeEventDto;
+  rooms?: Array<{ id: string; label: string }>;
+}) {
+  const note = getChargeEventNote(event.chargeContext);
   return (
     <div className="flex min-w-0 flex-col gap-6 rounded-xl border border-border bg-surface p-5 sm:p-7">
       <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
@@ -20,9 +29,14 @@ export function ChargeEventDetailCard({ event }: { event: ChargeEventDto }) {
           >
             Event {event.eventEffectiveDate}
           </h1>
-          <p className="break-all text-small leading-small text-muted-foreground">
-            <span data-testid="charge-event-detail-id">{event.id}</span>
-          </p>
+          {note ? (
+            <p
+              data-testid="charge-event-detail-note"
+              className="whitespace-pre-wrap break-words text-body leading-relaxed text-body-secondary"
+            >
+              {note}
+            </p>
+          ) : null}
         </div>
         <Badge
           data-testid="charge-event-detail-status"
@@ -81,13 +95,21 @@ export function ChargeEventDetailCard({ event }: { event: ChargeEventDto }) {
           </dd>
         </div>
       </dl>
+      <details className="text-small text-muted-foreground">
+        <summary className="w-fit cursor-pointer rounded-md py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring">
+          Event reference
+        </summary>
+        <p data-testid="charge-event-detail-id" className="mt-2 break-all">
+          {event.id}
+        </p>
+      </details>
       <section aria-label="Issuance" className="flex min-w-0 flex-col gap-3">
         <h2 className="text-heading font-semibold tracking-tight text-foreground">Issuance</h2>
         {event.status === 'OPEN' ? (
           <EmptyState
             data-testid="charge-event-detail-pending"
             title="Not issued yet"
-            description="Invoices are issued by the billing job. This event stays open until issuance completes."
+            description="Confirm the rooms to bill and issue invoices below. The event stays open until all target rooms are billed."
           />
         ) : event.status === 'ISSUED' ? (
           <EmptyState
@@ -97,7 +119,7 @@ export function ChargeEventDetailCard({ event }: { event: ChargeEventDto }) {
             action={
               <Link
                 data-testid="charge-event-detail-invoices"
-                href="/admin/billing/invoices"
+                href={`/admin/billing/invoices?eventId=${event.id}`}
                 className={cx(ACTION_LINK_CLASS, 'h-8')}
               >
                 Review invoices
@@ -112,6 +134,7 @@ export function ChargeEventDetailCard({ event }: { event: ChargeEventDto }) {
             description="This event was cancelled and will not generate invoices."
           />
         )}
+        <ChargeEventIssuanceControl event={event} rooms={rooms} />
       </section>
     </div>
   );

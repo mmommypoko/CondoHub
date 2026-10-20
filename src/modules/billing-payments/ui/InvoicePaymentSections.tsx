@@ -32,7 +32,13 @@ export function InvoicePaymentSections({
   revisions: InvoiceRevisionDto[];
   instruction: PaymentInstructionDto | null;
   actorIsAdmin: boolean;
-  permissions: { canEdit: boolean; canApprove: boolean; canReject: boolean; canSubmit: boolean };
+  permissions: {
+    canEdit: boolean;
+    canApprove: boolean;
+    canReject: boolean;
+    canSubmit: boolean;
+    receivesRent: boolean;
+  };
 }) {
   const router = useRouter();
   const refresh = (): void => router.refresh();
@@ -107,8 +113,12 @@ export function InvoicePaymentSections({
         </SectionCard>
         {instruction !== null && instruction.accountNumber !== 'SYSTEM-AUTO' ? (
           <SectionCard
-            title="How to pay"
-            description="Use these payment details when transferring funds."
+            title={permissions.receivesRent ? 'Receiving account' : 'How to pay'}
+            description={
+              permissions.receivesRent
+                ? 'The account shared with tenants on this invoice.'
+                : 'Use these payment details when transferring funds.'
+            }
           >
             <dl
               data-testid="invoice-payment-instruction"
@@ -151,7 +161,7 @@ export function InvoicePaymentSections({
             ) : null}
           </SectionCard>
         ) : (
-          <SectionCard title="How to pay">
+          <SectionCard title={permissions.receivesRent ? 'Receiving account' : 'How to pay'}>
             <p className="text-body leading-relaxed text-muted-foreground">
               Payment details have not been configured for this invoice. Contact the receiving party
               before transferring funds.
@@ -173,8 +183,10 @@ export function InvoicePaymentSections({
         action={
           !actorIsAdmin && permissions.canSubmit ? (
             <FormDialog
-              triggerLabel="Submit payment slip"
-              title="Submit payment slip"
+              triggerLabel={
+                permissions.receivesRent ? 'Record payment slip' : 'Submit payment slip'
+              }
+              title={permissions.receivesRent ? 'Record payment slip' : 'Submit payment slip'}
               triggerTestId="payment-submit-open"
               testId="payment-submit-dialog"
             >

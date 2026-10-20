@@ -3,18 +3,13 @@ import type { Actor } from '@/shared/auth/actor';
 import { db } from '@/shared/db/client';
 import type { Db } from '@/shared/db/transaction';
 import { AppError } from '@/shared/utils/errors';
+import { evaluateTurnoverVisibility, scopeForManagementMode } from '../domain/turnoverVisibility';
 import {
-  evaluateTurnoverVisibility,
-  scopeForManagementMode,
-} from '../domain/turnoverVisibility';
-import {
-  countUnresolvedReviewsForAdmin,
-  countUnresolvedReviewsForMember,
+  countVisibleUnresolvedReviews,
   findTurnoverReviewById,
   listInvoicesForReview,
   listReviewResponsibleOwners,
-  listTurnoverReviewsForAdmin,
-  listTurnoverReviewsForMember,
+  listVisibleTurnoverReviews,
   type TurnoverReviewRecord,
 } from '../infrastructure/turnoverReviewRepository';
 
@@ -115,10 +110,6 @@ async function toVisibleDto(
   });
 }
 
-function resolveAdminScope(actor: Actor): boolean {
-  return actor.isSystemAdmin;
-}
-
 export async function listTurnoverReviews(
   actor: Actor,
   input: {
@@ -131,50 +122,15 @@ export async function listTurnoverReviews(
   assertActive(actor);
   const limit = Math.min(Math.max(input.pageSize, 1), 100);
   const offset = (Math.max(input.page, 1) - 1) * limit;
-  if (resolveAdminScope(actor)) {
-    const [adminPage, memberPage, memberCount, adminCount] = await Promise.all([
-      listTurnoverReviewsForAdmin(conn, {
-        limit,
-        offset: 0,
-        ...(input.state !== undefined ? { state: input.state } : {}),
-      }),
-      listTurnoverReviewsForMember(conn, {
-        userId: actor.userId,
-        limit,
-        offset: 0,
-        ...(input.state !== undefined ? { state: input.state } : {}),
-      }),
-      countUnresolvedReviewsForMember(conn, actor.userId),
-      countUnresolvedReviewsForAdmin(conn),
-    ]);
-    const rows = [...adminPage.rows, ...memberPage.rows].filter(
-      (row, index, all) => all.findIndex((candidate) => candidate.id === row.id) === index,
-    );
-    rows.sort((left, right) => {
-      if (left.createdAt.getTime() !== right.createdAt.getTime()) {
-        return right.createdAt.getTime() - left.createdAt.getTime();
-      }
-      return right.id.localeCompare(left.id);
-    });
-    const visible: TurnoverReviewDto[] = [];
-    for (const row of rows) {
-      const dto = await toVisibleDto(conn, actor, row);
-      if (dto !== null) visible.push(dto);
-    }
-    return {
-      rows: visible.slice(offset, offset + limit),
-      total: visible.length,
-      unresolvedCount: memberCount + adminCount,
-    };
-  }
+  const scope = { userId: actor.userId, includeProjectManaged: actor.isSystemAdmin };
   const [page, unresolvedCount] = await Promise.all([
-    listTurnoverReviewsForMember(conn, {
-      userId: actor.userId,
+    listVisibleTurnoverReviews(conn, {
+      ...scope,
       limit,
       offset,
       ...(input.state !== undefined ? { state: input.state } : {}),
     }),
-    countUnresolvedReviewsForMember(conn, actor.userId),
+    countVisibleUnresolvedReviews(conn, scope),
   ]);
   const visible: TurnoverReviewDto[] = [];
   for (const row of page.rows) {
@@ -195,13 +151,10 @@ export async function getTurnoverReview(
   return toVisibleDto(conn, actor, row);
 }
 
-export async function countUnresolvedTurnoverReviews(
-  actor: Actor,
-  conn: Db = db,
-): Promise<number> {
+export async function countUnresolvedTurnoverReviews(actor: Actor, conn: Db = db): Promise<number> {
   assertActive(actor);
-  const member = await countUnresolvedReviewsForMember(conn, actor.userId);
-  if (!resolveAdminScope(actor)) return member;
-  const admin = await countUnresolvedReviewsForAdmin(conn);
-  return member + admin;
+  return countVisibleUnresolvedReviews(conn, {
+    userId: actor.userId,
+    includeProjectManaged: actor.isSystemAdmin,
+  });
 }

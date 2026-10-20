@@ -2,9 +2,11 @@ import 'server-only';
 import { paged, withApi } from '@/shared/auth/withApi';
 import { requireAdmin } from '@/shared/auth/guards';
 import { RATE_LIMIT_PRESETS } from '@/shared/utils/rateLimit';
-import { searchUsers } from '@/modules/identity-access/infrastructure/userRepository';
-import { db } from '@/shared/db/client';
-import { createIdentityCtx, provisionSystemUser } from '@/modules/identity-access/application/index';
+import {
+  searchUserAccounts,
+  createIdentityCtx,
+  provisionSystemUser,
+} from '@/modules/identity-access/application/index';
 import {
   adminProvisionBody,
   parseWithFieldErrors,
@@ -20,7 +22,7 @@ export const GET = withApi(
       page: url.searchParams.get('page') ?? undefined,
       pageSize: url.searchParams.get('pageSize') ?? undefined,
     });
-    const result = await searchUsers(db, query);
+    const result = await searchUserAccounts(ctx.actor, query);
     return paged(
       result.rows.map((row) => ({
         id: row.id,

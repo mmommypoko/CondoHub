@@ -1,12 +1,21 @@
 'use client';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
-import { Button, Dialog, FormField, INPUT_CLASS, serverErrorMessage, useToast } from '@/shared/ui';
+import {
+  Button,
+  Dialog,
+  FormField,
+  INPUT_CLASS,
+  ResourceDeleteControl,
+  ResourceStatusControl,
+  serverErrorMessage,
+  useToast,
+} from '@/shared/ui';
 
 const editSchema = z.object({
   label: z.string().trim().min(1, 'Label is required.').max(255),
@@ -17,19 +26,16 @@ type EditValues = z.infer<typeof editSchema>;
 export function FloorRowActions({
   floorId,
   label,
-  roomCount,
+  status,
 }: {
   floorId: string;
   label: string;
-  roomCount: number;
+  status: 'ACTIVE' | 'INACTIVE';
 }) {
   const router = useRouter();
   const { toast } = useToast();
   const [editOpen, setEditOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const {
     register,
     handleSubmit,
@@ -56,24 +62,6 @@ export function FloorRowActions({
     router.refresh();
   });
 
-  async function confirmDelete(): Promise<void> {
-    setDeleteError(null);
-    setBusy(true);
-    try {
-      const response = await fetch(`/api/admin/floors/${floorId}`, { method: 'DELETE' });
-      if (!response.ok) {
-        const payload: unknown = await response.json().catch(() => null);
-        setDeleteError(serverErrorMessage(payload, 'Could not remove the floor.'));
-        return;
-      }
-      setDeleteOpen(false);
-      toast.success('Floor removed.');
-      router.refresh();
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <>
       <span className="flex flex-wrap gap-2">
@@ -86,17 +74,22 @@ export function FloorRowActions({
           <Pencil aria-hidden="true" className="size-4" />
           Edit
         </Button>
-        <Button
-          data-testid={`floor-delete-open-${floorId}`}
-          variant="destructive"
-          size="sm"
-          disabled={roomCount > 0}
-          title={roomCount > 0 ? `Has ${roomCount} rooms` : undefined}
-          onClick={() => setDeleteOpen(true)}
-        >
-          <Trash2 aria-hidden="true" className="size-4" />
-          Delete
-        </Button>
+        <ResourceStatusControl
+          resource="floor"
+          active={status === 'ACTIVE'}
+          endpoint={`/api/admin/floors/${floorId}`}
+          testId={`floor-status-${floorId}`}
+          description="An inactive floor stops new room activity. Each room keeps its own status."
+        />
+        <ResourceDeleteControl
+          resource="floor"
+          name={label}
+          endpoint={`/api/admin/floors/${floorId}`}
+          testId="floor-delete"
+          triggerTestId={`floor-delete-open-${floorId}`}
+          dialogTestId="floor-delete-confirm"
+          description="This floor and its rooms will be removed from the directory. End active or scheduled rentals and memberships first. Bills and history stay recorded."
+        />
       </span>
       <Dialog
         open={editOpen}
@@ -151,44 +144,6 @@ export function FloorRowActions({
             />
           </FormField>
         </form>
-      </Dialog>
-      <Dialog
-        open={deleteOpen}
-        busy={busy}
-        onClose={() => setDeleteOpen(false)}
-        title="Remove this floor?"
-        description="The floor is removed permanently. Only empty floors can be removed."
-        size="sm"
-        testId="floor-delete-confirm"
-        actions={
-          <>
-            <Button variant="secondary" disabled={busy} onClick={() => setDeleteOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              data-testid="floor-delete-submit"
-              variant="destructive"
-              loading={busy}
-              onClick={() => void confirmDelete()}
-            >
-              Remove floor
-            </Button>
-          </>
-        }
-      >
-        {deleteError !== null ? (
-          <p
-            data-testid="floor-delete-error"
-            role="alert"
-            className="text-sm font-medium text-danger-foreground"
-          >
-            {deleteError}
-          </p>
-        ) : (
-          <p className="text-sm leading-6 text-muted-foreground">
-            Floors with rooms cannot be removed. Move or remove the rooms first.
-          </p>
-        )}
       </Dialog>
     </>
   );

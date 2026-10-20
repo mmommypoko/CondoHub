@@ -11,11 +11,13 @@ export function InvoiceTable({
   basePath,
   caption,
   roomLabels,
+  tenancyLabels,
 }: {
   rows: InvoiceDto[];
   basePath: string;
   caption: string;
   roomLabels?: Record<string, string>;
+  tenancyLabels?: Record<string, string>;
 }) {
   return (
     <DataTable
@@ -43,6 +45,14 @@ export function InvoiceTable({
               >
                 {roomLabels?.[row.roomId] ?? 'Room unavailable'}
               </span>
+              {row.tenancyId && tenancyLabels?.[row.tenancyId] ? (
+                <span
+                  data-testid={`invoice-tenancy-${row.id}`}
+                  className="whitespace-normal break-words text-small font-normal text-body-secondary"
+                >
+                  Rental period: {tenancyLabels[row.tenancyId]}
+                </span>
+              ) : null}
             </span>
           </DataTableCell>
           <DataTableCell>

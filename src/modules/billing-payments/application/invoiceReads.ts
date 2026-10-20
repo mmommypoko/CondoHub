@@ -16,6 +16,7 @@ import {
   membershipOverlapsServicePeriod,
   type InvoiceAccessContext,
   type InvoiceQueueAction,
+  type InvoiceListView,
 } from '../domain/invoicePolicy';
 import {
   deriveInvoiceState,
@@ -196,6 +197,8 @@ export async function listInvoices(
   input: {
     roomId?: string | undefined;
     kind?: InvoiceKind | undefined;
+    oneTimeChargeEventId?: string | undefined;
+    view?: InvoiceListView | undefined;
     page: number;
     pageSize: number;
     at: Date;
@@ -210,12 +213,16 @@ export async function listInvoices(
   const limit = Math.min(Math.max(input.pageSize, 1), 100);
   const offset = (Math.max(input.page, 1) - 1) * limit;
   if (actor.isSystemAdmin) {
+    if (input.view === 'receivable') return { rows: [], total: 0 };
     const page = await listInvoicesScoped(conn, {
       allowedKinds,
       limit,
       offset,
       ...(input.roomId !== undefined ? { roomId: input.roomId } : {}),
       ...(input.kind !== undefined ? { kind: input.kind } : {}),
+      ...(input.oneTimeChargeEventId !== undefined
+        ? { oneTimeChargeEventId: input.oneTimeChargeEventId }
+        : {}),
     });
     return {
       rows: await Promise.all(
@@ -232,8 +239,12 @@ export async function listInvoices(
     at: input.at,
     limit,
     offset,
+    view: input.view,
     ...(input.roomId !== undefined ? { roomId: input.roomId } : {}),
     ...(input.kind !== undefined ? { kind: input.kind } : {}),
+    ...(input.oneTimeChargeEventId !== undefined
+      ? { oneTimeChargeEventId: input.oneTimeChargeEventId }
+      : {}),
   });
   return {
     rows: await Promise.all(
@@ -335,6 +346,7 @@ export async function getInvoiceUiPermissions(actor: Actor, id: string, at: Date
   };
   if (!evaluateInvoiceAccess(grants, 'VIEW').allowed) throw new AppError('RESOURCE_NOT_FOUND');
   return {
+    receivesRent: context.kind === 'PRIVATE_RENT' && context.inRentReviewerSnapshot,
     canEdit: evaluateInvoiceAccess(grants, 'EDIT').allowed,
     canApprove: evaluateInvoiceAccess(grants, 'REVIEW_APPROVE').allowed,
     canReject: evaluateInvoiceAccess(grants, 'REVIEW_REJECT').allowed,

@@ -7,6 +7,7 @@ import { PROJECT_TIMEZONE } from '@/config/project';
 import { writeAudit } from '@/shared/observability/audit';
 import {
   getOwnersAt,
+  lockTenancyForBilling,
   getRentalPeriods,
   resolveActorRooms,
 } from '@/modules/property-membership/application/index';
@@ -45,6 +46,8 @@ import {
 import { findReviewByRoomMonth } from '../infrastructure/turnoverReviewRepository';
 import type { FeeFrequency } from '../infrastructure/schema';
 import type { BillingCtx } from './ctx';
+import { readChargeEventRoomScope } from '../domain/chargeEventContext';
+import { lockChargeEvent } from '../infrastructure/billingRepository';
 
 export interface RoomCycleInput {
   id: string;
@@ -63,6 +66,7 @@ export interface GenerateCycleCounts {
 }
 
 export interface GenerateInvoicesDeps {
+  finalizeEvent?: boolean | undefined;
   database?: Db;
   rooms?: RoomCycleInput[] | undefined;
   rules?: BillingRuleRecord[] | undefined;
@@ -185,6 +189,11 @@ async function generateRentForRoom(
     rate: rule.rate,
     roomAreaSqm: input.room.areaSqm,
   });
+  if (!(await lockTenancyForBilling(tx, decision.tenancy.id))) {
+    input.counts.skipped += 1;
+    if (kind === 'PRIVATE_RENT') input.counts.privateRentSkipped += 1;
+    return;
+  }
   const inserted = await insertInvoiceIdempotent(tx, {
     roomId: input.room.id,
     tenancyId: decision.tenancy.id,
@@ -440,6 +449,16 @@ export async function generateOneTimeEventInvoices(
   for (const room of rooms) {
     if (room.status !== 'ACTIVE') continue;
     await database.transaction(async (tx) => {
+      const currentEvent = await lockChargeEvent(tx, event.id);
+      if (!currentEvent || currentEvent.status !== 'OPEN') {
+        counts.skipped += 1;
+        return;
+      }
+      const scope = readChargeEventRoomScope(currentEvent.chargeContext);
+      if (scope && !scope.includes(room.id)) {
+        counts.skipped += 1;
+        return;
+      }
       const owners = await getOwners(room.id, boundary);
       const boundaryTenancies = await getTenancies(room.id, event.eventEffectiveDate.slice(0, 7));
       const boundaryMode = managementModeAt(boundaryTenancies, boundary);
@@ -512,8 +531,10 @@ export async function generateOneTimeEventInvoices(
       });
     });
   }
-  await database.transaction(async (tx) => {
-    await markChargeEventIssued(tx, event.id);
-  });
+  if (counts.cycleErrors.length === 0 && deps.finalizeEvent !== false) {
+    await database.transaction(async (tx) => {
+      await markChargeEventIssued(tx, event.id);
+    });
+  }
   return counts;
 }

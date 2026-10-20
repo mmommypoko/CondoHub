@@ -6,9 +6,17 @@ import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
 import { decimalStringToSatang, satangToDecimalString } from '@/shared/utils/money';
 import { ACTION_LINK_CLASS, Badge, EmptyState, PageHeader, SectionCard, cx } from '@/shared/ui';
-import { resolveActorRooms } from '@/modules/property-membership/application/index';
+import {
+  getRoomLabels,
+  getTenancyLabels,
+  resolveActorRooms,
+} from '@/modules/property-membership/application/index';
 import { listInvoices } from '@/modules/billing-payments/application/index';
-import { kindLabel } from '@/modules/billing-payments/ui/billingLabels';
+import {
+  invoiceStateLabel,
+  invoiceStateVariant,
+  kindLabel,
+} from '@/modules/billing-payments/ui/billingLabels';
 import { listTickets } from '@/modules/maintenance/application/index';
 import { formatInstant, isTerminalTicketStatus } from '@/modules/maintenance/ui/ticketLabels';
 import { listFacilityPage, listRoomBookings } from '@/modules/facility-booking/application/index';
@@ -34,12 +42,13 @@ export default async function HomePage() {
   if (actor.accountStatus !== 'ACTIVE') redirect('/login?returnUrl=/');
   if (actor.isSystemAdmin) redirect('/admin/buildings');
   const now = systemClock.now();
-  const [rooms, invoices, tickets, announcements, facilities] = await Promise.all([
+  const [rooms, invoices, tickets, announcements, facilities, receivables] = await Promise.all([
     resolveActorRooms(actor, now),
-    listInvoices(actor, { page: 1, pageSize: 100, at: now }),
+    listInvoices(actor, { page: 1, pageSize: 100, view: 'payable', at: now }),
     listTickets(actor, { page: 1, pageSize: 4, view: 'open' }),
     listAnnouncementFeed(actor, { page: 1, pageSize: 3 }, now),
     listFacilityPage(actor, { status: 'ACTIVE', page: 1, pageSize: 100 }),
+    listInvoices(actor, { page: 1, pageSize: 4, view: 'receivable', at: now }),
   ]);
   let turnoverUnresolved = 0;
   try {
@@ -67,8 +76,17 @@ export default async function HomePage() {
     .slice(0, 4);
   const facilityNames = new Map(facilities.rows.map((facility) => [facility.id, facility.name]));
   const roomCodes = new Map(rooms.map((room) => [room.id, room.name]));
+  const rentRoomLabels = new Map(
+    (await getRoomLabels([...new Set(receivables.rows.map((row) => row.roomId))])).map((room) => [
+      room.id,
+      room.label,
+    ]),
+  );
   const owedInvoices = invoices.rows.filter(
     (row) => decimalStringToSatang(row.outstanding.amount) > 0n,
+  );
+  const tenancyLabels = await getTenancyLabels(
+    receivables.rows.flatMap((row) => (row.tenancyId ? [row.tenancyId] : [])),
   );
   const urgentInvoice = [...owedInvoices].sort((a, b) => {
     if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
@@ -126,6 +144,55 @@ export default async function HomePage() {
           </div>
         </section>
       ) : null}
+      {receivables.total > 0 ? (
+        <SectionCard
+          testId="home-rent-collection"
+          title="Rent to collect"
+          description="Your latest rent invoices and tenant payments."
+          action={
+            <Link
+              data-testid="home-rent-collection-all"
+              href="/invoices?view=receivable"
+              className="inline-flex items-center gap-1 rounded-md text-body font-medium text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+            >
+              Review rent
+              <ArrowRight aria-hidden="true" className="size-4" />
+            </Link>
+          }
+        >
+          <ul className="flex min-w-0 flex-col divide-y divide-border">
+            {receivables.rows.map((row) => (
+              <li key={row.id}>
+                <Link
+                  data-testid={`home-rent-invoice-${row.id}`}
+                  href={`/invoices/${row.id}`}
+                  className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-md py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                >
+                  <span className="flex min-w-0 flex-1 flex-col gap-1">
+                    <span className="text-body font-medium text-link">
+                      Rent · {row.periodStart}
+                    </span>
+                    <span className="truncate text-small text-muted-foreground">
+                      {rentRoomLabels.get(row.roomId) ?? 'Room'}
+                    </span>
+                    {row.tenancyId && tenancyLabels[row.tenancyId] ? (
+                      <span className="text-small text-body-secondary">
+                        Rental period: {tenancyLabels[row.tenancyId]}
+                      </span>
+                    ) : null}
+                    <span className="ui-tabular text-small text-body-secondary">
+                      {row.outstanding.amount} THB outstanding
+                    </span>
+                  </span>
+                  <Badge variant={invoiceStateVariant(row.state)}>
+                    {invoiceStateLabel(row.state)}
+                  </Badge>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
+      ) : null}
       {turnoverUnresolved > 0 ? (
         <section
           aria-label="Turnover reviews"
@@ -146,7 +213,10 @@ export default async function HomePage() {
           </p>
         </section>
       ) : null}
-      {urgentInvoice === undefined && turnoverUnresolved === 0 && rooms.length === 0 ? (
+      {urgentInvoice === undefined &&
+      turnoverUnresolved === 0 &&
+      rooms.length === 0 &&
+      receivables.total === 0 ? (
         <EmptyState
           data-testid="home-empty"
           title="No rooms yet"

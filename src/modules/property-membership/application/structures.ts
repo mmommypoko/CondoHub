@@ -5,7 +5,6 @@ import { mapPgError, AppError } from '@/shared/utils/errors';
 import { writeAudit } from '@/shared/observability/audit';
 import {
   queryBuildingPage,
-  deleteFloor as deleteFloorRow,
   findBuildingById,
   findFloorById,
   findRoomById,
@@ -15,11 +14,12 @@ import {
   listBuildings,
   listFloorsByBuilding,
   listRoomsByBuilding,
-  listRoomsByFloor,
   updateBuildingStatus,
   updateBuildingDetails as updateBuildingDetailsRow,
   updateFloor as updateFloorRow,
   updateRoom,
+  lockBuildingForUpdate,
+  lockFloorForUpdate,
   type BuildingRow,
   type FloorRow,
   type RoomRow,
@@ -34,9 +34,11 @@ import {
 } from '../infrastructure/tenancyRepository';
 import { listOwnershipsByRoom } from '../infrastructure/ownershipRepository';
 import type { PropertyCtx } from './ctx';
+import { deletePropertyResource } from './resourceLifecycle';
 
 function requireAdmin(actor: Actor): void {
-  if (!actor.isSystemAdmin) throw new AppError('ACCESS_DENIED');
+  if (!actor.isSystemAdmin || actor.accountStatus !== 'ACTIVE') throw new AppError('ACCESS_DENIED');
+  if (actor.mustChangePassword) throw new AppError('FIRST_LOGIN_PASSWORD_CHANGE_REQUIRED');
 }
 
 export interface RoomImpactPreview {
@@ -91,6 +93,8 @@ export async function createFloor(
   if (building === null) throw new AppError('RESOURCE_NOT_FOUND');
   try {
     return await db.transaction(async (tx) => {
+      if (!(await lockBuildingForUpdate(tx, input.buildingId)))
+        throw new AppError('RESOURCE_NOT_FOUND');
       const created = await insertFloor(tx, {
         ...input,
         code: input.code ?? `flr_${crypto.randomUUID()}`,
@@ -131,6 +135,7 @@ export async function createRoom(
   }
   try {
     return await db.transaction(async (tx) => {
+      if (!(await lockFloorForUpdate(tx, input.floorId))) throw new AppError('RESOURCE_NOT_FOUND');
       const created = await insertRoom(tx, {
         ...input,
         roomCode: input.roomCode ?? `rom_${crypto.randomUUID()}`,
@@ -287,12 +292,17 @@ export async function enableBuilding(
 
 export async function updateFloor(
   actor: Actor,
-  input: { floorId: string; code?: string | undefined; label?: string | undefined },
+  input: {
+    floorId: string;
+    code?: string | undefined;
+    label?: string | undefined;
+    status?: 'ACTIVE' | 'INACTIVE' | undefined;
+  },
   ctx: PropertyCtx,
 ): Promise<FloorRow> {
   requireAdmin(actor);
-  if (input.code === undefined && input.label === undefined) {
-    throw new AppError('VALIDATION_ERROR', 'Provide a code or label to update.');
+  if (input.code === undefined && input.label === undefined && input.status === undefined) {
+    throw new AppError('VALIDATION_ERROR', 'Provide a name or status to update.');
   }
   const floor = await findFloorById(db, input.floorId);
   if (floor === null) throw new AppError('RESOURCE_NOT_FOUND');
@@ -301,6 +311,7 @@ export async function updateFloor(
       const next = await updateFloorRow(tx, input.floorId, {
         code: input.code,
         label: input.label,
+        status: input.status,
       });
       if (next === null) throw new AppError('RESOURCE_NOT_FOUND');
       await writeAudit(tx, {
@@ -309,8 +320,8 @@ export async function updateFloor(
         resourceType: 'floor',
         resourceId: input.floorId,
         requestId: ctx.requestId,
-        before: { code: floor.code, label: floor.label },
-        after: { code: next.code, label: next.label },
+        before: { code: floor.code, label: floor.label, status: floor.status },
+        after: { code: next.code, label: next.label, status: next.status },
       });
       return next;
     });
@@ -329,24 +340,8 @@ export async function deleteFloor(
   requireAdmin(actor);
   const floor = await findFloorById(db, floorId);
   if (floor === null) throw new AppError('RESOURCE_NOT_FOUND');
-  const rooms = await listRoomsByFloor(db, floorId);
-  if (rooms.length > 0) {
-    throw new AppError('VALIDATION_ERROR', 'The floor still has rooms and cannot be removed.');
-  }
-  const removed = await db.transaction(async (tx) => {
-    const next = await deleteFloorRow(tx, floorId);
-    if (next === null) throw new AppError('RESOURCE_NOT_FOUND');
-    await writeAudit(tx, {
-      actorId: actor.userId,
-      action: 'floor.deleted',
-      resourceType: 'floor',
-      resourceId: floorId,
-      requestId: ctx.requestId,
-      before: { code: floor.code, label: floor.label },
-    });
-    return next;
-  });
-  return { floor: removed };
+  await deletePropertyResource(actor, 'floor', floorId, ctx);
+  return { floor };
 }
 
 export async function listBuildingStructures(

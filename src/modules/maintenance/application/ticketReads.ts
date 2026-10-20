@@ -56,6 +56,7 @@ export interface TicketDto {
   status: MaintenanceStatus;
   version: number;
   reporterId: string;
+  canHandle: boolean;
   images: TicketImageDto[];
   comments: TicketCommentDto[];
   history: TicketHistoryDto[];
@@ -191,6 +192,11 @@ export async function toTicketDto(
     status: row.status,
     version: row.version,
     reporterId: row.reporterId,
+    canHandle: evaluateTicketAccess(
+      grants,
+      { routingKind: row.routingKind, status: row.status },
+      'TRANSITION_HANDLER',
+    ).allowed,
     images: images.map(toImageDto),
     comments: commentDtos,
     history: history.map(toHistoryDto),

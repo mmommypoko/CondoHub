@@ -30,6 +30,7 @@ export const building = pgTable(
     code: text('code').notNull(),
     name: text('name').notNull(),
     status: buildingStatus('status').notNull(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -45,6 +46,8 @@ export const floor = pgTable(
       .references(() => building.id, { onDelete: 'restrict' }),
     code: text('code').notNull(),
     label: text('label').notNull(),
+    status: buildingStatus('status').notNull().default('ACTIVE'),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (table) => [
     unique('floor_building_code_uq').on(table.buildingId, table.code),
@@ -62,6 +65,7 @@ export const room = pgTable(
     name: text('name').notNull().default(''),
     areaSqm: numeric('area_sqm').notNull(),
     status: roomStatus('status').notNull(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (table) => [
     unique('room_building_code_uq').on(table.buildingId, table.roomCode),
@@ -76,7 +80,7 @@ export const room = pgTable(
   ],
 );
 
-export const rentalState = pgEnum('rental_state', ['ACTIVE', 'ENDED']);
+export const rentalState = pgEnum('rental_state', ['ACTIVE', 'ENDED', 'CANCELLED']);
 
 export type RentalState = (typeof rentalState.enumValues)[number];
 

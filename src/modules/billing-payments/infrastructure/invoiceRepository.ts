@@ -1,5 +1,6 @@
 import 'server-only';
-import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, not, or, sql } from 'drizzle-orm';
+import type { InvoiceListView } from '../domain/invoicePolicy';
 import type { Db, Tx } from '@/shared/db/transaction';
 import {
   membershipOverlapsServiceWindow,
@@ -122,9 +123,13 @@ function membershipRoomEntitled(userId: string, at: Date) {
   return roomResidencyScope({ userId, roomRef: sql`"invoice"."room_id"`, at });
 }
 
+function rentReviewerCondition(userId: string) {
+  return sql<boolean>`exists (select 1 from "private_rent_invoice_reviewer" as "s1" where "s1"."invoice_id" = "invoice"."id" and "s1"."user_id" = ${userId})`;
+}
+
 function memberScopeCondition(userId: string, at: Date): ReturnType<typeof or> {
   return or(
-    sql<boolean>`exists (select 1 from "private_rent_invoice_reviewer" as "s1" where "s1"."invoice_id" = "invoice"."id" and "s1"."user_id" = ${userId})`,
+    rentReviewerCondition(userId),
     sql<boolean>`exists (select 1 from "common_fee_invoice_responsible_owner" as "s3" where "s3"."invoice_id" = "invoice"."id" and "s3"."user_id" = ${userId})`,
     tenantOverlapExists(userId, at),
     and(eq(invoice.kind, 'COMMON_FEE'), membershipRoomEntitled(userId, at)),
@@ -138,13 +143,21 @@ export async function listInvoicesForMember(
     at: Date;
     roomId?: string | undefined;
     kind?: InvoiceKind | undefined;
+    oneTimeChargeEventId?: string | undefined;
+    view?: InvoiceListView | undefined;
     limit: number;
     offset: number;
   },
 ): Promise<{ rows: InvoiceRecord[]; total: number }> {
   const conditions = [memberScopeCondition(input.userId, input.at)];
+  if (input.view !== undefined) {
+    const receivable = sql<boolean>`(${invoice.kind} = 'PRIVATE_RENT' and ${rentReviewerCondition(input.userId)})`;
+    conditions.push(input.view === 'receivable' ? receivable : not(receivable));
+  }
   if (input.roomId !== undefined) conditions.push(eq(invoice.roomId, input.roomId));
   if (input.kind !== undefined) conditions.push(eq(invoice.kind, input.kind));
+  if (input.oneTimeChargeEventId !== undefined)
+    conditions.push(eq(invoice.oneTimeChargeEventId, input.oneTimeChargeEventId));
   const where = and(...conditions);
   const rows = await conn
     .select({ row: invoice })
@@ -228,6 +241,7 @@ export async function listInvoicesScoped(
     allowedKinds: InvoiceKind[];
     roomId?: string | undefined;
     kind?: InvoiceKind | undefined;
+    oneTimeChargeEventId?: string | undefined;
     limit: number;
     offset: number;
   },
@@ -235,6 +249,8 @@ export async function listInvoicesScoped(
   const conditions = [inArray(invoice.kind, input.allowedKinds)];
   if (input.roomId !== undefined) conditions.push(eq(invoice.roomId, input.roomId));
   if (input.kind !== undefined) conditions.push(eq(invoice.kind, input.kind));
+  if (input.oneTimeChargeEventId !== undefined)
+    conditions.push(eq(invoice.oneTimeChargeEventId, input.oneTimeChargeEventId));
   const where = and(...conditions);
   const rows = await conn
     .select()

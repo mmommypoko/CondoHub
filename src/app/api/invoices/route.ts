@@ -18,17 +18,18 @@ export const GET = withApi(
       pageSize: url.searchParams.get('pageSize') ?? undefined,
       roomId: url.searchParams.get('roomId') ?? undefined,
       kind: url.searchParams.get('kind') ?? undefined,
+      oneTimeChargeEventId: url.searchParams.get('oneTimeChargeEventId') ?? undefined,
     });
-    const page = await listInvoices(
-      ctx.actor,
-      {
-        page: query.page,
-        pageSize: query.pageSize,
-        at: systemClock.now(),
-        ...(query.roomId !== undefined ? { roomId: query.roomId } : {}),
-        ...(query.kind !== undefined ? { kind: query.kind } : {}),
-      },
-    );
+    const page = await listInvoices(ctx.actor, {
+      page: query.page,
+      pageSize: query.pageSize,
+      at: systemClock.now(),
+      ...(query.roomId !== undefined ? { roomId: query.roomId } : {}),
+      ...(query.kind !== undefined ? { kind: query.kind } : {}),
+      ...(query.oneTimeChargeEventId !== undefined
+        ? { oneTimeChargeEventId: query.oneTimeChargeEventId }
+        : {}),
+    });
     return paged(page.rows, { page: query.page, pageSize: query.pageSize, total: page.total });
   },
   { rateLimit: RATE_LIMIT_PRESETS.generalApi ?? { capacity: 300, windowMs: 60_000 } },

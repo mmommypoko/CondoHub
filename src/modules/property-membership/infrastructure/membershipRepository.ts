@@ -1,8 +1,8 @@
 import 'server-only';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import type { Db, Tx } from '@/shared/db/transaction';
 import type { MemberRole } from './schema';
-import { roomMembership } from './schema';
+import { rentalPeriod, roomMembership } from './schema';
 
 export interface MembershipRow {
   id: string;
@@ -48,7 +48,16 @@ export async function listActiveMembershipsByRoom(
   const rows = await db
     .select()
     .from(roomMembership)
-    .where(and(eq(roomMembership.roomId, roomId), isNull(roomMembership.endAt)))
+    .where(
+      and(
+        eq(roomMembership.roomId, roomId),
+        isNull(roomMembership.endAt),
+        or(
+          isNull(roomMembership.tenancyId),
+          sql`exists (select 1 from ${rentalPeriod} where ${rentalPeriod.id} = ${roomMembership.tenancyId} and ${rentalPeriod.state} <> 'CANCELLED')`,
+        ),
+      ),
+    )
     .orderBy(roomMembership.startAt);
   return rows.map(toMembershipRow);
 }
@@ -57,7 +66,15 @@ export async function listMembershipsByUser(db: Db, userId: string): Promise<Mem
   const rows = await db
     .select()
     .from(roomMembership)
-    .where(eq(roomMembership.userId, userId))
+    .where(
+      and(
+        eq(roomMembership.userId, userId),
+        or(
+          isNull(roomMembership.tenancyId),
+          sql`exists (select 1 from ${rentalPeriod} where ${rentalPeriod.id} = ${roomMembership.tenancyId} and ${rentalPeriod.state} <> 'CANCELLED')`,
+        ),
+      ),
+    )
     .orderBy(roomMembership.startAt);
   return rows.map(toMembershipRow);
 }
@@ -90,7 +107,11 @@ export async function insertMembership(
   return toMembershipRow(row);
 }
 
-export async function endMembership(tx: Tx, id: string, endAt: Date): Promise<MembershipRow | null> {
+export async function endMembership(
+  tx: Tx,
+  id: string,
+  endAt: Date,
+): Promise<MembershipRow | null> {
   const rows = await tx
     .update(roomMembership)
     .set({ endAt })

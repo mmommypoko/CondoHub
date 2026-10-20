@@ -228,6 +228,35 @@ test('project and private rentals complete tenant setup, rent payment, maintenan
         tempPassword: password,
         newPassword: `Rental-${suffix}-${label}-pw1`,
       });
+      if (label === 'Private') {
+        await ownerPage.goto('/');
+        await expect(ownerPage.getByTestId('home-hero')).toHaveCount(0);
+        await expect(ownerPage.getByTestId('home-rent-collection')).toContainText(
+          'Rent to collect',
+        );
+        await ownerPage.getByTestId('home-rent-collection-all').click();
+        await expect(ownerPage.getByTestId(`invoice-row-${invoiceId}`)).toBeVisible();
+        await ownerPage.getByTestId(`invoice-row-${invoiceId}`).click();
+        await expect(
+          ownerPage.getByRole('region', { name: 'Receiving account', exact: true }),
+        ).toBeVisible();
+        await ownerPage.getByTestId('invoice-detail-back').click();
+        await expect(ownerPage.getByTestId('invoice-view-receivable')).toHaveAttribute(
+          'aria-current',
+          'page',
+        );
+        await ownerPage.getByTestId('invoice-view-payable').click();
+        await expect(ownerPage.getByTestId(`invoice-row-${invoiceId}`)).toHaveCount(0);
+        await expect(ownerPage.getByTestId('invoice-list-empty')).toBeVisible();
+        await tenant.goto('/');
+        await expect(tenant.getByTestId('home-hero')).toBeVisible();
+        await expect(tenant.getByTestId('home-rent-collection')).toHaveCount(0);
+        await tenant.goto('/invoices');
+        await expect(tenant.getByTestId(`invoice-row-${invoiceId}`)).toBeVisible();
+        await tenant.goto('/invoices?view=receivable');
+        await expect(tenant.getByTestId('invoice-list-empty')).toBeVisible();
+        await expect(tenant.getByTestId(`invoice-row-${invoiceId}`)).toHaveCount(0);
+      }
       await tenant.goto(`/rooms/${roomId}/rental`);
       await expect(tenant.getByTestId('rent-settings-form')).toHaveCount(0);
       await expect(tenant.getByTestId('rental-tenant-add-open')).toHaveCount(0);
@@ -270,13 +299,11 @@ test('project and private rentals complete tenant setup, rent payment, maintenan
         .getByTestId('maintenance-create-description')
         .fill('Water leaks from the tap. Please repair it.');
       const repairPhoto = await buildValidImage('png', 32);
-      await tenant
-        .getByTestId('maintenance-create-upload-input')
-        .setInputFiles({
-          name: 'repair-photo.png',
-          mimeType: 'image/png',
-          buffer: repairPhoto.bytes,
-        });
+      await tenant.getByTestId('maintenance-create-upload-input').setInputFiles({
+        name: 'repair-photo.png',
+        mimeType: 'image/png',
+        buffer: repairPhoto.bytes,
+      });
       await expect(tenant.getByTestId('maintenance-create-image-list')).toBeVisible({
         timeout: 30000,
       });
@@ -415,6 +442,55 @@ test('project and private rentals complete tenant setup, rent payment, maintenan
         });
       }
       await manager.getByTestId('room-rental-link').click();
+      if (label === 'Private') {
+        for (const [resident, role] of [
+          [ownerPage, 'owner'],
+          [tenant, 'tenant'],
+        ] as const) {
+          for (const width of [360, 768, 1366]) {
+            await resident.setViewportSize({ width, height: 900 });
+            for (const path of [
+              '/',
+              '/rooms',
+              '/facilities',
+              '/invoices',
+              '/invoices?view=receivable',
+              '/invoices/turnover-reviews',
+              '/maintenance',
+              '/maintenance/new',
+              '/announcements',
+            ]) {
+              await resident.goto(path);
+              await expect(resident.getByRole('heading', { level: 1 }).first()).toBeVisible();
+              await expect(resident.getByText('Something went wrong', { exact: true })).toHaveCount(
+                0,
+              );
+              expect(
+                await resident.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+                `${role} ${path} at ${width}`,
+              ).toBe(true);
+              await resident.screenshot({
+                path: testInfo.outputPath(
+                  `${role}-${path.replace(/[^a-z0-9]+/gi, '-') || 'home'}-${width}.png`,
+                ),
+                fullPage: true,
+                animations: 'disabled',
+              });
+            }
+          }
+          await resident.goto('/admin/users');
+          await expect(resident).toHaveURL('/');
+          expect(
+            (
+              await resident.request.post(
+                `/api/admin/billing/common-fee-events/${randomUUID()}/issue`,
+                { data: {} },
+              )
+            ).status(),
+          ).toBe(403);
+        }
+        await manager.goto(`/rooms/${roomId}/rental`);
+      }
       if (label === 'Project') {
         await manager
           .getByTestId('rental-tenants')
@@ -461,7 +537,9 @@ test('project and private rentals complete tenant setup, rent payment, maintenan
       await expect(manager.getByRole('region', { name: 'Selected rental' })).toContainText(
         'Scheduled',
       );
-      await expect(manager.getByTestId('rental-period-details')).toHaveCount(0);
+      await expect(manager.getByTestId('rental-period-details').locator('summary')).toHaveText(
+        'Cancel scheduled rental',
+      );
       await manager.getByTestId('rental-tenant-add-open').click();
       await expect(manager.getByTestId('room-member-add-form')).toBeVisible();
       await expect(manager.getByTestId('tenant-account-option')).toHaveCount(0);

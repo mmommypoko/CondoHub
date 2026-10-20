@@ -1,7 +1,23 @@
 import 'server-only';
-import { and, eq, gte, isNull, lte, or } from 'drizzle-orm';
+import { and, eq, gte, isNull, lte, or, sql } from 'drizzle-orm';
 import type { Db, Tx } from '@/shared/db/transaction';
 import { roomOwnership } from './schema';
+
+export async function listPrivateRentalManagerGroups(
+  conn: Db,
+  userId: string,
+  at: Date,
+): Promise<string[][]> {
+  const result = await conn.execute<{ userIds: string[] }>(sql`
+    select array_agg(distinct o.user_id) as "userIds"
+    from room_ownership o
+    where o.start_at <= ${at} and (o.end_at is null or o.end_at > ${at})
+      and exists (select 1 from room_ownership target where target.room_id = o.room_id and target.user_id = ${userId} and target.start_at <= ${at} and (target.end_at is null or target.end_at > ${at}))
+      and exists (select 1 from rental_period t where t.room_id = o.room_id and t.state = 'ACTIVE' and t.management_mode = 'PRIVATE_OWNER_MANAGED' and (t.ends_at is null or t.ends_at > ${at}))
+    group by o.room_id
+  `);
+  return result.rows.map((row) => row.userIds);
+}
 
 export interface OwnershipRow {
   id: string;
@@ -77,18 +93,19 @@ export async function insertOwnership(
 ): Promise<OwnershipRow> {
   const rows = await tx
     .insert(roomOwnership)
-    .values({ roomId: input.roomId, userId: input.userId, startAt: input.startAt, grantedBy: input.grantedBy })
+    .values({
+      roomId: input.roomId,
+      userId: input.userId,
+      startAt: input.startAt,
+      grantedBy: input.grantedBy,
+    })
     .returning();
   const row = rows[0];
   if (row === undefined) throw new Error('Ownership insert returned no row.');
   return toOwnershipRow(row);
 }
 
-export async function endOwnership(
-  tx: Tx,
-  id: string,
-  endAt: Date,
-): Promise<OwnershipRow | null> {
+export async function endOwnership(tx: Tx, id: string, endAt: Date): Promise<OwnershipRow | null> {
   const rows = await tx
     .update(roomOwnership)
     .set({ endAt })

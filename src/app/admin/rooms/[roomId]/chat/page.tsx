@@ -11,7 +11,6 @@ import { getRoomDetail, getRoomLabels } from '@/modules/property-membership/appl
 import { listMessages } from '@/modules/room-chat/application/index';
 import { ChatRoomHeader } from '@/modules/room-chat/ui/ChatRoomHeader';
 import { ChatConversation } from '@/modules/room-chat/ui/ChatConversation';
-import { db } from '@/shared/db/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,7 +55,7 @@ export default async function AdminRoomChatPage({
   }
   const [roomInfo] = await getRoomLabels([roomId]);
   const roomLabel = roomInfo?.label ?? room.name;
-  const page = await listMessages(actor, { roomId, limit: 30 }, systemClock.now(), db);
+  const page = await listMessages(actor, { roomId, limit: 30 }, systemClock.now());
   const initialMessages = [...page.messages].sort((a, b) => {
     const time = a.createdAt.localeCompare(b.createdAt);
     if (time !== 0) return time;

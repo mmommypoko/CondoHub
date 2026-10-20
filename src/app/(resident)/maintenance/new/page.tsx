@@ -2,30 +2,12 @@ import 'server-only';
 import { redirect } from 'next/navigation';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
-import { PageHeader } from '@/shared/ui';
+import { PageHeader, SectionCard } from '@/shared/ui';
 import { listEligibleRooms } from '@/modules/maintenance/application/index';
-import { TicketCreateForm, type TicketRoomOption } from '@/modules/maintenance/ui/TicketCreateForm';
-import {
-  findBuildingById,
-  findRoomById,
-} from '@/modules/property-membership/infrastructure/structureRepository';
-import { db } from '@/shared/db/client';
+import { TicketCreateForm } from '@/modules/maintenance/ui/TicketCreateForm';
+import { getRoomLabels } from '@/modules/property-membership/application/index';
 
 export const dynamic = 'force-dynamic';
-
-async function toOptions(roomIds: string[]): Promise<TicketRoomOption[]> {
-  const options: TicketRoomOption[] = [];
-  for (const roomId of roomIds) {
-    const room = await findRoomById(db, roomId);
-    if (room === null) continue;
-    const building = await findBuildingById(db, room.buildingId);
-    options.push({
-      id: room.id,
-      label: `${building?.name ?? 'Building'} · ${room.name}`,
-    });
-  }
-  return options.sort((left, right) => left.label.localeCompare(right.label));
-}
 
 export default async function MaintenanceNewPage() {
   const actor = await getActorFromSession();
@@ -33,10 +15,22 @@ export default async function MaintenanceNewPage() {
   if (actor.mustChangePassword) redirect('/change-password');
   if (actor.accountStatus !== 'ACTIVE') redirect('/login?returnUrl=/maintenance/new');
   const now = systemClock.now();
-  const [privateRooms, managedRooms] = await Promise.all([
-    listEligibleRooms(actor, 'PRIVATE_OWNER', now).then((dto) => toOptions(dto.roomIds)),
-    listEligibleRooms(actor, 'PROJECT_MANAGED_PRIVATE', now).then((dto) => toOptions(dto.roomIds)),
+  const [privateScope, managedScope] = await Promise.all([
+    listEligibleRooms(actor, 'PRIVATE_OWNER', now),
+    listEligibleRooms(actor, 'PROJECT_MANAGED_PRIVATE', now),
   ]);
+  const rooms = await getRoomLabels([
+    ...new Set([...privateScope.roomIds, ...managedScope.roomIds]),
+  ]);
+  const toOptions = (roomIds: string[]) => {
+    const ids = new Set(roomIds);
+    return rooms
+      .filter((room) => ids.has(room.id))
+      .map(({ id, label }) => ({ id, label }))
+      .sort((left, right) => left.label.localeCompare(right.label));
+  };
+  const privateRooms = toOptions(privateScope.roomIds);
+  const managedRooms = toOptions(managedScope.roomIds);
   return (
     <main
       data-testid="maintenance-new-page"
@@ -49,7 +43,9 @@ export default async function MaintenanceNewPage() {
         backLabel="Back to Maintenance"
         backTestId="maintenance-new-back"
       />
-      <TicketCreateForm privateRooms={privateRooms} managedRooms={managedRooms} />
+      <SectionCard title="Request details" className="max-w-3xl">
+        <TicketCreateForm privateRooms={privateRooms} managedRooms={managedRooms} />
+      </SectionCard>
     </main>
   );
 }

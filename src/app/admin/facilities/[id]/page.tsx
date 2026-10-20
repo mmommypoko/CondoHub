@@ -7,6 +7,7 @@ import { systemClock } from '@/shared/utils/clock';
 import { PROJECT_TIMEZONE } from '@/config/project';
 import {
   ActionMenu,
+  ResourceStatusControl,
   Badge,
   EmptyState,
   FormDialog,
@@ -107,6 +108,13 @@ export default async function AdminFacilityDetailPage({
                   }}
                 />
               </FormDialog>
+              <ResourceStatusControl
+                resource="facility"
+                active={detail.status === 'ACTIVE'}
+                endpoint={`/api/admin/facilities/${detail.id}`}
+                testId="facility-status"
+                description="An inactive facility stops accepting new bookings. Existing bookings and history stay recorded."
+              />
               <FacilityDeleteControl facilityId={detail.id} name={detail.name} />
             </ActionMenu>
             <Link

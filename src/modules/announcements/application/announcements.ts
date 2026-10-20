@@ -19,6 +19,7 @@ import {
   findAnnouncementByIdForUpdate,
   listAllAnnouncements,
   listAnnouncementRevisions,
+  markAnnouncementDeleted,
 } from '../infrastructure/announcementRepository';
 import { sortFeedOrder } from '../domain/feedOrder';
 import { deriveAnnouncementStatus } from '../domain/visibility';
@@ -80,7 +81,8 @@ export async function createAnnouncement(
   if (actor.accountStatus !== 'ACTIVE') throw new AppError('ACCESS_DENIED');
   if (actor.mustChangePassword) throw new AppError('FIRST_LOGIN_PASSWORD_CHANGE_REQUIRED');
   if (!actor.isSystemAdmin) throw new AppError('ACCESS_DENIED');
-  const publishAt = input.publishAt === undefined || input.publishAt === null ? null : new Date(input.publishAt);
+  const publishAt =
+    input.publishAt === undefined || input.publishAt === null ? null : new Date(input.publishAt);
   if (publishAt !== null && Number.isNaN(publishAt.getTime())) {
     throw new AppError('VALIDATION_ERROR', 'The publish date is invalid.');
   }
@@ -156,7 +158,8 @@ export async function updateAnnouncementEntry(
           scope: 'ANNOUNCEMENT',
           entityRef: { type: 'announcement', id: announcementId },
           imageIds: toAttach,
-          maxCount: IMAGE_COUNT_CAPS.PUBLISH_ANNOUNCEMENT.max - (currentIds.length - toDetach.length),
+          maxCount:
+            IMAGE_COUNT_CAPS.PUBLISH_ANNOUNCEMENT.max - (currentIds.length - toDetach.length),
           at: now,
         });
       }
@@ -281,10 +284,7 @@ export async function listAnnouncementFeed(
   if (actor.accountStatus !== 'ACTIVE') throw new AppError('ACCESS_DENIED');
   if (actor.mustChangePassword) throw new AppError('FIRST_LOGIN_PASSWORD_CHANGE_REQUIRED');
   const all = await listAllAnnouncements(db);
-  const visible = all.filter(
-    (row) =>
-      canSeeAnnouncement(actor, row, 'FEED', at).allowed,
-  );
+  const visible = all.filter((row) => canSeeAnnouncement(actor, row, 'FEED', at).allowed);
   const ordered = sortFeedOrder(
     visible.map((row) => ({
       ...row,
@@ -352,4 +352,24 @@ async function toAnnouncementDto(
       snapshot: revision.snapshotJson,
     })),
   };
+}
+
+export async function deleteAnnouncement(actor: Actor, id: string, ctx: AnnouncementCtx) {
+  if (!actor.isSystemAdmin || actor.accountStatus !== 'ACTIVE') throw new AppError('ACCESS_DENIED');
+  if (actor.mustChangePassword) throw new AppError('FIRST_LOGIN_PASSWORD_CHANGE_REQUIRED');
+  const now = ctx.clock.now();
+  return db.transaction(async (tx) => {
+    const target = await findAnnouncementByIdForUpdate(tx, id);
+    if (!target) throw new AppError('RESOURCE_NOT_FOUND');
+    await markAnnouncementDeleted(tx, id, now);
+    await writeAudit(tx, {
+      actorId: actor.userId,
+      action: 'announcement.deleted',
+      resourceType: 'announcement',
+      resourceId: id,
+      requestId: ctx.requestId,
+      after: { deletedAt: now.toISOString() },
+    });
+    return { id };
+  });
 }

@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { ArrowUpRight } from 'lucide-react';
 import { Badge } from '@/shared/ui';
 import {
   turnoverStateLabel,
@@ -29,7 +31,13 @@ export interface TurnoverReviewDetailView {
   decidedAt: string | null;
 }
 
-export function TurnoverReviewDetailCard({ review }: { review: TurnoverReviewDetailView }) {
+export function TurnoverReviewDetailCard({
+  review,
+  invoiceBasePath,
+}: {
+  review: TurnoverReviewDetailView;
+  invoiceBasePath: '/invoices' | '/admin/billing/invoices';
+}) {
   return (
     <div className="flex min-w-0 flex-col gap-6 rounded-xl border border-border bg-surface p-5 sm:p-7">
       <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
@@ -182,12 +190,19 @@ export function TurnoverReviewDetailCard({ review }: { review: TurnoverReviewDet
           data-testid="turnover-review-detail-invoice-list"
           className="flex min-w-0 flex-col gap-1"
         >
-          {review.invoiceIds.map((invoiceId) => (
+          {review.invoiceIds.map((invoiceId, index) => (
             <li
               key={invoiceId}
               className="ui-tabular break-all text-small leading-small text-muted-foreground"
             >
-              {invoiceId.slice(0, 8)}
+              <Link
+                data-testid={`turnover-review-invoice-link-${index}`}
+                href={`${invoiceBasePath}/${invoiceId}`}
+                className="inline-flex items-center gap-1.5 rounded-md py-2 text-body font-medium text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+              >
+                View invoice {index + 1}
+                <ArrowUpRight aria-hidden="true" className="size-4" />
+              </Link>
             </li>
           ))}
         </ul>

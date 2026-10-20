@@ -43,7 +43,14 @@ export default function LoginForm() {
       return;
     }
     const session = await authClient.getSession();
-    const user = session.data?.user as { mustChangePassword?: unknown } | undefined;
+    const user = session.data?.user as
+      | { mustChangePassword?: unknown; accountStatus?: unknown }
+      | undefined;
+    if (user?.accountStatus === 'SUSPENDED') {
+      await authClient.signOut();
+      setServerError('This account is inactive. Contact your administrator to reactivate it.');
+      return;
+    }
     if (user?.mustChangePassword === true) {
       router.push('/change-password');
       return;
@@ -56,7 +63,9 @@ export default function LoginForm() {
     <form data-testid="login-form" onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
         <h2 className="text-title font-semibold tracking-tight text-foreground">Sign in</h2>
-        <p className="text-small leading-6 text-muted-foreground">Use your username and password.</p>
+        <p className="text-small leading-6 text-muted-foreground">
+          Use your username and password.
+        </p>
       </div>
       {serverError !== null ? (
         <p

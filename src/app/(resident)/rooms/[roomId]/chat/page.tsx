@@ -15,7 +15,6 @@ import {
 import { listMessages } from '@/modules/room-chat/application/index';
 import { ChatRoomHeader } from '@/modules/room-chat/ui/ChatRoomHeader';
 import { ChatConversation } from '@/modules/room-chat/ui/ChatConversation';
-import { db } from '@/shared/db/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,7 +67,7 @@ export default async function RoomChatPage({ params }: { params: Promise<{ roomI
   let initialMessages: Awaited<ReturnType<typeof listMessages>>['messages'] = [];
   let initialCursor: string | null = null;
   try {
-    const page = await listMessages(actor, { roomId, limit: 30 }, now, db);
+    const page = await listMessages(actor, { roomId, limit: 30 }, now);
     initialMessages = [...page.messages].sort((a, b) => {
       const time = a.createdAt.localeCompare(b.createdAt);
       if (time !== 0) return time;

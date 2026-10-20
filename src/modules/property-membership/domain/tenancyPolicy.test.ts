@@ -3,6 +3,16 @@ import { activeTenancyAt, canEndTenancy, canPlaceTenancy } from './tenancyPolicy
 
 const roomA = '11111111-0000-4000-8000-000000000001';
 
+it('a cancelled rental grants no residency interval and permits a replacement on its planned dates', () => {
+  const start = new Date('2026-11-01T00:00:00Z');
+  const end = new Date('2026-12-01T00:00:00Z');
+  const existing = [{ roomId: roomA, start, end, state: 'CANCELLED' as const }];
+  expect(activeTenancyAt(existing, roomA, start)).toBeNull();
+  expect(canPlaceTenancy({ roomId: roomA, startsAt: start, endsAt: end, existing }).allowed).toBe(
+    true,
+  );
+});
+
 describe('UT-PR-03 tenancy intervals follow [start,end)', () => {
   it('finds the active tenancy at an instant with end-exclusive boundary', () => {
     const tenancies = [
@@ -13,15 +23,9 @@ describe('UT-PR-03 tenancy intervals follow [start,end)', () => {
         end: new Date('2026-08-01T00:00:00.000Z'),
       },
     ];
-    expect(
-      activeTenancyAt(tenancies, roomA, new Date('2026-06-01T00:00:00.000Z')),
-    ).not.toBeNull();
-    expect(
-      activeTenancyAt(tenancies, roomA, new Date('2026-08-01T00:00:00.000Z')),
-    ).toBeNull();
-    expect(
-      activeTenancyAt(tenancies, roomA, new Date('2026-05-01T00:00:00.000Z')),
-    ).not.toBeNull();
+    expect(activeTenancyAt(tenancies, roomA, new Date('2026-06-01T00:00:00.000Z'))).not.toBeNull();
+    expect(activeTenancyAt(tenancies, roomA, new Date('2026-08-01T00:00:00.000Z'))).toBeNull();
+    expect(activeTenancyAt(tenancies, roomA, new Date('2026-05-01T00:00:00.000Z'))).not.toBeNull();
   });
 
   it('ignores ended tenancies when resolving the active one', () => {
@@ -33,9 +37,7 @@ describe('UT-PR-03 tenancy intervals follow [start,end)', () => {
         end: new Date('2026-08-01T00:00:00.000Z'),
       },
     ];
-    expect(
-      activeTenancyAt(tenancies, roomA, new Date('2026-06-01T00:00:00.000Z')),
-    ).toBeNull();
+    expect(activeTenancyAt(tenancies, roomA, new Date('2026-06-01T00:00:00.000Z'))).toBeNull();
   });
 
   it('rejects ending a tenancy at or before its start', () => {

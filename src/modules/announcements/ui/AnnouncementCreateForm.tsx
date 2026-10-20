@@ -6,37 +6,18 @@ import { useFormDialog } from '@/shared/ui/FormDialog';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import { Button, FormField, INPUT_BASE_CLASS, cx, useToast } from '@/shared/ui';
+import { AnnouncementPublishingFields } from './AnnouncementPublishingFields';
+import {
+  announcementFormSchema,
+  publishingTimestamp,
+  type AnnouncementFormValues,
+} from './announcementFormSchema';
 import {
   AnnouncementImageUploader,
   type UploadedImage,
 } from '@/modules/announcements/ui/AnnouncementImageUploader';
-
-const createSchema = z.object({
-  title: z.string().trim().min(1, 'Title is required.').max(255),
-  body: z.string().trim().min(1, 'Body is required.').max(20000),
-  publishMode: z.enum(['draft', 'now', 'scheduled']),
-  publishAt: z.string().optional(),
-});
-
-type CreateValues = z.infer<typeof createSchema>;
-
-const PUBLISH_MODES = [
-  { value: 'draft', testId: 'announcement-create-mode-draft', label: 'Save as draft' },
-  { value: 'now', testId: 'announcement-create-mode-now', label: 'Publish now' },
-  { value: 'scheduled', testId: 'announcement-create-mode-scheduled', label: 'Schedule for later' },
-] as const;
-
-function toIsoOrNull(mode: string, publishAt: string | undefined): string | null {
-  if (mode === 'now') return new Date().toISOString();
-  if (mode === 'scheduled' && publishAt !== undefined && publishAt !== '') {
-    const parsed = new Date(publishAt);
-    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
-  }
-  return null;
-}
 
 export function AnnouncementCreateForm() {
   const router = useRouter();
@@ -48,8 +29,8 @@ export function AnnouncementCreateForm() {
     handleSubmit,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<CreateValues>({
-    resolver: zodResolver(createSchema),
+  } = useForm<AnnouncementFormValues>({
+    resolver: zodResolver(announcementFormSchema),
     defaultValues: { publishMode: 'draft' },
   });
   const publishMode = watch('publishMode');
@@ -64,7 +45,7 @@ export function AnnouncementCreateForm() {
       body: JSON.stringify({
         title: values.title,
         body: values.body,
-        publishAt: toIsoOrNull(values.publishMode, values.publishAt),
+        publishAt: publishingTimestamp(values.publishMode, values.publishAt),
         imageIds: images.map((image) => image.imageId),
       }),
     });
@@ -77,9 +58,14 @@ export function AnnouncementCreateForm() {
       );
       return;
     }
+    const created = (await response.json().catch(() => null)) as { data?: { id?: string } } | null;
+    if (!created?.data?.id) {
+      setServerError('The announcement was created. Open the announcements list to find it.');
+      return;
+    }
     toast.success('Announcement created.');
     dialog?.complete();
-    router.push('/admin/announcements');
+    router.push(`/admin/announcements/${created.data.id}`);
     router.refresh();
   });
 
@@ -127,36 +113,12 @@ export function AnnouncementCreateForm() {
           {...register('body')}
         />
       </FormField>
-      <fieldset className="flex min-w-0 flex-col gap-2">
-        <legend className="text-body leading-body font-medium text-foreground">Publishing</legend>
-        <div className="flex min-w-0 flex-col gap-1">
-          {PUBLISH_MODES.map((mode) => (
-            <label
-              key={mode.value}
-              className="flex w-fit cursor-pointer items-center gap-2.5 rounded-md px-1 py-1 text-body leading-body text-foreground transition-[background-color] duration-150 ease-out hover:bg-secondary motion-reduce:transition-none"
-            >
-              <input
-                data-testid={mode.testId}
-                type="radio"
-                value={mode.value}
-                className="size-4 shrink-0 accent-primary"
-                {...register('publishMode')}
-              />
-              {mode.label}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-      {publishMode === 'scheduled' ? (
-        <FormField label="Publish at" htmlFor="announcement-create-publish-at">
-          <input
-            data-testid="announcement-create-publish-at"
-            type="datetime-local"
-            className={cx(INPUT_BASE_CLASS, 'h-10')}
-            {...register('publishAt')}
-          />
-        </FormField>
-      ) : null}
+      <AnnouncementPublishingFields
+        mode={publishMode}
+        register={register}
+        error={errors.publishAt?.message}
+        prefix="announcement-create"
+      />
       <AnnouncementImageUploader
         images={images}
         onChange={(next) => {

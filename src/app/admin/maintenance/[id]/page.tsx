@@ -8,11 +8,7 @@ import { isUuid } from '@/shared/utils/idempotency';
 import { getTicket } from '@/modules/maintenance/application/index';
 import { TicketDetailSections } from '@/modules/maintenance/ui/TicketDetailSections';
 import { isTerminalTicketStatus } from '@/modules/maintenance/ui/ticketLabels';
-import {
-  findBuildingById,
-  findRoomById,
-} from '@/modules/property-membership/infrastructure/structureRepository';
-import { db } from '@/shared/db/client';
+import { getRoomLabels } from '@/modules/property-membership/application/index';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,16 +48,9 @@ export default async function AdminMaintenanceDetailPage({
       </main>
     );
   }
-  let roomLabel: string | null = null;
-  if (ticket.roomId !== null) {
-    const room = await findRoomById(db, ticket.roomId);
-    if (room === null) {
-      roomLabel = 'Room unavailable';
-    } else {
-      const building = await findBuildingById(db, room.buildingId);
-      roomLabel = `${building?.name ?? 'Building'} · ${room.name}`;
-    }
-  }
+  const roomLabel = ticket.roomId
+    ? ((await getRoomLabels([ticket.roomId]))[0]?.label ?? 'Room unavailable')
+    : null;
   return (
     <main
       data-testid="admin-maintenance-detail-page"

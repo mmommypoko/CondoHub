@@ -1,6 +1,6 @@
 import { covers, overlaps, type TimeInterval } from './intervals';
 
-export type TenancyState = 'ACTIVE' | 'ENDED';
+export type TenancyState = 'ACTIVE' | 'ENDED' | 'CANCELLED';
 
 export interface TenancyInterval extends TimeInterval {
   roomId: string;

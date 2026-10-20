@@ -92,6 +92,20 @@
       "when": 1792467285060,
       "tag": "0012_facility-deletion",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792503780981,
+      "tag": "0013_resource-lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792518505994,
+      "tag": "0014_scheduled-rental-cancellation",
+      "breakpoints": true
     }
   ]
 }

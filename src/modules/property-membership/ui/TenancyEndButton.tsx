@@ -4,7 +4,17 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Dialog, serverErrorMessage, useToast } from '@/shared/ui';
 
-export function TenancyEndButton({ roomId, tenancyId }: { roomId: string; tenancyId: string }) {
+export function TenancyEndButton({
+  roomId,
+  tenancyId,
+  scheduled = false,
+}: {
+  roomId: string;
+  tenancyId: string;
+  scheduled?: boolean;
+}) {
+  const prefix = scheduled ? 'room-tenancy-cancel' : 'room-tenancy-end';
+  const label = scheduled ? 'Cancel scheduled rental' : 'End rental period';
   const router = useRouter();
   const { toast } = useToast();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -17,17 +27,24 @@ export function TenancyEndButton({ roomId, tenancyId }: { roomId: string; tenanc
     try {
       const response = await fetch(`/api/rooms/${roomId}/tenancies/${tenancyId}`, {
         method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action: 'END' }),
+        headers: { 'content-type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({ action: scheduled ? 'CANCEL' : 'END' }),
       });
       if (!response.ok) {
         const payload: unknown = await response.json().catch(() => null);
-        setServerError(serverErrorMessage(payload, 'Could not end the tenancy.'));
+        setServerError(
+          serverErrorMessage(
+            payload,
+            scheduled ? 'Could not cancel the scheduled rental.' : 'Could not end the tenancy.',
+          ),
+        );
         return;
       }
       setConfirmOpen(false);
-      toast.success('Rental period ended.');
+      toast.success(scheduled ? 'Scheduled rental cancelled.' : 'Rental period ended.');
       router.refresh();
+    } catch {
+      setServerError('Could not reach the server. Check your connection and try again.');
     } finally {
       setBusy(false);
     }
@@ -36,12 +53,12 @@ export function TenancyEndButton({ roomId, tenancyId }: { roomId: string; tenanc
   return (
     <>
       <Button
-        data-testid={`room-tenancy-end-${tenancyId}`}
+        data-testid={`${prefix}-${tenancyId}`}
         variant="secondary"
         size="sm"
         onClick={() => setConfirmOpen(true)}
       >
-        End rental period
+        {label}
       </Button>
       <Dialog
         open={confirmOpen}
@@ -49,29 +66,33 @@ export function TenancyEndButton({ roomId, tenancyId }: { roomId: string; tenanc
         onClose={() => {
           if (!busy) setConfirmOpen(false);
         }}
-        title="End this rental period?"
-        description="All linked tenants lose tenant access. Invoices and repair history are kept."
+        title={scheduled ? 'Cancel this scheduled rental?' : 'End this rental period?'}
+        description={
+          scheduled
+            ? 'This rental will not start. Linked tenants lose access from it. Planned dates, issued invoices and payment history stay recorded.'
+            : 'All linked tenants lose tenant access. Invoices and repair history are kept.'
+        }
         size="sm"
-        testId="room-tenancy-end-confirm"
+        testId={`${prefix}-confirm`}
         actions={
           <>
             <Button variant="secondary" disabled={busy} onClick={() => setConfirmOpen(false)}>
               Cancel
             </Button>
             <Button
-              data-testid="room-tenancy-end-submit"
+              data-testid={`${prefix}-submit`}
               variant="destructive"
               loading={busy}
               onClick={() => void confirm()}
             >
-              End rental period
+              {label}
             </Button>
           </>
         }
       >
         {serverError !== null ? (
           <p
-            data-testid="room-tenancy-end-error"
+            data-testid={`${prefix}-error`}
             role="alert"
             className="text-sm font-medium text-danger-foreground"
           >
@@ -79,7 +100,9 @@ export function TenancyEndButton({ roomId, tenancyId }: { roomId: string; tenanc
           </p>
         ) : (
           <p className="text-sm leading-6 text-muted-foreground">
-            The rental period closes now. Linked memberships end with it.
+            {scheduled
+              ? 'Future rent will no longer be generated for this rental. Review any issued invoices separately.'
+              : 'The rental period closes now. Linked memberships end with it.'}
           </p>
         )}
       </Dialog>

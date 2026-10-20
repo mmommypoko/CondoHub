@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { expect as baseExpect, test } from '@playwright/test';
 import { loginAsPoolAdmin } from '../../helpers/owner';
-import { readRunContext } from '../../fixtures/run-context';
+import { readRunContext, runUsername } from '../../fixtures/run-context';
 import { apiJson } from '../../helpers/api';
 import { installOverlayAudit } from '../../helpers/overlayAudit';
 import { completeFirstLogin, provisionUser } from '../../helpers/owner';
@@ -72,18 +72,13 @@ test('context menus give every action an icon and keep disabled actions distinct
         ),
       ).toBe(true);
       if (menuId.startsWith('floor')) {
-        const disabled = menu.getByRole('button', { name: 'Delete', exact: true });
-        await expect(disabled).toBeDisabled();
-        const color = await disabled.evaluate((el) => getComputedStyle(el).color);
-        expect(color).not.toBe(
-          await menu
-            .getByRole('button', { name: 'Edit', exact: true })
-            .evaluate((el) => getComputedStyle(el).color),
-        );
+        await expect(menu.getByRole('button', { name: 'Delete floor', exact: true })).toBeEnabled();
         await page.getByTestId(`${menuId}-trigger`).press('ArrowDown');
         await expect(menu.getByRole('button', { name: 'Edit', exact: true })).toBeFocused();
         await page.keyboard.press('ArrowDown');
-        await expect(menu.getByRole('button', { name: 'Edit', exact: true })).toBeFocused();
+        await expect(
+          menu.getByRole('button', { name: 'Deactivate floor', exact: true }),
+        ).toBeFocused();
       }
       await page.screenshot({
         path: testInfo.outputPath(`${menuId}-${width}.png`),
@@ -91,6 +86,30 @@ test('context menus give every action an icon and keep disabled actions distinct
       });
       await page.keyboard.press('Escape');
     }
+  }
+  const current = (await (await page.request.get('/api/auth/get-session')).json()).user as {
+    id: string;
+    username: string;
+  };
+  await page.goto(`/admin/users?query=${current.username}`);
+  for (const width of [360, 768, 1366]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.getByTestId(`admin-users-actions-${current.id}-trigger`).click();
+    const menu = page.getByTestId(`admin-users-actions-${current.id}-dropdown`);
+    const disabled = menu.getByRole('button', { name: 'Delete user', exact: true });
+    await expect(disabled).toBeDisabled();
+    await expect(disabled.locator('svg')).toHaveCount(1);
+    expect(await disabled.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
+    expect(
+      await menu.evaluate(
+        (el) => el.scrollHeight <= el.clientHeight && el.scrollWidth <= el.clientWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: testInfo.outputPath(`disabled-account-menu-${width}.png`),
+      animations: 'disabled',
+    });
+    await page.keyboard.press('Escape');
   }
 });
 
@@ -141,9 +160,9 @@ test('admin dialogs cover property, ownership, facilities, announcements, billin
     areaSqm: '30',
     status: 'ACTIVE',
   });
-  const ownerName = `e2e${runId}owner`.slice(0, 30);
+  const ownerName = runUsername(runId, `owner`);
   const owner = await provisionUser(page, { username: ownerName, name: 'Modal audit owner' });
-  const memberName = `e2e${runId}member`.slice(0, 30);
+  const memberName = runUsername(runId, `member`);
   const member = await provisionUser(page, { username: memberName, name: 'Modal audit member' });
   const memberId = await create(`/api/rooms/${room}/members`, {
     username: memberName,
@@ -248,9 +267,11 @@ test('admin dialogs cover property, ownership, facilities, announcements, billin
   await check('charge-event-list-new', 'charge-event-create-dialog');
   await page.goto(`/admin/users?query=${memberName}`);
   await check('admin-users-provision-open', 'admin-users-provision');
+  await page.getByTestId(`admin-users-actions-${member.userId}-trigger`).click();
   await page.getByRole('button', { name: 'Reset password', exact: true }).click();
   await closeDialog('admin-users-confirm');
-  await page.getByRole('button', { name: 'Suspend', exact: true }).click();
+  await page.getByTestId(`admin-users-actions-${member.userId}-trigger`).click();
+  await page.getByRole('button', { name: 'Deactivate', exact: true }).click();
   await closeDialog('admin-users-confirm');
   await apiJson(page.request, {
     method: 'PATCH',
@@ -258,6 +279,7 @@ test('admin dialogs cover property, ownership, facilities, announcements, billin
     body: { accountStatus: 'SUSPENDED' },
   });
   await page.reload();
+  await page.getByTestId(`admin-users-actions-${member.userId}-trigger`).click();
   await page.getByRole('button', { name: 'Reactivate', exact: true }).click();
   await closeDialog('admin-users-confirm');
   await page.getByTestId('user-menu-trigger').click();

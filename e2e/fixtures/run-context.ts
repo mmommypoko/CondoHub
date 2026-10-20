@@ -40,6 +40,10 @@ export function namespaced(prefix: string, runId: string, name: string): string 
   return `${prefix}_${runId}_${name}`;
 }
 
+export function runUsername(runId: string, suffix: string): string {
+  return `e2e${runId.replace(/[^a-z0-9]/gi, '').toLowerCase()}${suffix}`.slice(0, 30);
+}
+
 export function workerNamespace(runId: string, workerIndex: number): string {
   return `${runId}-w${workerIndex}`;
 }

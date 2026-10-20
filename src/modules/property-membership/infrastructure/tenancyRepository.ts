@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { Db, Tx } from '@/shared/db/transaction';
 import type { ManagementMode, RentalState } from './schema';
 import { rentalPeriod } from './schema';
@@ -30,6 +30,38 @@ export async function findTenancyById(db: Db, id: string): Promise<TenancyRow | 
   const rows = await db.select().from(rentalPeriod).where(eq(rentalPeriod.id, id)).limit(1);
   const row = rows[0];
   return row === undefined ? null : toTenancyRow(row);
+}
+
+export async function lockTenancyById(tx: Tx, id: string): Promise<TenancyRow | null> {
+  const rows = await tx
+    .select()
+    .from(rentalPeriod)
+    .where(eq(rentalPeriod.id, id))
+    .for('update')
+    .limit(1);
+  return rows[0] ? toTenancyRow(rows[0]) : null;
+}
+
+export async function cancelTenancy(tx: Tx, id: string): Promise<TenancyRow | null> {
+  const rows = await tx
+    .update(rentalPeriod)
+    .set({ state: 'CANCELLED' })
+    .where(and(eq(rentalPeriod.id, id), eq(rentalPeriod.state, 'ACTIVE')))
+    .returning();
+  return rows[0] ? toTenancyRow(rows[0]) : null;
+}
+
+export async function listTenancyLabels(db: Db, ids: string[]) {
+  if (ids.length === 0) return [];
+  return db
+    .select({
+      id: rentalPeriod.id,
+      startsAt: rentalPeriod.startsAt,
+      endsAt: rentalPeriod.endsAt,
+      state: rentalPeriod.state,
+    })
+    .from(rentalPeriod)
+    .where(inArray(rentalPeriod.id, ids));
 }
 
 export async function listTenanciesByRoom(db: Db, roomId: string): Promise<TenancyRow[]> {

@@ -6,7 +6,15 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
-import { Button, Dialog, FormField, INPUT_CLASS, serverErrorMessage, useToast } from '@/shared/ui';
+import {
+  Button,
+  Dialog,
+  FormField,
+  INPUT_CLASS,
+  ResourceDeleteControl,
+  serverErrorMessage,
+  useToast,
+} from '@/shared/ui';
 
 const editSchema = z.object({
   name: z.string().trim().min(1, 'Room name is required.').max(255),
@@ -51,11 +59,13 @@ export function RoomRowActions({
   name,
   areaSqm,
   status,
+  deleteRedirectTo,
 }: {
   roomId: string;
   name: string;
   areaSqm: string;
   status: 'ACTIVE' | 'INACTIVE';
+  deleteRedirectTo?: string;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -142,7 +152,7 @@ export function RoomRowActions({
         {status === 'ACTIVE' ? (
           <Button
             data-testid={`room-deactivate-open-${roomId}`}
-            variant="destructive"
+            variant="secondary"
             size="sm"
             onClick={() => setDeactivateOpen(true)}
           >
@@ -160,6 +170,15 @@ export function RoomRowActions({
             Reactivate
           </Button>
         )}
+        <ResourceDeleteControl
+          resource="room"
+          name={name}
+          endpoint={`/api/admin/rooms/${roomId}`}
+          testId="room-delete"
+          redirectTo={deleteRedirectTo}
+          triggerTestId={`room-delete-open-${roomId}`}
+          description="This room will be removed from the directory. End active or scheduled rentals and memberships first. Bills and history stay recorded."
+        />
       </span>
       <Dialog
         open={editOpen}
@@ -246,7 +265,7 @@ export function RoomRowActions({
               data-testid={
                 status === 'ACTIVE' ? 'room-deactivate-submit' : 'room-reactivate-submit'
               }
-              variant={status === 'ACTIVE' ? 'destructive' : 'primary'}
+              variant="primary"
               loading={busy}
               onClick={() => void setStatus(status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE')}
             >

@@ -8,7 +8,10 @@ import { formatProjectDate, projectDateParts } from '@/shared/utils/clock';
 import { satangToDecimalString } from '@/shared/utils/money';
 import { moneyWireBodyToSatang, type MoneyWireBody } from '@/shared/utils/moneySchema';
 import { writeAudit } from '@/shared/observability/audit';
-import { getRoomDetail } from '@/modules/property-membership/application/index';
+import {
+  getRoomDetail,
+  lockTenancyForBilling,
+} from '@/modules/property-membership/application/index';
 import {
   assertDueDateCalendarValid,
   assertExpectedVersion,
@@ -374,6 +377,11 @@ export async function resolveTurnoverReview(
       if (expectedKind !== kind) throw new AppError('INTERNAL_ERROR');
       const created: TurnoverInvoiceRecord[] = [];
       for (const entry of ordered) {
+        if (!(await lockTenancyForBilling(tx, entry.tenancyId)))
+          throw new AppError(
+            'VALIDATION_ERROR',
+            'A selected rental was cancelled. Reload the review and choose another rental or no charge.',
+          );
         assertDueDateCalendarValid(entry.dueDate);
         const isPast = assertPastDueDateConfirmed({
           dueDate: entry.dueDate,

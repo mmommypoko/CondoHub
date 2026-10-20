@@ -1,4 +1,5 @@
 import 'server-only';
+import { AccountAccessBadge } from '@/modules/identity-access/ui/AccountAccessBadge';
 import Link from 'next/link';
 import { redirect, notFound } from 'next/navigation';
 import { Check, Circle, CreditCard, Users, Wrench } from 'lucide-react';
@@ -12,8 +13,9 @@ import {
   getRoomLabels,
   listRoomMemberships,
   listRoomTenancies,
+  formatTenancyPeriod,
 } from '@/modules/property-membership/application/index';
-import { getSenderProfile } from '@/modules/identity-access/application/index';
+import { getPeopleProfiles } from '@/modules/identity-access/application/index';
 import {
   canManageRent,
   getRentSettings,
@@ -94,17 +96,9 @@ export default async function RentalPage({
   const ownMembers = members.filter(
     (row) => row.tenancyId === tenancy?.id && live && (!row.endAt || row.endAt > now),
   );
-  const profiles = new Map(
-    await Promise.all(
-      ownMembers.map(
-        async (row) =>
-          [
-            row.userId,
-            (await getSenderProfile(row.userId))?.name ?? 'Account unavailable',
-          ] as const,
-      ),
-    ),
-  );
+  const people = await getPeopleProfiles(ownMembers.map((person) => person.userId));
+  const profiles = new Map(people.map((person) => [person.userId, person.name]));
+  const accountStates = new Map(people.map((person) => [person.userId, person.status]));
   const month = formatProjectDate(projectDateParts(now)).slice(0, 7);
   const value = manage && tenancy ? await getRentSettings(actor, roomId, tenancy.id, now) : null;
   const account = manage
@@ -116,7 +110,6 @@ export default async function RentalPage({
   const canEnd =
     live &&
     tenancy !== undefined &&
-    tenancy.startsAt <= now &&
     (actor.isSystemAdmin || (owner && tenancy.managementMode === 'PRIVATE_OWNER_MANAGED'));
   const invoicePage = Math.max(1, Math.floor(Number(query.invoicePage) || 1));
   const requestPage = Math.max(1, Math.floor(Number(query.requestPage) || 1));
@@ -138,6 +131,9 @@ export default async function RentalPage({
         ),
   ]);
   const base = `/rooms/${roomId}/rental`;
+  const tenancyLabels = Object.fromEntries(
+    periods.map((period) => [period.id, formatTenancyPeriod(period)]),
+  );
   const selected = tenancy ? `&tenancyId=${tenancy.id}` : '';
   const viewHref = (target: string) => `${base}?view=${target}${selected}`;
   const steps = [
@@ -183,7 +179,13 @@ export default async function RentalPage({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant={live ? 'success' : 'neutral'}>
-                {!live ? 'Ended' : tenancy.startsAt > now ? 'Scheduled' : 'Active'}
+                {tenancy.state === 'CANCELLED'
+                  ? 'Cancelled'
+                  : !live
+                    ? 'Ended'
+                    : tenancy.startsAt > now
+                      ? 'Scheduled'
+                      : 'Active'}
               </Badge>
               <span className="text-small font-medium">
                 {tenancy.managementMode === 'PROJECT_MANAGED' ? 'Project managed' : 'Owner managed'}
@@ -207,11 +209,13 @@ export default async function RentalPage({
                     className={`${ACTION_LINK_SECONDARY_CLASS} ${row.id === tenancy.id ? 'border-primary bg-nav-active' : ''}`}
                   >
                     {date(row.startsAt)} ·{' '}
-                    {row.state !== 'ACTIVE' || (row.endsAt && row.endsAt <= now)
-                      ? 'Ended'
-                      : row.startsAt > now
-                        ? 'Scheduled'
-                        : 'Active'}
+                    {row.state === 'CANCELLED'
+                      ? 'Cancelled'
+                      : row.state !== 'ACTIVE' || (row.endsAt && row.endsAt <= now)
+                        ? 'Ended'
+                        : row.startsAt > now
+                          ? 'Scheduled'
+                          : 'Active'}
                   </Link>
                 ))}
               </nav>
@@ -320,6 +324,7 @@ export default async function RentalPage({
                       <div className="min-w-0 flex-1 basis-28">
                         <p className="break-words text-body font-medium">
                           {profiles.get(member.userId)}
+                          <AccountAccessBadge status={accountStates.get(member.userId)} />
                         </p>
                         <p className="mt-1 text-small text-muted-foreground">
                           {member.memberRole === 'MAIN' ? 'Main tenant' : 'Tenant'}
@@ -337,7 +342,13 @@ export default async function RentalPage({
                 </ul>
               ) : (
                 <EmptyState
-                  title={live ? 'Add the first tenant' : 'This rental has ended'}
+                  title={
+                    live
+                      ? 'Add the first tenant'
+                      : tenancy.state === 'CANCELLED'
+                        ? 'This rental was cancelled'
+                        : 'This rental has ended'
+                  }
                   description={
                     live
                       ? 'Use an existing account or create sign-in details for someone new.'
@@ -378,13 +389,18 @@ export default async function RentalPage({
                   className="mt-5 border-t border-border pt-4"
                 >
                   <summary className="cursor-pointer text-small font-medium text-muted-foreground">
-                    End rental / move out
+                    {tenancy.startsAt > now ? 'Cancel scheduled rental' : 'End rental / move out'}
                   </summary>
                   <p className="my-4 text-small text-muted-foreground">
-                    End the rental and remove all linked tenants' room access. Invoices and repair
-                    history are kept.
+                    {tenancy.startsAt > now
+                      ? 'Cancel this rental before it starts. Planned dates and billing history are kept.'
+                      : "End the rental and remove all linked tenants' room access. Invoices and repair history are kept."}
                   </p>
-                  <TenancyEndButton roomId={roomId} tenancyId={tenancy.id} />
+                  <TenancyEndButton
+                    roomId={roomId}
+                    tenancyId={tenancy.id}
+                    scheduled={tenancy.startsAt > now}
+                  />
                 </details>
               ) : null}
             </SectionCard>
@@ -509,6 +525,7 @@ export default async function RentalPage({
               {invoices.rows.length ? (
                 <>
                   <InvoiceTable
+                    tenancyLabels={tenancyLabels}
                     rows={invoices.rows}
                     basePath={actor.isSystemAdmin ? '/admin/billing/invoices' : '/invoices'}
                     caption="Room rent invoices"

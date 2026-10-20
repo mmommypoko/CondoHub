@@ -19,6 +19,7 @@ export const announcement = pgTable(
     body: text('body').notNull(),
     publishAt: timestamp('publish_at', { withTimezone: true }),
     hiddenAt: timestamp('hidden_at', { withTimezone: true }),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
     editedAt: timestamp('edited_at', { withTimezone: true }),
     revision: integer('revision').notNull().default(1),
   },

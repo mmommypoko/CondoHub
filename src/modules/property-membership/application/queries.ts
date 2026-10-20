@@ -5,6 +5,7 @@ import type { Db } from '@/shared/db/transaction';
 import { AppError } from '@/shared/utils/errors';
 import { systemClock } from '@/shared/utils/clock';
 import { canViewRoom } from '../domain/roomVisibility';
+import { formatTenancyPeriod } from '../domain/tenancyLabel';
 import { covers } from '../domain/intervals';
 import { isOwnerAt as isOwnerAtInterval, type OwnershipInterval } from '../domain/ownershipPolicy';
 import { activeTenancyAt, type TenancyInterval } from '../domain/tenancyPolicy';
@@ -27,6 +28,7 @@ import {
   queryRoomPage,
   listRoomLabels,
   findRoomById,
+  isRoomOperational,
   listAllRooms,
   listRoomsByIds,
   type RoomRow,
@@ -39,6 +41,7 @@ import {
 import {
   findTenancyById,
   listTenanciesByRoom,
+  listTenancyLabels,
   type TenancyRow,
 } from '../infrastructure/tenancyRepository';
 import {
@@ -67,7 +70,7 @@ export interface RentalPeriodDto {
   id: string;
   startsAt: Date;
   endsAt: Date | null;
-  state: 'ACTIVE' | 'ENDED';
+  state: 'ACTIVE' | 'ENDED' | 'CANCELLED';
   managementMode: 'PROJECT_MANAGED' | 'PRIVATE_OWNER_MANAGED';
 }
 
@@ -98,17 +101,24 @@ function toOwnershipIntervals(rows: OwnershipRow[]): OwnershipInterval[] {
   }));
 }
 
-function toMembershipWindows(rows: MembershipRow[]): MembershipWindow[] {
-  return rows.map((row) => ({
-    roomId: row.roomId,
-    userId: row.userId,
-    start: row.startAt,
-    end: row.endAt,
-  }));
+function toMembershipWindows(rows: MembershipRow[], tenancies: TenancyRow[]): MembershipWindow[] {
+  const cancelled = new Set(
+    tenancies.filter((row) => row.state === 'CANCELLED').map((row) => row.id),
+  );
+  return rows
+    .filter((row) => row.tenancyId === null || !cancelled.has(row.tenancyId))
+    .map((row) => ({
+      roomId: row.roomId,
+      userId: row.userId,
+      start: row.startAt,
+      end: row.endAt,
+    }));
 }
 
 function toTenancyWindows(rows: TenancyRow[]): TenancyWindow[] {
-  return rows.map((row) => ({ roomId: row.roomId, start: row.startsAt, end: row.endsAt }));
+  return rows
+    .filter((row) => row.state !== 'CANCELLED')
+    .map((row) => ({ roomId: row.roomId, start: row.startsAt, end: row.endsAt }));
 }
 
 function toTenancyIntervals(rows: TenancyRow[]): TenancyInterval[] {
@@ -137,7 +147,7 @@ async function requireKnownActor(actorId: string, conn: Db = db): Promise<void> 
 }
 
 async function requireKnownRoom(roomId: string, conn: Db = db): Promise<RoomRow> {
-  const found = await findRoomById(conn, roomId);
+  const found = await findRoomById(conn, roomId, true);
   if (found === null) throw new AppError('RESOURCE_NOT_FOUND');
   return found;
 }
@@ -149,14 +159,21 @@ export async function canActInRoom(
   at: Date,
 ): Promise<RoomActVerdict> {
   await requireKnownActor(actorId);
-  await requireKnownRoom(roomId);
+  const room = await findRoomById(db, roomId);
+  if (!room) throw new AppError('RESOURCE_NOT_FOUND');
+  if (
+    ['BOOK_FACILITY', 'SEND_CHAT', 'SUBMIT_MAINTENANCE', 'GRANT_CO_OWNER'].includes(action) &&
+    !(await isRoomOperational(db, roomId))
+  ) {
+    return { allowed: false, reason: 'NO_CURRENT_ACCESS' };
+  }
   const [ownerships, memberships, tenancies] = await Promise.all([
     listOwnershipsByRoom(db, roomId),
     listMembershipsByRoom(db, roomId),
     listTenanciesByRoom(db, roomId),
   ]);
   const ownershipIntervals = toOwnershipIntervals(ownerships);
-  const membershipWindows = toMembershipWindows(memberships);
+  const membershipWindows = toMembershipWindows(memberships, tenancies);
   const tenancyWindows = toTenancyWindows(tenancies);
   const tenancyIntervals = toTenancyIntervals(tenancies);
   const ownerNow = isOwnerAtInterval(ownershipIntervals, roomId, actorId, at);
@@ -194,6 +211,10 @@ export async function canActInRoom(
         (membership) =>
           membership.userId === actorId &&
           membership.memberRole === 'MAIN' &&
+          (membership.tenancyId === null ||
+            tenancies.some(
+              (row) => row.id === membership.tenancyId && row.state !== 'CANCELLED',
+            )) &&
           covers({ start: membership.startAt, end: membership.endAt }, at),
       );
       return mainNow ? { allowed: true } : { allowed: false, reason: 'NO_CURRENT_ACCESS' };
@@ -231,7 +252,7 @@ export async function getResidentIntervals(
     listTenanciesByRoom(db, roomId),
   ]);
   return residentIntervalsFor(
-    toMembershipWindows(memberships),
+    toMembershipWindows(memberships, tenancies),
     toOwnershipIntervals(ownerships),
     toTenancyWindows(tenancies),
     roomId,
@@ -239,7 +260,11 @@ export async function getResidentIntervals(
   );
 }
 
-export async function getRentalPeriods(roomId: string, month: string): Promise<RentalPeriodDto[]> {
+export async function getRentalPeriods(
+  roomId: string,
+  month: string,
+  options?: { includeCancelled?: boolean },
+): Promise<RentalPeriodDto[]> {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
     throw new AppError('VALIDATION_ERROR', 'The month must use YYYY-MM format.');
   }
@@ -252,6 +277,7 @@ export async function getRentalPeriods(roomId: string, month: string): Promise<R
   const monthEnd = Date.UTC(year, monthIndex, 1);
   return tenancies
     .filter((tenancy) => {
+      if (tenancy.state === 'CANCELLED' && !options?.includeCancelled) return false;
       const start = tenancy.startsAt.getTime();
       const end = tenancy.endsAt === null ? Number.POSITIVE_INFINITY : tenancy.endsAt.getTime();
       return start < monthEnd && monthStart < end;
@@ -309,13 +335,14 @@ export async function getActiveResidentRooms(userId: string, at: Date): Promise<
     const rows = await listTenanciesByRoom(db, roomId);
     tenancies.push(...rows);
   }
-  return activeResidentRooms(
-    toMembershipWindows(memberships),
+  const residentIds = activeResidentRooms(
+    toMembershipWindows(memberships, tenancies),
     toOwnershipIntervals(ownerships),
     toTenancyWindows(tenancies),
     userId,
     at,
   );
+  return (await listRoomsByIds(db, residentIds)).map((entry) => entry.id);
 }
 
 export async function getEligibleMaintenanceRooms(
@@ -342,11 +369,12 @@ export async function getEligibleMaintenanceRooms(
     );
     modes.set(roomId, active === undefined ? null : active.managementMode);
   }
-  const membershipWindows = toMembershipWindows(memberships);
+  const membershipWindows = toMembershipWindows(memberships, tenancies);
   const ownershipIntervals = toOwnershipIntervals(ownerships);
   const tenancyWindows = toTenancyWindows(tenancies);
   const eligible: string[] = [];
   for (const roomId of roomIds) {
+    if (!(await isRoomOperational(db, roomId))) continue;
     const resident = isActiveResident(
       membershipWindows,
       ownershipIntervals,
@@ -378,7 +406,8 @@ export async function resolveActorRooms(actor: Actor, at: Date): Promise<RoomRow
 }
 
 export async function getRoomDetail(roomId: string): Promise<RoomDetail> {
-  const room = await requireKnownRoom(roomId);
+  const room = await findRoomById(db, roomId);
+  if (!room) throw new AppError('RESOURCE_NOT_FOUND');
   return {
     id: room.id,
     floorId: room.floorId,
@@ -428,6 +457,15 @@ export async function listActorRoomPage(
 
 export async function getRoomLabels(roomIds: string[]) {
   return listRoomLabels(db, roomIds);
+}
+
+export async function getTenancyLabels(tenancyIds: string[]) {
+  return Object.fromEntries(
+    (await listTenancyLabels(db, [...new Set(tenancyIds)])).map((row) => [
+      row.id,
+      formatTenancyPeriod(row),
+    ]),
+  );
 }
 
 async function visibleRoomIds(userId: string, at: Date): Promise<string[]> {

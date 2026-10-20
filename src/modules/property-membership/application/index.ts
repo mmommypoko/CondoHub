@@ -1,4 +1,5 @@
 import 'server-only';
+export { deletePropertyResource } from './resourceLifecycle';
 
 export { createPropertyCtx } from './ctx';
 export type { PropertyCtx } from './ctx';
@@ -16,11 +17,13 @@ export {
   listMembershipWindowsByUser,
   membershipOverlapsServiceWindow,
   getRoomLabels,
+  getTenancyLabels,
   resolveActorRooms,
   listActorRoomPage,
   roomResidencyScope,
   tenantOverlapScope,
 } from './queries';
+export { formatTenancyPeriod } from '../domain/tenancyLabel';
 export type {
   MaintenanceRouting,
   MembershipInterval,
@@ -66,6 +69,8 @@ export type {
 } from './ownershipAdmin';
 export {
   createTenancy,
+  cancelScheduledTenancy,
+  lockTenancyForBilling,
   endTenancyAt,
   listRoomActiveTenancies,
   listRoomTenancies,

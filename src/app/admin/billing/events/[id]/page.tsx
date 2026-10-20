@@ -3,8 +3,12 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
-import { EmptyState, FormDialog } from '@/shared/ui';
-import { getCommonFeeEvent } from '@/modules/billing-payments/application/index';
+import { FormDialog } from '@/shared/ui';
+import {
+  getCommonFeeEvent,
+  getEventIssuanceRooms,
+} from '@/modules/billing-payments/application/index';
+import { systemClock } from '@/shared/utils/clock';
 import { isUuid } from '@/shared/utils/idempotency';
 import { ChargeEventCreateForm } from '@/modules/billing-payments/ui/ChargeEventCreateForm';
 import { ChargeEventDetailCard } from '@/modules/billing-payments/ui/ChargeEventDetailCard';
@@ -24,6 +28,7 @@ export default async function AdminBillingEventDetailPage({
   if (!isUuid(id)) redirect('/admin/billing/events');
   const detail = await getCommonFeeEvent(actor, id);
   if (detail === null) redirect('/admin/billing/events');
+  const rooms = await getEventIssuanceRooms(actor, systemClock.now());
   return (
     <main
       data-testid="charge-event-detail-page"
@@ -47,12 +52,7 @@ export default async function AdminBillingEventDetailPage({
           <ChargeEventCreateForm />
         </FormDialog>
       </div>
-      <ChargeEventDetailCard event={detail} />
-      <EmptyState
-        data-testid="charge-event-detail-history"
-        title="Issued invoices"
-        description="Per-room invoices for this event appear on the admin invoice list once the event is issued."
-      />
+      <ChargeEventDetailCard event={detail} rooms={rooms} />
     </main>
   );
 }

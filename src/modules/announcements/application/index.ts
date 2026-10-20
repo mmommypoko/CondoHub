@@ -6,6 +6,7 @@ export { seedAnnouncement } from './seedAnnouncement';
 export type { SeedAnnouncementInput } from './seedAnnouncement';
 export {
   createAnnouncement,
+  deleteAnnouncement,
   getAnnouncementDetail,
   listAdminAnnouncements,
   listAnnouncementFeed,

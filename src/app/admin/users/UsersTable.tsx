@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, UserPlus, X } from 'lucide-react';
+import { Search, UserPlus, X, KeyRound, Power, PowerOff } from 'lucide-react';
 import {
+  ActionMenu,
+  ResourceDeleteControl,
   Badge,
   Button,
   DataTable,
@@ -29,6 +31,7 @@ export interface AdminUserRow {
 }
 
 interface UsersTableProps {
+  actorId: string;
   users: AdminUserRow[];
   total: number;
   page: number;
@@ -55,7 +58,7 @@ type PendingAction =
   | { kind: 'suspend'; user: AdminUserRow }
   | { kind: 'reactivate'; user: AdminUserRow };
 
-export function UsersTable({ users, total, page, pageSize, query }: UsersTableProps) {
+export function UsersTable({ actorId, users, total, page, pageSize, query }: UsersTableProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [search, setSearch] = useState(query);
@@ -99,7 +102,9 @@ export function UsersTable({ users, total, page, pageSize, query }: UsersTablePr
         toast.error('Status change failed.');
         return;
       }
-      toast.success(accountStatus === 'SUSPENDED' ? 'Account suspended.' : 'Account reactivated.');
+      toast.success(
+        accountStatus === 'SUSPENDED' ? 'Account deactivated.' : 'Account reactivated.',
+      );
       router.refresh();
     } finally {
       setBusyId(null);
@@ -120,7 +125,7 @@ export function UsersTable({ users, total, page, pageSize, query }: UsersTablePr
     pendingAction?.kind === 'reset'
       ? 'Reset this password?'
       : pendingAction?.kind === 'suspend'
-        ? 'Suspend this account?'
+        ? 'Deactivate this account?'
         : 'Reactivate this account?';
   const pendingTestId =
     pendingAction?.kind === 'reset'
@@ -220,7 +225,7 @@ export function UsersTable({ users, total, page, pageSize, query }: UsersTablePr
             { key: 'name', header: 'Name', width: 230, truncate: true },
             { key: 'email', header: 'Email', width: 230, truncate: true },
             { key: 'status', header: 'Status', width: 170 },
-            { key: 'actions', header: 'Actions', width: 250 },
+            { key: 'actions', header: 'Actions', width: 110 },
           ]}
           emptyState={<EmptyState title="No users found" description="Try a different search." />}
         >
@@ -243,8 +248,8 @@ export function UsersTable({ users, total, page, pageSize, query }: UsersTablePr
               <DataTableCell>{row.email}</DataTableCell>
               <DataTableCell>
                 <span className="flex flex-wrap items-center gap-1.5">
-                  <Badge variant={row.accountStatus === 'ACTIVE' ? 'success' : 'danger'}>
-                    {row.accountStatus === 'ACTIVE' ? 'Active' : 'Suspended'}
+                  <Badge variant={row.accountStatus === 'ACTIVE' ? 'success' : 'neutral'}>
+                    {row.accountStatus === 'ACTIVE' ? 'Active' : 'Inactive'}
                   </Badge>
                   {row.mustChangePassword ? (
                     <Badge variant="warning">Must change password</Badge>
@@ -252,35 +257,47 @@ export function UsersTable({ users, total, page, pageSize, query }: UsersTablePr
                 </span>
               </DataTableCell>
               <DataTableCell>
-                <span className="flex flex-wrap gap-2">
+                <ActionMenu
+                  label={`Actions for ${row.username ?? row.name}`}
+                  testId={`admin-users-actions-${row.id}`}
+                >
                   <Button
                     variant="secondary"
                     size="sm"
-                    loading={busyId === row.id}
+                    disabled={row.id === actorId || busyId === row.id}
                     onClick={() => setPendingAction({ kind: 'reset', user: row })}
                   >
+                    <KeyRound aria-hidden="true" className="size-4" />
                     Reset password
                   </Button>
-                  {row.accountStatus === 'ACTIVE' ? (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      loading={busyId === row.id}
-                      onClick={() => setPendingAction({ kind: 'suspend', user: row })}
-                    >
-                      Suspend
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      loading={busyId === row.id}
-                      onClick={() => setPendingAction({ kind: 'reactivate', user: row })}
-                    >
-                      Reactivate
-                    </Button>
-                  )}
-                </span>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={row.id === actorId || busyId === row.id}
+                    onClick={() =>
+                      setPendingAction({
+                        kind: row.accountStatus === 'ACTIVE' ? 'suspend' : 'reactivate',
+                        user: row,
+                      })
+                    }
+                  >
+                    {row.accountStatus === 'ACTIVE' ? (
+                      <PowerOff aria-hidden="true" className="size-4" />
+                    ) : (
+                      <Power aria-hidden="true" className="size-4" />
+                    )}
+                    {row.accountStatus === 'ACTIVE' ? 'Deactivate' : 'Reactivate'}
+                  </Button>
+                  <ResourceDeleteControl
+                    resource="user"
+                    name={row.username ?? row.name}
+                    endpoint={`/api/admin/users/${row.id}`}
+                    testId="admin-users-delete"
+                    triggerTestId={`admin-users-delete-${row.id}-open`}
+                    disabled={row.id === actorId}
+                    description="This account will be removed from the user directory and signed out immediately. Existing room, billing and message history stay recorded. This account cannot be reactivated after deletion."
+                  />
+                </ActionMenu>
               </DataTableCell>
             </DataTableRow>
           ))}
@@ -294,7 +311,7 @@ export function UsersTable({ users, total, page, pageSize, query }: UsersTablePr
           pendingAction?.kind === 'reset'
             ? `Reset the password for ${pendingLabel}? A temporary password is shown once.`
             : pendingAction?.kind === 'suspend'
-              ? `Suspend ${pendingLabel}? The account loses access immediately.`
+              ? `Deactivate ${pendingLabel}? The account loses access immediately.`
               : `Reactivate ${pendingLabel}? The account regains access.`
         }
         size="sm"
@@ -306,14 +323,14 @@ export function UsersTable({ users, total, page, pageSize, query }: UsersTablePr
             </Button>
             <Button
               data-testid={pendingTestId}
-              variant={pendingAction?.kind === 'suspend' ? 'destructive' : 'primary'}
+              variant="primary"
               loading={pendingAction !== null && busyId === pendingAction.user.id}
               onClick={confirmPending}
             >
               {pendingAction?.kind === 'reset'
                 ? 'Reset password'
                 : pendingAction?.kind === 'suspend'
-                  ? 'Suspend account'
+                  ? 'Deactivate account'
                   : 'Reactivate account'}
             </Button>
           </>
@@ -326,7 +343,7 @@ export function UsersTable({ users, total, page, pageSize, query }: UsersTablePr
           {pendingAction?.kind === 'reset'
             ? 'The user must change the temporary password at next login.'
             : pendingAction?.kind === 'suspend'
-              ? 'Active sessions end and the user cannot sign in while suspended.'
+              ? 'Active sessions end and the user cannot sign in while inactive.'
               : 'The user can sign in again with the existing password.'}
         </p>
       </Dialog>

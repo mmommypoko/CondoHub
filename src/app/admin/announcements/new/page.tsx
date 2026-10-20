@@ -1,7 +1,7 @@
 import 'server-only';
 import { redirect } from 'next/navigation';
 import { getActorFromSession } from '@/shared/auth/actor';
-import { PageHeader } from '@/shared/ui';
+import { PageHeader, SectionCard } from '@/shared/ui';
 import { AnnouncementCreateForm } from '@/modules/announcements/ui/AnnouncementCreateForm';
 
 export default async function AdminAnnouncementNewPage() {
@@ -21,7 +21,9 @@ export default async function AdminAnnouncementNewPage() {
         backLabel="Back to announcements"
         backTestId="admin-announcement-new-back"
       />
-      <AnnouncementCreateForm />
+      <SectionCard title="Content and publishing" className="max-w-3xl">
+        <AnnouncementCreateForm />
+      </SectionCard>
     </main>
   );
 }

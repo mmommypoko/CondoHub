@@ -7,21 +7,9 @@ import { EmptyState, FilterBar, PageHeader, Pagination } from '@/shared/ui';
 import { listTickets, type TicketDto } from '@/modules/maintenance/application/index';
 import { isTerminalTicketStatus } from '@/modules/maintenance/ui/ticketLabels';
 import { TicketListCard } from '@/modules/maintenance/ui/TicketListCard';
-import {
-  findBuildingById,
-  findRoomById,
-} from '@/modules/property-membership/infrastructure/structureRepository';
-import { db } from '@/shared/db/client';
+import { getRoomLabels } from '@/modules/property-membership/application/index';
 
 export const dynamic = 'force-dynamic';
-
-async function roomLabel(roomId: string | null): Promise<string | null> {
-  if (roomId === null) return null;
-  const room = await findRoomById(db, roomId);
-  if (room === null) return 'Room unavailable';
-  const building = await findBuildingById(db, room.buildingId);
-  return `${building?.name ?? 'Building'} · ${room.name}`;
-}
 
 const STATUS_FILTERS = [
   'PENDING',
@@ -78,12 +66,13 @@ export default async function AdminMaintenancePage({
   });
   const open = feed.rows.filter((row: TicketDto) => !isTerminalTicketStatus(row.status));
   const history = feed.rows.filter((row: TicketDto) => isTerminalTicketStatus(row.status));
-  const labels = new Map<string, string | null>();
-  for (const row of feed.rows) {
-    if (row.roomId !== null && !labels.has(row.roomId)) {
-      labels.set(row.roomId, await roomLabel(row.roomId));
-    }
-  }
+  const labels = new Map(
+    (
+      await getRoomLabels([
+        ...new Set(feed.rows.flatMap((row) => (row.roomId ? [row.roomId] : []))),
+      ])
+    ).map((row) => [row.id, row.label]),
+  );
   const totalPages = Math.max(1, Math.ceil(feed.total / 20));
   const statusQuery = status === undefined ? '' : `status=${status}`;
   const kindQuery = (target: string | undefined): string => {

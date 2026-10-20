@@ -12,7 +12,6 @@ import {
 } from '@/modules/property-membership/application/index';
 import { AppError } from '@/shared/utils/errors';
 import { getRoomQuota, getRoomBookingHistory } from '@/modules/facility-booking/application/index';
-import { listFacilityPage } from '@/modules/facility-booking/application/index';
 import { BookingCancelButton } from '@/modules/facility-booking/ui/BookingCancelButton';
 
 function formatInstant(value: string): string {
@@ -65,19 +64,14 @@ export default async function RoomBookingsPage({
   });
   if (room === null) redirect('/rooms');
   const [roomLabel] = await getRoomLabels([roomId]);
-  const [history, facilities] = await Promise.all([
-    getRoomBookingHistory(actor, roomId, now),
-    listFacilityPage(actor, { status: 'ACTIVE', page: 1, pageSize: 100 }),
-  ]);
+  const history = await getRoomBookingHistory(actor, roomId, now);
   const bookings = history.bookings;
   const deletedFacilities = new Set(
     history.facilities.filter((row) => row.deleted).map((row) => row.id),
   );
-  const facilityNames = new Map(
-    [...history.facilities, ...facilities.rows].map((row) => [row.id, row.name]),
-  );
+  const facilityNames = new Map(history.facilities.map((row) => [row.id, row.name]));
   const quotas = [];
-  for (const facility of facilities.rows) {
+  for (const facility of history.facilities.filter((entry) => !entry.deleted)) {
     try {
       quotas.push(await getRoomQuota(actor, facility.id, { roomId }, now));
     } catch {
@@ -111,38 +105,6 @@ export default async function RoomBookingsPage({
           </p>
         </div>
       </div>
-      {quotas.length > 0 ? (
-        <ul
-          data-testid="room-bookings-quotas"
-          className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3"
-        >
-          {quotas.map((quota) => (
-            <li
-              key={`${quota.facilityId}-${quota.periodKey}`}
-              className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface px-5 py-5"
-            >
-              <span className="min-w-0 flex-1 basis-40 break-words text-body text-foreground">
-                {facilityNames.get(quota.facilityId) ?? 'Facility'}
-              </span>
-              <span className="flex shrink-0 flex-wrap items-center gap-2">
-                <Badge
-                  data-testid={`room-bookings-quota-${quota.facilityId}`}
-                  variant={quota.quotaUsed >= quota.quotaLimit ? 'warning' : 'info'}
-                >
-                  {quota.quotaUsed}/{quota.quotaLimit} {quota.quotaKind}
-                </Badge>
-                <Link
-                  data-testid={`room-bookings-book-${quota.facilityId}`}
-                  href={`/facilities/${quota.facilityId}?roomId=${roomId}`}
-                  className="shrink-0 rounded-md text-body font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
-                >
-                  Book slots
-                </Link>
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
       {bookings.length === 0 ? (
         <EmptyState
           data-testid="room-bookings-empty"
@@ -221,6 +183,38 @@ export default async function RoomBookingsPage({
           ))}
         </ul>
       )}
+      {quotas.length > 0 ? (
+        <ul
+          data-testid="room-bookings-quotas"
+          className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3"
+        >
+          {quotas.map((quota) => (
+            <li
+              key={`${quota.facilityId}-${quota.periodKey}`}
+              className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface px-5 py-5"
+            >
+              <span className="min-w-0 flex-1 basis-40 break-words text-body text-foreground">
+                {facilityNames.get(quota.facilityId) ?? 'Facility'}
+              </span>
+              <span className="flex shrink-0 flex-wrap items-center gap-2">
+                <Badge
+                  data-testid={`room-bookings-quota-${quota.facilityId}`}
+                  variant={quota.quotaUsed >= quota.quotaLimit ? 'warning' : 'info'}
+                >
+                  {quota.quotaUsed}/{quota.quotaLimit} {quota.quotaKind}
+                </Badge>
+                <Link
+                  data-testid={`room-bookings-book-${quota.facilityId}`}
+                  href={`/facilities/${quota.facilityId}?roomId=${roomId}`}
+                  className="shrink-0 rounded-md text-body font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                >
+                  Book slots
+                </Link>
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </main>
   );
 }

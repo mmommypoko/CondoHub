@@ -76,33 +76,43 @@ export function SlotPicker({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    if (roomId === '') return;
-    setLoading(true);
-    setLoadError(null);
-    setSelected([]);
-    try {
-      const response = await fetch(
-        `/api/facilities/${facilityId}/slots?date=${encodeURIComponent(date)}&roomId=${encodeURIComponent(roomId)}`,
-      );
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as ErrorPayload | null;
-        setLoadError(body?.error?.message ?? 'Could not load availability.');
+  const load = useCallback(
+    async (signal: AbortSignal) => {
+      if (roomId === '') return;
+      setLoading(true);
+      setLoadError(null);
+      setSubmitError(null);
+      setSelected([]);
+      try {
+        const response = await fetch(
+          `/api/facilities/${facilityId}/slots?date=${encodeURIComponent(date)}&roomId=${encodeURIComponent(roomId)}`,
+          { signal },
+        );
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as ErrorPayload | null;
+          if (signal.aborted) return;
+          setLoadError(body?.error?.message ?? 'Could not load availability.');
+          setPayload(null);
+          return;
+        }
+        const body = (await response.json()) as AvailabilityPayload;
+        if (signal.aborted) return;
+        setPayload(body.data);
+      } catch {
+        if (signal.aborted) return;
+        setLoadError('Could not load availability.');
         setPayload(null);
-        return;
+      } finally {
+        if (!signal.aborted) setLoading(false);
       }
-      const body = (await response.json()) as AvailabilityPayload;
-      setPayload(body.data);
-    } catch {
-      setLoadError('Could not load availability.');
-      setPayload(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [facilityId, roomId, date]);
+    },
+    [facilityId, roomId, date],
+  );
 
   useEffect(() => {
-    void load();
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
   }, [load]);
 
   const toggle = useCallback((startsAt: string, available: boolean) => {
@@ -155,6 +165,7 @@ export function SlotPicker({
             aria-label="Room"
             className={INPUT_CLASS}
             value={roomId}
+            disabled={submitting}
             onChange={(event) => {
               setRoomId(event.target.value);
               router.replace(
@@ -177,6 +188,7 @@ export function SlotPicker({
             aria-label="Date"
             className={INPUT_CLASS}
             value={date}
+            disabled={submitting}
             onChange={(event) => setDate(event.target.value)}
           />
         </FormField>
@@ -237,7 +249,7 @@ export function SlotPicker({
                 type="button"
                 data-testid={`slot-picker-slot-${slug}`}
                 aria-pressed={active}
-                disabled={!slot.available}
+                disabled={!slot.available || submitting}
                 onClick={() => toggle(slot.startsAt, slot.available)}
                 className={cx(
                   'flex min-w-0 flex-col gap-1 rounded-xl border p-4 text-left text-body transition-[background-color,border-color,transform] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring motion-reduce:transition-none',
@@ -286,7 +298,12 @@ export function SlotPicker({
             : `Confirm ${selected.length} slot${selected.length === 1 ? '' : 's'}`}
         </Button>
         {selected.length > 0 ? (
-          <Button type="button" variant="secondary" onClick={() => setSelected([])}>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={submitting}
+            onClick={() => setSelected([])}
+          >
             Clear
           </Button>
         ) : null}

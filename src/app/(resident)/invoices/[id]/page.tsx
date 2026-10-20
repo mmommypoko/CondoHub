@@ -12,7 +12,7 @@ import {
   listPaymentSubmissions,
 } from '@/modules/billing-payments/application/index';
 import { isUuid } from '@/shared/utils/idempotency';
-import { getRoomLabels } from '@/modules/property-membership/application/index';
+import { getRoomLabels, getTenancyLabels } from '@/modules/property-membership/application/index';
 import { InvoiceDetailCard } from '@/modules/billing-payments/ui/InvoiceDetailCard';
 import { InvoicePaymentSections } from '@/modules/billing-payments/ui/InvoicePaymentSections';
 
@@ -35,6 +35,9 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     getInvoiceUiPermissions(actor, id, now),
   ]);
   const roomLabel = (await getRoomLabels([detail.roomId]))[0]?.label;
+  const tenancyLabel = (await getTenancyLabels(detail.tenancyId ? [detail.tenancyId] : []))[
+    detail.tenancyId ?? ''
+  ];
   return (
     <main
       data-testid="invoice-detail-page"
@@ -42,13 +45,13 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     >
       <Link
         data-testid="invoice-detail-back"
-        href="/invoices"
+        href={permissions.receivesRent ? '/invoices?view=receivable' : '/invoices'}
         className="inline-flex w-fit items-center gap-1.5 rounded-md text-body font-medium text-link underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
       >
         <ArrowLeft aria-hidden="true" className="size-4" />
-        Back to bills
+        {permissions.receivesRent ? 'Back to rent invoices' : 'Back to bills'}
       </Link>
-      <InvoiceDetailCard invoice={detail} roomLabel={roomLabel} />
+      <InvoiceDetailCard invoice={detail} roomLabel={roomLabel} tenancyLabel={tenancyLabel} />
       <InvoicePaymentSections
         invoice={detail}
         submissions={submissions}

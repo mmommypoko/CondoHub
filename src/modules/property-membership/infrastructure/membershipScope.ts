@@ -17,7 +17,7 @@ export function roomResidencyScope(input: {
   roomRef: SQL;
   at: Date;
 }): SQL<boolean> {
-  return sql<boolean>`exists (select 1 from "room_membership" as "rm" where "rm"."user_id" = ${input.userId} and "rm"."room_id" = ${input.roomRef} and "rm"."start_at" <= ${input.at} and ("rm"."end_at" is null or "rm"."end_at" > ${input.at}))`;
+  return sql<boolean>`exists (select 1 from "room_membership" as "rm" where "rm"."user_id" = ${input.userId} and "rm"."room_id" = ${input.roomRef} and ("rm"."tenancy_id" is null or exists (select 1 from "rental_period" as "rp" where "rp"."id" = "rm"."tenancy_id" and "rp"."state" <> 'CANCELLED')) and "rm"."start_at" <= ${input.at} and ("rm"."end_at" is null or "rm"."end_at" > ${input.at}))`;
 }
 
 export async function membershipOverlapsServiceWindow(

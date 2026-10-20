@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne, or, sql } from 'drizzle-orm';
 import type { Db, Tx } from '@/shared/db/transaction';
 import {
   invoice,
@@ -105,70 +105,30 @@ export interface TurnoverReviewPage {
   total: number;
 }
 
-async function pageReviews(
-  conn: Db,
-  where: ReturnType<typeof and>,
-  limit: number,
-  offset: number,
-): Promise<TurnoverReviewPage> {
-  const rows = await conn
-    .select({ review: turnoverBillingReview })
-    .from(turnoverBillingReview)
-    .innerJoin(
-      turnoverReviewResponsibleOwner,
-      eq(turnoverReviewResponsibleOwner.reviewId, turnoverBillingReview.id),
-    )
-    .where(where)
-    .orderBy(desc(turnoverBillingReview.createdAt), desc(turnoverBillingReview.id))
-    .limit(limit)
-    .offset(offset);
-  const counted = await conn
-    .select({ count: sql<number>`count(*)` })
-    .from(turnoverBillingReview)
-    .innerJoin(
-      turnoverReviewResponsibleOwner,
-      eq(turnoverReviewResponsibleOwner.reviewId, turnoverBillingReview.id),
-    )
-    .where(where);
-  return {
-    rows: rows.map((row) => toReviewRecord(row.review)),
-    total: Number(counted[0]?.count ?? 0),
-  };
+function visibleReviewScope(userId: string, includeProjectManaged: boolean) {
+  const privateScope = and(
+    ne(turnoverBillingReview.managementModeAtCreation, 'PROJECT_MANAGED'),
+    sql<boolean>`exists (select 1 from ${turnoverReviewResponsibleOwner} where ${turnoverReviewResponsibleOwner.reviewId} = ${turnoverBillingReview.id} and ${turnoverReviewResponsibleOwner.userId} = ${userId})`,
+  );
+  return includeProjectManaged
+    ? or(eq(turnoverBillingReview.managementModeAtCreation, 'PROJECT_MANAGED'), privateScope)
+    : privateScope;
 }
 
-export async function listTurnoverReviewsForMember(
+export async function listVisibleTurnoverReviews(
   conn: Db,
-  input: { userId: string; state?: TurnoverReviewState | undefined; limit: number; offset: number },
+  input: {
+    userId: string;
+    includeProjectManaged: boolean;
+    state?: TurnoverReviewState | undefined;
+    limit: number;
+    offset: number;
+  },
 ): Promise<TurnoverReviewPage> {
-  const conditions = [eq(turnoverReviewResponsibleOwner.userId, input.userId)];
-  if (input.state !== undefined) conditions.push(eq(turnoverBillingReview.state, input.state));
-  return pageReviews(conn, and(...conditions), input.limit, input.offset);
-}
-
-export async function countUnresolvedReviewsForMember(conn: Db, userId: string): Promise<number> {
-  const counted = await conn
-    .select({ count: sql<number>`count(*)` })
-    .from(turnoverBillingReview)
-    .innerJoin(
-      turnoverReviewResponsibleOwner,
-      eq(turnoverReviewResponsibleOwner.reviewId, turnoverBillingReview.id),
-    )
-    .where(
-      and(
-        eq(turnoverReviewResponsibleOwner.userId, userId),
-        eq(turnoverBillingReview.state, 'UNRESOLVED'),
-      ),
-    );
-  return Number(counted[0]?.count ?? 0);
-}
-
-export async function listTurnoverReviewsForAdmin(
-  conn: Db,
-  input: { state?: TurnoverReviewState | undefined; limit: number; offset: number },
-): Promise<TurnoverReviewPage> {
-  const conditions = [eq(turnoverBillingReview.managementModeAtCreation, 'PROJECT_MANAGED')];
-  if (input.state !== undefined) conditions.push(eq(turnoverBillingReview.state, input.state));
-  const where = and(...conditions);
+  const where = and(
+    visibleReviewScope(input.userId, input.includeProjectManaged),
+    input.state === undefined ? undefined : eq(turnoverBillingReview.state, input.state),
+  );
   const rows = await conn
     .select()
     .from(turnoverBillingReview)
@@ -180,16 +140,22 @@ export async function listTurnoverReviewsForAdmin(
     .select({ count: sql<number>`count(*)` })
     .from(turnoverBillingReview)
     .where(where);
-  return { rows: rows.map(toReviewRecord), total: Number(counted[0]?.count ?? 0) };
+  return {
+    rows: rows.map(toReviewRecord),
+    total: Number(counted[0]?.count ?? 0),
+  };
 }
 
-export async function countUnresolvedReviewsForAdmin(conn: Db): Promise<number> {
+export async function countVisibleUnresolvedReviews(
+  conn: Db,
+  input: { userId: string; includeProjectManaged: boolean },
+): Promise<number> {
   const counted = await conn
     .select({ count: sql<number>`count(*)` })
     .from(turnoverBillingReview)
     .where(
       and(
-        eq(turnoverBillingReview.managementModeAtCreation, 'PROJECT_MANAGED'),
+        visibleReviewScope(input.userId, input.includeProjectManaged),
         eq(turnoverBillingReview.state, 'UNRESOLVED'),
       ),
     );

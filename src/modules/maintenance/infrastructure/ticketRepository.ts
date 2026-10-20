@@ -8,6 +8,18 @@ import {
   type MaintenanceStatus,
 } from './schema';
 
+export async function listOpenPrivateManagerGroups(conn: Db, userId: string): Promise<string[][]> {
+  const result = await conn.execute<{ userIds: string[] }>(sql`
+    select array_agg(distinct r.recipient_user_id) as "userIds"
+    from maintenance_recipient r
+    join maintenance_request t on t.id = r.request_id
+    where t.routing_kind = 'PRIVATE_OWNER' and t.status in ('PENDING', 'IN_PROGRESS', 'WAITING_FOR_INFO')
+      and exists (select 1 from maintenance_recipient target where target.request_id = t.id and target.recipient_user_id = ${userId})
+    group by t.id
+  `);
+  return result.rows.map((row) => row.userIds);
+}
+
 export interface TicketRecord {
   id: string;
   reporterId: string;

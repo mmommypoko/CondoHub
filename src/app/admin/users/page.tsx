@@ -1,8 +1,7 @@
 import 'server-only';
 import { redirect } from 'next/navigation';
 import { getActorFromSession } from '@/shared/auth/actor';
-import { db } from '@/shared/db/client';
-import { searchUsers } from '@/modules/identity-access/infrastructure/userRepository';
+import { searchUserAccounts } from '@/modules/identity-access/application/index';
 import { PageHeader } from '@/shared/ui';
 import { UsersTable } from './UsersTable';
 
@@ -17,7 +16,7 @@ export default async function AdminUsersPage({
   if (actor.mustChangePassword) redirect('/change-password');
   const params = await searchParams;
   const page = Math.max(1, Number(params.page ?? '1') || 1);
-  const result = await searchUsers(db, { query: params.query, page, pageSize: 20 });
+  const result = await searchUserAccounts(actor, { query: params.query, page, pageSize: 20 });
   return (
     <main
       data-testid="admin-users-page"
@@ -25,9 +24,10 @@ export default async function AdminUsersPage({
     >
       <PageHeader
         title="Users"
-        description="Search accounts, provision new users, reset passwords, and suspend accounts."
+        description="Search accounts, provision new users, reset passwords, deactivate or delete accounts."
       />
       <UsersTable
+        actorId={actor.userId}
         users={result.rows.map((row) => ({
           id: row.id,
           username: row.username,

@@ -30,7 +30,13 @@ export const commonFeeEventCreateBody = z
 
 export type CommonFeeEventCreateBody = z.infer<typeof commonFeeEventCreateBody>;
 
+export const commonFeeEventIssueBody = z
+  .object({ roomIds: z.array(z.string().uuid()).min(1).max(100).optional() })
+  .strict();
+export const commonFeeEventCancelBody = z.object({ action: z.literal('CANCEL') }).strict();
+
 export const invoiceListQuery = z.object({
+  oneTimeChargeEventId: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
   roomId: z.string().uuid().optional(),

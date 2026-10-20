@@ -255,6 +255,54 @@ export async function findChargeEventById(conn: Db, id: string): Promise<ChargeE
   return row === undefined ? null : toEventRow(row);
 }
 
+export async function lockChargeEvent(tx: Tx, id: string): Promise<ChargeEventRecord | null> {
+  const rows = await tx
+    .select()
+    .from(commonFeeChargeEvent)
+    .where(eq(commonFeeChargeEvent.id, id))
+    .for('update')
+    .limit(1);
+  return rows[0] ? toEventRow(rows[0]) : null;
+}
+
+export async function setChargeEventContext(
+  tx: Tx,
+  id: string,
+  context: Record<string, unknown>,
+): Promise<void> {
+  await tx
+    .update(commonFeeChargeEvent)
+    .set({ chargeContext: context })
+    .where(eq(commonFeeChargeEvent.id, id));
+}
+
+export async function listEventInvoiceRoomIds(conn: Db, eventId: string): Promise<string[]> {
+  const rows = await conn
+    .select({ roomId: invoice.roomId })
+    .from(invoice)
+    .where(eq(invoice.oneTimeChargeEventId, eventId));
+  return rows.map((row) => row.roomId);
+}
+
+export async function listChargeEvents(
+  conn: Db,
+  status: ChargeEventStatus,
+): Promise<ChargeEventRecord[]> {
+  const rows = await conn
+    .select()
+    .from(commonFeeChargeEvent)
+    .where(eq(commonFeeChargeEvent.status, status))
+    .orderBy(desc(commonFeeChargeEvent.createdAt), desc(commonFeeChargeEvent.id));
+  return rows.map(toEventRow);
+}
+
+export async function cancelChargeEvent(tx: Tx, id: string): Promise<void> {
+  await tx
+    .update(commonFeeChargeEvent)
+    .set({ status: 'CANCELLED' })
+    .where(and(eq(commonFeeChargeEvent.id, id), eq(commonFeeChargeEvent.status, 'OPEN')));
+}
+
 export async function listOpenChargeEvents(conn: Db): Promise<ChargeEventRecord[]> {
   const rows = await conn
     .select()
@@ -268,7 +316,7 @@ export async function markChargeEventIssued(tx: Tx, id: string): Promise<void> {
   await tx
     .update(commonFeeChargeEvent)
     .set({ status: 'ISSUED' })
-    .where(eq(commonFeeChargeEvent.id, id));
+    .where(and(eq(commonFeeChargeEvent.id, id), eq(commonFeeChargeEvent.status, 'OPEN')));
 }
 
 export interface TurnoverReviewRecord {

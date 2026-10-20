@@ -3,7 +3,16 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ArrowUpRight, DoorOpen, Layers3, MessageCircle } from 'lucide-react';
 import { getActorFromSession } from '@/shared/auth/actor';
-import { ActionMenu, Badge, EmptyState, FormDialog, PageHeader, Pagination, cx } from '@/shared/ui';
+import {
+  ActionMenu,
+  Badge,
+  EmptyState,
+  FormDialog,
+  PageHeader,
+  Pagination,
+  ResourceDeleteControl,
+  cx,
+} from '@/shared/ui';
 import { listBuildingStructures } from '@/modules/property-membership/application/index';
 import { FloorCreateForm } from '@/modules/property-membership/ui/FloorCreateForm';
 import { RoomCreateForm } from '@/modules/property-membership/ui/RoomCreateForm';
@@ -68,6 +77,14 @@ export default async function AdminBuildingDetailPage({
                 <BuildingEditForm buildingId={buildingId} name={structures.building.name} />
               </FormDialog>
               <BuildingStatusControl buildingId={buildingId} status={structures.building.status} />
+              <ResourceDeleteControl
+                resource="building"
+                name={structures.building.name}
+                endpoint={`/api/admin/buildings/${buildingId}`}
+                testId="building-delete"
+                redirectTo="/admin/buildings"
+                description="This building, its floors and rooms will be removed from the directory. End active or scheduled rentals and memberships first. Bills and history stay recorded."
+              />
             </ActionMenu>
           </>
         }
@@ -128,6 +145,9 @@ export default async function AdminBuildingDetailPage({
                       <span title={floor.label} className="truncate text-body font-medium">
                         {floor.label}
                       </span>
+                      {floor.status === 'INACTIVE' ? (
+                        <span className="text-xs font-medium text-muted-foreground">Inactive</span>
+                      ) : null}
                       <span className="text-xs text-muted-foreground">
                         {roomCounts.get(floor.id) ?? 0}{' '}
                         {(roomCounts.get(floor.id) ?? 0) === 1 ? 'room' : 'rooms'}
@@ -141,7 +161,7 @@ export default async function AdminBuildingDetailPage({
                       <FloorRowActions
                         floorId={floor.id}
                         label={floor.label}
-                        roomCount={roomCounts.get(floor.id) ?? 0}
+                        status={floor.status}
                       />
                     </ActionMenu>
                   </li>

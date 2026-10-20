@@ -1,4 +1,5 @@
 import 'server-only';
+import { AccountAccessBadge } from '@/modules/identity-access/ui/AccountAccessBadge';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ArrowUpRight, CalendarDays, KeyRound, MessageCircle } from 'lucide-react';
@@ -6,6 +7,7 @@ import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
 import { PROJECT_TIMEZONE } from '@/config/project';
 import {
+  ActionMenu,
   ACTION_LINK_CLASS,
   ACTION_LINK_SECONDARY_CLASS,
   Badge,
@@ -22,12 +24,13 @@ import {
   listCurrentRoomMemberships,
   listRoomTenancies,
 } from '@/modules/property-membership/application/index';
-import { getSenderProfile } from '@/modules/identity-access/application/index';
+import { getPeopleProfiles } from '@/modules/identity-access/application/index';
 import { RoomMemberAddForm } from '@/modules/property-membership/ui/RoomMemberAddForm';
 import {
   OwnershipAssignForm,
   OwnershipManageForm,
 } from '@/modules/property-membership/ui/OwnershipForms';
+import { RoomRowActions } from '@/modules/property-membership/ui/RoomRowActions';
 import { EndMembershipButton } from '@/modules/property-membership/ui/EndMembershipButton';
 
 const formatDate = (value: Date) =>
@@ -55,15 +58,15 @@ export default async function RoomDetailPage({ params }: { params: Promise<{ roo
         />
       </main>
     );
-  const [room, labels, owners, memberships, tenancies, manageVerdict] = await Promise.all([
-    getRoomDetail(roomId).catch(() => null),
+  const room = await getRoomDetail(roomId).catch(() => null);
+  if (!room) redirect('/rooms');
+  const [labels, owners, memberships, tenancies, manageVerdict] = await Promise.all([
     getRoomLabels([roomId]),
     getCurrentOwners(roomId, now),
     listCurrentRoomMemberships(roomId, now),
     listRoomTenancies(roomId),
     canActInRoom(actor.userId, roomId, 'MANAGE_MEMBERS', now).catch(() => null),
   ]);
-  if (!room) redirect('/rooms');
   const label = labels[0];
   const canUseResidentServices =
     actor.isSystemAdmin || (await canActInRoom(actor.userId, roomId, 'VIEW_CHAT', now)).allowed;
@@ -76,17 +79,11 @@ export default async function RoomDetailPage({ params }: { params: Promise<{ roo
   const upcomingTenancy = activeTenancies.find((row) => row.startsAt > now);
   const rental = currentTenancy ?? upcomingTenancy;
   const canAddHousehold = canManageMembers && activeTenancies.length === 0;
-  const profiles = new Map(
-    await Promise.all(
-      [...new Set([...owners, ...memberships].map((person) => person.userId))].map(
-        async (id) =>
-          [
-            id,
-            (await getSenderProfile(id).catch(() => null))?.name ?? 'Account unavailable',
-          ] as const,
-      ),
-    ),
+  const people = await getPeopleProfiles(
+    [...owners, ...memberships].map((person) => person.userId),
   );
+  const profiles = new Map(people.map((person) => [person.userId, person.name]));
+  const accountStates = new Map(people.map((person) => [person.userId, person.status]));
   return (
     <main
       data-testid="room-detail-page"
@@ -122,6 +119,17 @@ export default async function RoomDetailPage({ params }: { params: Promise<{ roo
                   <MessageCircle aria-hidden="true" className="size-4" />
                   Open room chat
                 </Link>
+              ) : null}
+              {actor.isSystemAdmin ? (
+                <ActionMenu label="Room actions" testId="room-actions">
+                  <RoomRowActions
+                    roomId={room.id}
+                    name={room.name}
+                    areaSqm={room.areaSqm}
+                    status={room.status}
+                    deleteRedirectTo="/rooms"
+                  />
+                </ActionMenu>
               ) : null}
             </>
           }
@@ -222,6 +230,7 @@ export default async function RoomDetailPage({ params }: { params: Promise<{ roo
                     <div className="min-w-0 flex-1">
                       <p className="break-words text-body font-medium">
                         {profiles.get(owner.userId)}
+                        <AccountAccessBadge status={accountStates.get(owner.userId)} />
                       </p>
                       <p className="text-caption text-muted-foreground">
                         Since {formatDate(owner.startAt)}
@@ -301,6 +310,7 @@ export default async function RoomDetailPage({ params }: { params: Promise<{ roo
                     <div className="min-w-0 flex-1 basis-28">
                       <p className="break-words text-body font-medium">
                         {profiles.get(membership.userId)}
+                        <AccountAccessBadge status={accountStates.get(membership.userId)} />
                       </p>
                       <p className="text-caption text-muted-foreground">
                         {membership.tenancyId

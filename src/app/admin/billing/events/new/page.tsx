@@ -1,7 +1,7 @@
 import 'server-only';
 import { redirect } from 'next/navigation';
 import { getActorFromSession } from '@/shared/auth/actor';
-import { PageHeader } from '@/shared/ui';
+import { PageHeader, SectionCard } from '@/shared/ui';
 import { ChargeEventCreateForm } from '@/modules/billing-payments/ui/ChargeEventCreateForm';
 
 export const dynamic = 'force-dynamic';
@@ -23,7 +23,9 @@ export default async function AdminBillingEventNewPage() {
         backLabel="Back to billing events"
         backTestId="charge-event-new-back"
       />
-      <ChargeEventCreateForm />
+      <SectionCard title="Charge details" className="max-w-2xl">
+        <ChargeEventCreateForm />
+      </SectionCard>
     </main>
   );
 }

@@ -1,5 +1,7 @@
 import type { InvoiceKind } from '../infrastructure/schema';
 
+export type InvoiceListView = 'payable' | 'receivable';
+
 export type InvoiceQueueAction =
   | 'VIEW'
   | 'SUBMIT_PAYMENT'
@@ -24,9 +26,7 @@ export interface InvoiceAccessContext {
   pendingOnInvoice: boolean;
 }
 
-export type InvoiceAccessVerdict =
-  | { allowed: true }
-  | { allowed: false; httpStatus: 403 | 404 };
+export type InvoiceAccessVerdict = { allowed: true } | { allowed: false; httpStatus: 403 | 404 };
 
 export function evaluatePrivateRentAccess(
   context: InvoiceAccessContext,
@@ -41,11 +41,7 @@ export function evaluatePrivateRentAccess(
   }
   if (context.invoicePaid) {
     if (action === 'VIEW') return { allowed: true };
-    if (
-      action === 'REVIEW_REJECT' &&
-      context.pendingOnInvoice &&
-      context.inRentReviewerSnapshot
-    ) {
+    if (action === 'REVIEW_REJECT' && context.pendingOnInvoice && context.inRentReviewerSnapshot) {
       return { allowed: true };
     }
     return { allowed: false, httpStatus: 404 };
@@ -55,14 +51,8 @@ export function evaluatePrivateRentAccess(
       ? { allowed: true }
       : { allowed: false, httpStatus: 404 };
   }
-  if (
-    action === 'REVIEW_APPROVE' ||
-    action === 'REVIEW_REJECT' ||
-    action === 'EDIT'
-  ) {
-    return context.inRentReviewerSnapshot
-      ? { allowed: true }
-      : { allowed: false, httpStatus: 404 };
+  if (action === 'REVIEW_APPROVE' || action === 'REVIEW_REJECT' || action === 'EDIT') {
+    return context.inRentReviewerSnapshot ? { allowed: true } : { allowed: false, httpStatus: 404 };
   }
   if (action === 'VIEW_SLIP' || action === 'VIEW_PAYEE') {
     return context.inRentReviewerSnapshot || context.tenantOverlap

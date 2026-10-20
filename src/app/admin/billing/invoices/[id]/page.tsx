@@ -12,7 +12,7 @@ import {
   listPaymentSubmissions,
 } from '@/modules/billing-payments/application/index';
 import { isUuid } from '@/shared/utils/idempotency';
-import { getRoomLabels } from '@/modules/property-membership/application/index';
+import { getRoomLabels, getTenancyLabels } from '@/modules/property-membership/application/index';
 import { InvoiceDetailCard } from '@/modules/billing-payments/ui/InvoiceDetailCard';
 import { InvoicePaymentSections } from '@/modules/billing-payments/ui/InvoicePaymentSections';
 
@@ -39,6 +39,9 @@ export default async function AdminBillingInvoiceDetailPage({
     getInvoiceUiPermissions(actor, id, now),
   ]);
   const roomLabel = (await getRoomLabels([detail.roomId]))[0]?.label;
+  const tenancyLabel = (await getTenancyLabels(detail.tenancyId ? [detail.tenancyId] : []))[
+    detail.tenancyId ?? ''
+  ];
   return (
     <main
       data-testid="invoice-detail-page"
@@ -52,7 +55,7 @@ export default async function AdminBillingInvoiceDetailPage({
         <ArrowLeft aria-hidden="true" className="size-4" />
         Back to invoices
       </Link>
-      <InvoiceDetailCard invoice={detail} roomLabel={roomLabel} />
+      <InvoiceDetailCard invoice={detail} roomLabel={roomLabel} tenancyLabel={tenancyLabel} />
       <InvoicePaymentSections
         invoice={detail}
         submissions={submissions}

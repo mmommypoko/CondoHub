@@ -2,9 +2,17 @@ import 'server-only';
 import { redirect } from 'next/navigation';
 import { getActorFromSession } from '@/shared/auth/actor';
 import { systemClock } from '@/shared/utils/clock';
-import { ActionMenu, Badge, FormDialog, PageHeader, SectionCard } from '@/shared/ui';
+import {
+  ActionMenu,
+  Badge,
+  FormDialog,
+  PageHeader,
+  ResourceDeleteControl,
+  SectionCard,
+} from '@/shared/ui';
 import { getAnnouncementDetail } from '@/modules/announcements/application/index';
 import { AnnouncementEditForm } from '@/modules/announcements/ui/AnnouncementEditForm';
+import { AnnouncementStatusControl } from '@/modules/announcements/ui/AnnouncementStatusControl';
 import { AnnouncementImage } from '@/modules/announcements/ui/AnnouncementImage';
 
 export default async function AdminAnnouncementEditPage({
@@ -54,6 +62,15 @@ export default async function AdminAnnouncementEditPage({
                 revisions={detail.revisions}
               />
             </FormDialog>
+            <AnnouncementStatusControl id={detail.id} hidden={detail.hiddenAt !== null} />
+            <ResourceDeleteControl
+              resource="announcement"
+              name={detail.title}
+              endpoint={`/api/admin/announcements/${detail.id}`}
+              testId="announcement-delete"
+              redirectTo="/admin/announcements"
+              description="This announcement will be removed from the directory and residents will no longer see it. Revision history stays recorded."
+            />
           </ActionMenu>
         }
       />

@@ -1,7 +1,7 @@
 import 'server-only';
 import { redirect } from 'next/navigation';
 import { getActorFromSession } from '@/shared/auth/actor';
-import { PageHeader } from '@/shared/ui';
+import { PageHeader, SectionCard } from '@/shared/ui';
 import { listAllBuildings } from '@/modules/property-membership/application/index';
 import { FacilityCreateForm } from '@/modules/facility-booking/ui/FacilityCreateForm';
 
@@ -24,7 +24,9 @@ export default async function AdminFacilityNewPage() {
         backLabel="Back to facilities"
         backTestId="admin-facility-new-back"
       />
-      <FacilityCreateForm projectId={projectId} />
+      <SectionCard title="Facility details" className="max-w-3xl">
+        <FacilityCreateForm projectId={projectId} />
+      </SectionCard>
     </main>
   );
 }
