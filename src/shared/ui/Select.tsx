@@ -14,7 +14,7 @@ export function Select({ icon: Icon = ListFilter, className, ref, ...props }: Se
       <select
         {...props}
         ref={ref}
-        className={cx(INPUT_CLASS, className, 'peer appearance-none truncate pl-10 pr-10')}
+        className={cx(INPUT_CLASS, className, 'peer truncate pl-10 pr-10')}
       />
       <Icon aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground peer-disabled:text-disabled-foreground" />
       <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground peer-disabled:text-disabled-foreground" />
