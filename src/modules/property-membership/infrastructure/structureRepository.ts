@@ -290,11 +290,11 @@ export async function queryBuildingPage(
         name: building.name,
         status: building.status,
         floorCount:
-          sql<number>`(select count(*) from ${floor} where ${floor.buildingId} = ${building.id} and ${floor.deletedAt} is null)`.mapWith(
+          sql<number>`(select count(*) from ${floor} where ${floor.buildingId} = "building"."id" and ${floor.deletedAt} is null)`.mapWith(
             Number,
           ),
         roomCount:
-          sql<number>`(select count(*) from ${room} where ${room.buildingId} = ${building.id} and ${room.deletedAt} is null)`.mapWith(
+          sql<number>`(select count(*) from ${room} where ${room.buildingId} = "building"."id" and ${room.deletedAt} is null)`.mapWith(
             Number,
           ),
       })

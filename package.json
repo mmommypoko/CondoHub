@@ -18,6 +18,8 @@
     "db:seed:scenario": "tsx --conditions=react-server scripts/seed-scenario.ts",
     "db:seed:e2e-admin": "tsx --conditions=react-server scripts/e2e-admin.ts",
     "billing:ops": "tsx --conditions=react-server scripts/billing-ops.ts",
+    "docs:seed": "tsx --conditions=react-server scripts/docs-demo.ts",
+    "docs:shots": "tsx --conditions=react-server scripts/docs-shots.ts",
     "maintenance:ops": "tsx --conditions=react-server scripts/maintenance-ops.ts",
     "chat:ops": "tsx --conditions=react-server scripts/chat-ops.ts"
   },
