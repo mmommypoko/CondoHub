@@ -21,7 +21,7 @@ import { BuildingStatusControl } from '@/modules/property-membership/ui/Building
 import { FloorRowActions } from '@/modules/property-membership/ui/FloorRowActions';
 import { RoomPeopleActions } from '@/modules/property-membership/ui/RoomPeopleActions';
 import { RoomRowActions } from '@/modules/property-membership/ui/RoomRowActions';
-
+ 
 export default async function AdminBuildingDetailPage({
   params,
   searchParams,
@@ -42,9 +42,10 @@ export default async function AdminBuildingDetailPage({
   const roomCounts = new Map<string, number>();
   for (const room of structures.rooms)
     roomCounts.set(room.floorId, (roomCounts.get(room.floorId) ?? 0) + 1);
-  const filteredRooms = structures.rooms.filter(
-    (room) => !selectedFloor || room.floorId === selectedFloor.id,
-  );
+  const filteredRooms = structures.rooms
+    .filter((room) => !selectedFloor || room.floorId === selectedFloor.id)
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })
+    );
   const pageSize = 12;
   const totalPages = Math.max(1, Math.ceil(filteredRooms.length / pageSize));
   const page = Math.min(totalPages, Math.max(1, Math.floor(Number(query.page) || 1)));
@@ -302,3 +303,4 @@ export default async function AdminBuildingDetailPage({
     </main>
   );
 }
+ 
