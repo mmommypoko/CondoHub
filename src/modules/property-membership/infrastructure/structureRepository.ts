@@ -119,7 +119,11 @@ export async function listFloorsByBuilding(db: Db, buildingId: string): Promise<
     .select()
     .from(floor)
     .where(and(eq(floor.buildingId, buildingId), isNull(floor.deletedAt)))
-    .orderBy(floor.code);
+    .orderBy(
+      sql`NULLIF(regexp_replace(${floor.label}, '\D', '', 'g'), '')::int NULLS LAST`,
+      floor.label,
+      floor.id,
+    );
   return rows.map(toFloorRow);
 }
 
