@@ -397,6 +397,7 @@ export async function cancelBookingSlot(
         nextState,
         canceledBy: actor.userId,
         refundQuota: refund,
+        cancelReason: input.reason,
       });
       if (updated === null)
         throw new AppError('VALIDATION_ERROR', 'The slot changed. Please reload and retry.');

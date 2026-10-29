@@ -223,6 +223,7 @@ export async function seedCancelSlot(
         nextState: input.admin ? 'ADMIN_CANCELLED' : 'RESIDENT_CANCELLED',
         canceledBy: actor.userId,
         refundQuota: input.refundQuota,
+        cancelReason: input.reason,
       });
       if (updated === null) throw new AppError('VALIDATION_ERROR', 'The slot changed.');
       if (input.refundQuota) {

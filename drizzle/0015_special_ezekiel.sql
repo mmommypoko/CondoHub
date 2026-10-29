@@ -1,0 +1,1 @@
+ALTER TABLE "booking_slot" ADD COLUMN "cancel_reason" text;

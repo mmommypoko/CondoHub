@@ -23,6 +23,7 @@ import {
   type ProposedConfig,
 } from '../domain/configPolicy';
 import {
+  clearStalePendingFlags,
   findConfigById,
   findEffectiveConfig,
   findFacilityById,
@@ -356,11 +357,12 @@ async function committedDtoFor(
   facility: { id: string; capacity: number },
   committed: FacilityConfigRecord,
   current: FacilityConfigRecord,
+  analyticalCapacity: number,
 ): Promise<ConfigCommitDto> {
   const proposed: ProposedConfig = {
     schedule: committed.scheduleJson as FacilitySchedule,
     slotMinutes: committed.slotMinutes,
-    capacity: facility.capacity,
+    capacity: analyticalCapacity,
     quotaKind: committed.quotaKind,
     quotaLimit: committed.quotaLimit,
     advanceDays: committed.advanceDays,
@@ -440,7 +442,7 @@ export async function commitConfigChange(
         const facility = await findFacilityById(db, facilityId);
         const current = await findEffectiveConfig(db, facilityId, now);
         if (committed !== null && facility !== null && current !== null) {
-          return committedDtoFor(db, facility, committed, current);
+          return committedDtoFor(db, facility, committed, current, proposed.capacity);
         }
       }
       throw new AppError('RATE_LIMITED');
@@ -450,6 +452,12 @@ export async function commitConfigChange(
     return await db.transaction(async (tx) => {
       const facility = await findFacilityById(tx, facilityId);
       if (facility === null) throw new AppError('RESOURCE_NOT_FOUND');
+      if (proposed.capacity !== facility.capacity) {
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'The requested capacity differs from the current facility capacity. Update the facility before committing.',
+        );
+      }
       const current = await findEffectiveConfig(tx, facilityId, now);
       if (current === null) {
         throw new AppError('VALIDATION_ERROR', 'The facility has no effective configuration.');
@@ -472,6 +480,7 @@ export async function commitConfigChange(
           'Resolve the conflicting future slots before committing the config.',
         );
       }
+      await clearStalePendingFlags(tx, { facilityId, at: now });
       const pending = await findPendingConfig(tx, facilityId);
       if (pending !== null) {
         throw new AppError('VERSION_CONFLICT');
@@ -499,6 +508,8 @@ export async function commitConfigChange(
           version: created.version,
           effectiveAt: created.effectiveAt.toISOString(),
           fingerprint,
+          analyticalCapacity: proposed.capacity,
+          effectiveCapacity: facility.capacity,
         },
       });
       if (input.idempotencyKey !== undefined) {
@@ -512,7 +523,7 @@ export async function commitConfigChange(
           expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000),
         });
       }
-      return committedDtoFor(tx, facility, created, current);
+      return committedDtoFor(tx, facility, created, current, proposed.capacity);
     });
   } catch (error) {
     throw mapPgError(error, {

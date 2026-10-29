@@ -14,11 +14,13 @@ export const GET = withApi(
     const url = new URL(request.url);
     const query = parseWithFieldErrors(facilityListQuery, {
       status: url.searchParams.get('status') ?? undefined,
+      query: url.searchParams.get('query') ?? undefined,
       page: url.searchParams.get('page') ?? undefined,
       pageSize: url.searchParams.get('pageSize') ?? undefined,
     });
     const page = await listFacilityPage(ctx.actor, {
       status: query.status,
+      query: query.query,
       page: query.page,
       pageSize: query.pageSize,
     });
