@@ -1,5 +1,6 @@
 import type { Actor } from '@/shared/auth/actor';
 import type { ImageScope } from '@/shared/storage/objectKeys';
+import type { Db } from '@/shared/db/transaction';
 
 export type ScopeDenyReason =
   | 'SCOPE_ACL_NOT_IMPLEMENTED'
@@ -27,4 +28,5 @@ export type ScopeAclCallback = (
   actor: Actor,
   image: ScopeAclImage,
   at: Date,
+  conn?: Db | undefined,
 ) => Promise<ScopeAclVerdict>;

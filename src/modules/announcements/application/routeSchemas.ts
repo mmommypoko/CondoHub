@@ -10,14 +10,35 @@ export type AnnouncementListQuery = z.infer<typeof announcementListQuery>;
 
 const imageIds = z.array(z.string().uuid()).max(5).default([]);
 
+const publishMode = z.enum(['draft', 'now', 'scheduled']).optional();
+
+interface ScheduledPublishCheck {
+  publishMode?: 'draft' | 'now' | 'scheduled' | undefined;
+  publishAt?: string | null | undefined;
+}
+
+function rejectPastScheduledPublish(value: ScheduledPublishCheck, ctx: z.RefinementCtx): void {
+  if (value.publishMode !== 'scheduled') return;
+  const timestamp = new Date(value.publishAt ?? '').getTime();
+  if (!Number.isFinite(timestamp) || timestamp <= Date.now()) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['publishAt'],
+      message: 'Choose a future publish date and time.',
+    });
+  }
+}
+
 export const announcementCreateBody = z
   .object({
     title: z.string().trim().min(1).max(255),
     body: z.string().trim().min(1).max(20000),
     publishAt: z.string().datetime({ offset: true }).nullable().optional(),
+    publishMode,
     imageIds,
   })
-  .strict();
+  .strict()
+  .superRefine(rejectPastScheduledPublish);
 
 export type AnnouncementCreateBody = z.infer<typeof announcementCreateBody>;
 
@@ -27,9 +48,11 @@ export const announcementPatchBody = z
     body: z.string().trim().min(1).max(20000).optional(),
     publishAt: z.string().datetime({ offset: true }).nullable().optional(),
     hiddenAt: z.string().datetime({ offset: true }).nullable().optional(),
+    publishMode,
     imageIds: z.array(z.string().uuid()).max(5).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine(rejectPastScheduledPublish);
 
 export type AnnouncementPatchBody = z.infer<typeof announcementPatchBody>;
 

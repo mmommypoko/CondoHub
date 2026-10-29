@@ -10,6 +10,7 @@ import { isOwnerAt } from '@/modules/property-membership/application/index';
 import { findPayeeInstructionById } from '../infrastructure/payeeRepository';
 import { hasVisibleInvoiceForQr, isInvoiceQrReferenced } from '../infrastructure/invoiceRepository';
 import { db } from '@/shared/db/client';
+import type { Db } from '@/shared/db/transaction';
 import { evaluateInvoiceAccess, type InvoiceQueueAction } from '../domain/invoicePolicy';
 import { deriveInvoiceState } from '../domain/paymentState';
 import {
@@ -26,10 +27,11 @@ async function decideForInvoice(
   invoiceId: string,
   at: Date,
   action: InvoiceQueueAction,
+  conn: Db,
 ): Promise<ScopeAclVerdict> {
   if (actor.accountStatus !== 'ACTIVE') return { allowed: false, reason: 'ACCOUNT_SUSPENDED' };
   if (actor.mustChangePassword) return { allowed: false, reason: 'FIRST_LOGIN_REQUIRED' };
-  const row = await findInvoiceById(db, invoiceId);
+  const row = await findInvoiceById(conn, invoiceId);
   if (row === null) return { allowed: false, reason: 'NO_CURRENT_ACCESS' };
   if (row.kind === 'PRIVATE_RENT' && actor.isSystemAdmin) {
     return { allowed: false, reason: 'NO_CURRENT_ACCESS' };
@@ -37,14 +39,14 @@ async function decideForInvoice(
   const [rentReviewer, feeResponsible, tenantOverlap, membershipResident, balance] =
     await Promise.all([
       row.kind === 'PRIVATE_RENT'
-        ? isRentReviewer(db, { invoiceId: row.id, userId: actor.userId })
+        ? isRentReviewer(conn, { invoiceId: row.id, userId: actor.userId })
         : Promise.resolve(false),
       row.kind === 'COMMON_FEE'
-        ? isFeeResponsibleOwner(db, { invoiceId: row.id, userId: actor.userId })
+        ? isFeeResponsibleOwner(conn, { invoiceId: row.id, userId: actor.userId })
         : Promise.resolve(false),
       row.tenancyId === null
         ? Promise.resolve(false)
-        : tenantOverlapsInvoice(db, {
+        : tenantOverlapsInvoice(conn, {
             userId: actor.userId,
             tenancyId: row.tenancyId,
             serviceStart: row.serviceStart,
@@ -62,7 +64,7 @@ async function decideForInvoice(
             )
             .catch(() => false)
         : Promise.resolve(false),
-      db.transaction((tx) => readInvoiceBalance(tx, row.id)),
+      conn.transaction((tx) => readInvoiceBalance(tx, row.id)),
     ]);
   const verdict = evaluateInvoiceAccess(
     {
@@ -87,7 +89,9 @@ export const paymentSlipScopeAcl: ScopeAclCallback = async (
   actor: Actor,
   image: ScopeAclImage,
   at: Date,
+  conn?: Db | undefined,
 ): Promise<ScopeAclVerdict> => {
+  const reader = conn ?? db;
   if (image.entityRef === null) {
     if (actor.accountStatus !== 'ACTIVE') return { allowed: false, reason: 'ACCOUNT_SUSPENDED' };
     if (actor.mustChangePassword) return { allowed: false, reason: 'FIRST_LOGIN_REQUIRED' };
@@ -97,22 +101,24 @@ export const paymentSlipScopeAcl: ScopeAclCallback = async (
     return { allowed: false, reason: 'NO_CURRENT_ACCESS' };
   }
   const { findSubmissionById } = await import('../infrastructure/paymentSubmissionRepository');
-  const submission = await findSubmissionById(db, image.entityRef.id);
+  const submission = await findSubmissionById(reader, image.entityRef.id);
   if (submission === null) return { allowed: false, reason: 'NO_CURRENT_ACCESS' };
-  return decideForInvoice(actor, submission.invoiceId, at, 'VIEW_SLIP');
+  return decideForInvoice(actor, submission.invoiceId, at, 'VIEW_SLIP', reader);
 };
 
 export const paymentQrScopeAcl: ScopeAclCallback = async (
   actor: Actor,
   image: ScopeAclImage,
   at: Date,
+  conn?: Db | undefined,
 ): Promise<ScopeAclVerdict> => {
+  const reader = conn ?? db;
   if (actor.accountStatus !== 'ACTIVE') return { allowed: false, reason: 'ACCOUNT_SUSPENDED' };
   if (actor.mustChangePassword) return { allowed: false, reason: 'FIRST_LOGIN_REQUIRED' };
   if (image.entityRef === null) {
     if (image.imageId) {
       if (
-        await hasVisibleInvoiceForQr(db, {
+        await hasVisibleInvoiceForQr(reader, {
           imageId: image.imageId,
           userId: actor.userId,
           isAdmin: actor.isSystemAdmin,
@@ -120,7 +126,7 @@ export const paymentQrScopeAcl: ScopeAclCallback = async (
         })
       )
         return { allowed: true };
-      if (await isInvoiceQrReferenced(db, image.imageId))
+      if (await isInvoiceQrReferenced(reader, image.imageId))
         return { allowed: false, reason: 'NO_CURRENT_ACCESS' };
     }
     return actor.isSystemAdmin ? { allowed: true } : { allowed: false, reason: 'ADMIN_ONLY' };
@@ -135,7 +141,7 @@ export const paymentQrScopeAcl: ScopeAclCallback = async (
       : { allowed: false, reason: 'NO_CURRENT_ACCESS' };
   }
   if (image.entityRef.type === 'payment_instruction') {
-    const instruction = await findPayeeInstructionById(db, image.entityRef.id);
+    const instruction = await findPayeeInstructionById(reader, image.entityRef.id);
     if (!instruction) return { allowed: false, reason: 'NO_CURRENT_ACCESS' };
     if (instruction.payeeType === 'PROJECT' && actor.isSystemAdmin) return { allowed: true };
     if (
@@ -146,7 +152,7 @@ export const paymentQrScopeAcl: ScopeAclCallback = async (
       return { allowed: true };
     const visible =
       instruction.qrImageId !== null &&
-      (await hasVisibleInvoiceForQr(db, {
+      (await hasVisibleInvoiceForQr(reader, {
         imageId: instruction.qrImageId,
         userId: actor.userId,
         isAdmin: actor.isSystemAdmin,
@@ -157,7 +163,7 @@ export const paymentQrScopeAcl: ScopeAclCallback = async (
   if (image.entityRef.type !== 'invoice') {
     return { allowed: false, reason: 'NO_CURRENT_ACCESS' };
   }
-  return decideForInvoice(actor, image.entityRef.id, at, 'VIEW_QR');
+  return decideForInvoice(actor, image.entityRef.id, at, 'VIEW_QR', reader);
 };
 
 export function wirePaymentScopeAcl(): void {

@@ -7,13 +7,19 @@ import type {
 } from '@/modules/media-attachments/domain/scopeAcl';
 import { registerScopeAcl } from '@/modules/media-attachments/application/index';
 import { db } from '@/shared/db/client';
+import type { Db } from '@/shared/db/transaction';
 import { AppError } from '@/shared/utils/errors';
 import { canActInRoom } from '@/modules/property-membership/application/index';
 import { evaluateChatAccess } from '../domain/chatPolicy';
 import { resolveMessageRoom } from './messageReads';
 
-async function decideForMessage(actor: Actor, messageId: string, at: Date): Promise<ScopeAclVerdict> {
-  const resolved = await resolveMessageRoom(messageId, db);
+async function decideForMessage(
+  actor: Actor,
+  messageId: string,
+  at: Date,
+  conn: Db,
+): Promise<ScopeAclVerdict> {
+  const resolved = await resolveMessageRoom(messageId, conn);
   if (resolved === null) return { allowed: false, reason: 'NO_CURRENT_ACCESS' };
   if (actor.isSystemAdmin) return { allowed: true };
   const verdict = await canActInRoom(actor.userId, resolved.roomId, 'VIEW_CHAT', at).catch(
@@ -34,12 +40,14 @@ export const chatScopeAcl: ScopeAclCallback = async (
   actor: Actor,
   image: ScopeAclImage,
   at: Date,
+  conn?: Db | undefined,
 ): Promise<ScopeAclVerdict> => {
+  const reader = conn ?? db;
   if (actor.accountStatus !== 'ACTIVE') return { allowed: false, reason: 'ACCOUNT_SUSPENDED' };
   if (actor.mustChangePassword) return { allowed: false, reason: 'FIRST_LOGIN_REQUIRED' };
   if (image.entityRef === null) return { allowed: true };
   if (image.entityRef.type !== 'chat_message') return { allowed: false, reason: 'NO_CURRENT_ACCESS' };
-  return decideForMessage(actor, image.entityRef.id, at);
+  return decideForMessage(actor, image.entityRef.id, at, reader);
 };
 
 export function wireChatScopeAcl(): void {

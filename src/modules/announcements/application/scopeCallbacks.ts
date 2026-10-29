@@ -1,5 +1,6 @@
 import 'server-only';
 import { db } from '@/shared/db/client';
+import type { Db } from '@/shared/db/transaction';
 import type { Actor } from '@/shared/auth/actor';
 import type {
   ScopeAclCallback,
@@ -14,14 +15,16 @@ export const announcementScopeAcl: ScopeAclCallback = async (
   actor: Actor,
   image: ScopeAclImage,
   at: Date,
+  conn?: Db | undefined,
 ): Promise<ScopeAclVerdict> => {
+  const reader = conn ?? db;
   if (actor.accountStatus !== 'ACTIVE') return { allowed: false, reason: 'ACCOUNT_SUSPENDED' };
   if (actor.mustChangePassword) return { allowed: false, reason: 'FIRST_LOGIN_REQUIRED' };
   if (image.entityRef === null) {
     return actor.isSystemAdmin ? { allowed: true } : { allowed: false, reason: 'ADMIN_ONLY' };
   }
   if (image.entityRef.type !== 'announcement') return { allowed: false, reason: 'ADMIN_ONLY' };
-  const announcement = await findAnnouncementById(db, image.entityRef.id);
+  const announcement = await findAnnouncementById(reader, image.entityRef.id);
   if (announcement === null) return { allowed: false, reason: 'ANNOUNCEMENT_HIDDEN' };
   const verdict = canSeeAnnouncement(
     actor,

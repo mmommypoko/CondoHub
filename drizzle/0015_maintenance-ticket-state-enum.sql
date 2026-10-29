@@ -1,0 +1,3 @@
+CREATE TYPE "public"."maintenance_ticket_state" AS ENUM('PENDING', 'IN_PROGRESS', 'WAITING_FOR_INFO', 'COMPLETED', 'REJECTED', 'CANCELLED');--> statement-breakpoint
+ALTER TABLE "maintenance_status_history" ALTER COLUMN "from_state" SET DATA TYPE "public"."maintenance_ticket_state" USING "from_state"::"public"."maintenance_ticket_state";--> statement-breakpoint
+ALTER TABLE "maintenance_status_history" ALTER COLUMN "to_state" SET DATA TYPE "public"."maintenance_ticket_state" USING "to_state"::"public"."maintenance_ticket_state";

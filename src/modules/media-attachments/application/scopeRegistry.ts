@@ -1,5 +1,6 @@
 import 'server-only';
 import type { Actor } from '@/shared/auth/actor';
+import type { Db } from '@/shared/db/transaction';
 import type { ImageScope } from '@/shared/storage/objectKeys';
 import type {
   ScopeAclCallback,
@@ -47,9 +48,13 @@ export async function evaluateScopeAcl(
   actor: Actor,
   image: ScopeAclImage,
   at: Date,
+  conn?: Db | undefined,
 ): Promise<ScopeAclVerdict> {
   await ensureDefaultsWired();
-  return resolveScopeAcl(scope)(actor, image, at);
+  const callback = resolveScopeAcl(scope);
+  return conn === undefined
+    ? callback(actor, image, at)
+    : callback(actor, image, at, conn);
 }
 
 export function resetScopeAclRegistry(): void {

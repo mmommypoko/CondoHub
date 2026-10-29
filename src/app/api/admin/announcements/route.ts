@@ -27,6 +27,7 @@ export const POST = withApi(
     );
     revalidatePath('/announcements');
     revalidatePath(`/announcements/${created.id}`);
+    revalidatePath('/admin/announcements');
     return {
       id: created.id,
       title: created.title,
