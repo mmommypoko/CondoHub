@@ -12,6 +12,7 @@ import {
   transferOwnership,
 } from '@/modules/property-membership/application/index';
 import { ownershipAdminBody } from '@/modules/property-membership/application/routeSchemas';
+import { emitRoomAccessRevoked } from '@/modules/room-chat/application/index';
 
 export const POST = withApi(
   async (request, ctx, route) => {
@@ -45,6 +46,7 @@ export const POST = withApi(
         },
         propertyCtx,
       );
+      emitRoomAccessRevoked(roomId);
       return {
         endedOwnershipId: result.endedOwnershipId,
         createdOwnershipId: result.createdOwnershipId,
@@ -57,6 +59,7 @@ export const POST = withApi(
         { roomId, ownershipId: body.ownershipId, effectiveAt: new Date(body.effectiveAt) },
         propertyCtx,
       );
+      emitRoomAccessRevoked(roomId);
       return { ownershipId: result.ownershipId, effectiveAt: result.effectiveAt.toISOString() };
     }
     const result = await correctOwnershipInterval(

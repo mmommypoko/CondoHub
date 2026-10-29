@@ -11,9 +11,9 @@ import {
   createChatCtx,
   listMessages,
   parseWithFieldErrors,
+  publishMessageCreatedIfInserted,
   sendMessage,
 } from '@/modules/room-chat/application/index';
-import { emitChatMessageCreated } from '@/modules/room-chat/infrastructure/chatFanOut';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,12 +71,7 @@ export const POST = withApi(
       },
       chatCtx,
     );
-    emitChatMessageCreated({
-      roomId,
-      messageId: result.message.id,
-      createdAt: result.message.createdAt,
-    });
-    return result.message;
+    return publishMessageCreatedIfInserted(roomId, result);
   },
   {
     rateLimit: RATE_LIMIT_PRESETS.chatSend ?? { capacity: 30, windowMs: 60_000 },

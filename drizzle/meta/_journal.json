@@ -127,6 +127,13 @@
       "when": 1793296266196,
       "tag": "0017_booking-cancel-reason",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793296271757,
+      "tag": "0018_chat-message-created-default",
+      "breakpoints": true
     }
   ]
 }

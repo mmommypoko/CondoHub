@@ -98,7 +98,7 @@ async function replayMessage(
     senderUserId: actor.userId,
     clientMessageId,
   });
-  if (existing === null) throw new AppError('RATE_LIMITED');
+  if (existing === null) throw new AppError('VALIDATION_ERROR');
   if (!actor.isSystemAdmin) {
     const intervals = await getResidentIntervals(actor.userId, roomId);
     if (!messageVisibleAt(intervals, existing.createdAt)) throw new AppError('RESOURCE_NOT_FOUND');
