@@ -8,7 +8,7 @@ import { covers } from '../domain/intervals';
 import { isOwnerAt, type OwnershipInterval } from '../domain/ownershipPolicy';
 import { activeTenancyAt, type TenancyInterval } from '../domain/tenancyPolicy';
 import type { MemberRole } from '../infrastructure/schema';
-import { findUserById } from '@/modules/identity-access/infrastructure/userRepository';
+import { lookupUserById } from '@/modules/identity-access/application/index';
 import {
   findRoomById,
   lockPropertyScope,
@@ -85,7 +85,7 @@ export async function addMembership(
           'VALIDATION_ERROR',
           'Reactivate the room, floor and building before adding members.',
         );
-      const target = await findUserById(tx, input.userId);
+      const target = await lookupUserById(tx, input.userId);
       if (target === null) throw new AppError('VALIDATION_ERROR', 'The member user was not found.');
       if (target.accountStatus !== 'ACTIVE' || target.deletedAt !== null) {
         throw new AppError('VALIDATION_ERROR', 'The member user cannot receive membership.');

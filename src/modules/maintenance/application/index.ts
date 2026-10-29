@@ -1,5 +1,6 @@
 import 'server-only';
 
+export { listOpenPrivateManagerGroups } from './accountResponsibilities';
 export { createMaintenanceCtx } from './ctx';
 export type { MaintenanceCtx } from './ctx';
 export { createTicket } from './createTicket';

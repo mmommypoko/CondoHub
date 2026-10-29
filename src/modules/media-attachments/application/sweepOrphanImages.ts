@@ -37,10 +37,16 @@ export interface SweepOrphansDeps {
   database?: Db;
   heartbeat?: () => Promise<void>;
   removeObject?: (objectKey: string) => Promise<void>;
+  batchSize?: number | undefined;
 }
 
 function defaultRemoveObject(objectKey: string): Promise<void> {
   return deleteObject(objectKey);
+}
+
+export function clampSweepBatchSize(value: number | undefined): number {
+  if (value === undefined || !Number.isInteger(value)) return SWEEP_ORPHANS_BATCH_SIZE;
+  return Math.min(Math.max(value, 1), SWEEP_ORPHANS_MAX_ROWS);
 }
 
 async function removeRowObjects(
@@ -75,6 +81,7 @@ export async function sweepOrphanImages(
   const database = deps?.database ?? db;
   const removeObject = deps?.removeObject ?? defaultRemoveObject;
   const heartbeat = deps?.heartbeat;
+  const batchSize = clampSweepBatchSize(deps?.batchSize);
   const now = ctx.clock.now();
   const pendingBefore = new Date(now.getTime() - ORPHAN_PENDING_GRACE_MS);
   const readyBefore = new Date(now.getTime() - ORPHAN_READY_GRACE_MS);
@@ -96,7 +103,7 @@ export async function sweepOrphanImages(
     const batch = await listOrphanSweepCandidates(database, {
       pendingBefore,
       readyBefore,
-      limit: SWEEP_ORPHANS_BATCH_SIZE,
+      limit: batchSize,
     });
     if (batch.length === 0) return result;
     for (const row of batch) {
@@ -122,6 +129,6 @@ export async function sweepOrphanImages(
         return result;
       }
     }
-    if (batch.length < SWEEP_ORPHANS_BATCH_SIZE) return result;
+    if (batch.length < batchSize) return result;
   }
 }

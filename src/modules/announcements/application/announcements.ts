@@ -4,11 +4,11 @@ import { db } from '@/shared/db/client';
 import { mapPgError, AppError } from '@/shared/utils/errors';
 import { writeAudit } from '@/shared/observability/audit';
 import { IMAGE_COUNT_CAPS } from '@/config/imageLimits';
-import { commitAttachments } from '@/modules/media-attachments/application/index';
 import {
-  detachImages,
-  listAnnouncementImages,
-} from '@/modules/media-attachments/infrastructure/imageRepository';
+  commitAttachments,
+  listAnnouncementAttachments,
+  replaceAnnouncementAttachments,
+} from '@/modules/media-attachments/application/index';
 import { canSeeAnnouncement } from '../domain/announcementPolicy';
 import { bumpRevision, snapshotAnnouncement } from '../domain/revisionPolicy';
 import {
@@ -148,25 +148,16 @@ export async function updateAnnouncementEntry(
       const locked = await findAnnouncementByIdForUpdate(tx, announcementId);
       if (locked === null) throw new AppError('RESOURCE_NOT_FOUND');
       if (input.imageIds !== undefined) {
-        const current = await listAnnouncementImages(tx, announcementId);
-        const currentIds = current.map((image) => image.id);
-        const wanted = [...new Set(input.imageIds)];
-        const toDetach = currentIds.filter((id) => !wanted.includes(id));
-        const toAttach = wanted.filter((id) => !currentIds.includes(id));
-        await detachImages(tx, toDetach);
-        await commitAttachments(tx, actor, {
-          scope: 'ANNOUNCEMENT',
-          entityRef: { type: 'announcement', id: announcementId },
-          imageIds: toAttach,
-          maxCount:
-            IMAGE_COUNT_CAPS.PUBLISH_ANNOUNCEMENT.max - (currentIds.length - toDetach.length),
+        await replaceAnnouncementAttachments(tx, actor, announcementId, {
+          imageIds: input.imageIds,
+          maxCount: IMAGE_COUNT_CAPS.PUBLISH_ANNOUNCEMENT.max,
           at: now,
         });
       }
       const bump = publishedBefore ? bumpRevision(existing.revision, now) : null;
       const revisionImages =
         input.imageIds === undefined
-          ? (await listAnnouncementImages(tx, announcementId)).map((image) => image.id)
+          ? (await listAnnouncementAttachments(tx, announcementId)).map((image) => image.id)
           : [...new Set(input.imageIds)];
       if (bump !== null) {
         await insertAnnouncementRevision(tx, {
@@ -334,7 +325,7 @@ async function toAnnouncementDto(
 ): Promise<AnnouncementDto | null> {
   const row = await findAnnouncementById(db, announcementId);
   if (row === null) return null;
-  const images = await listAnnouncementImages(db, announcementId);
+  const images = await listAnnouncementAttachments(db, announcementId);
   const revisions = actor.isSystemAdmin ? await listAnnouncementRevisions(db, announcementId) : [];
   return {
     id: row.id,

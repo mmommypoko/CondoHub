@@ -5,8 +5,11 @@ import { mapPgError, AppError } from '@/shared/utils/errors';
 import { getIdempotencyRecord, upsertIdempotencyRecord } from './idempotencyStore';
 import { hashRequestBody } from '@/shared/utils/idempotency';
 import { writeAudit } from '@/shared/observability/audit';
-import { createIdentityCtx, resolveOrCreateGrantUser } from '@/modules/identity-access/application/index';
-import { findUserById } from '@/modules/identity-access/infrastructure/userRepository';
+import {
+  createIdentityCtx,
+  lookupUserById,
+  resolveOrCreateGrantUser,
+} from '@/modules/identity-access/application/index';
 import { resolveGrantTargetByUsername } from './grantCoOwner';
 import { isOwnerAt, type OwnershipInterval } from '../domain/ownershipPolicy';
 import { findRoomById } from '../infrastructure/structureRepository';
@@ -60,8 +63,8 @@ export async function transferOwnership(
     throw new AppError('VALIDATION_ERROR', 'The transfer source and target must differ.');
   }
   const [fromUser, toUser] = await Promise.all([
-    findUserById(db, input.fromUserId),
-    findUserById(db, input.toUserId),
+    lookupUserById(db, input.fromUserId),
+    lookupUserById(db, input.toUserId),
   ]);
   if (fromUser === null || toUser === null) {
     throw new AppError('VALIDATION_ERROR', 'The transfer user was not found.');
@@ -199,7 +202,7 @@ export async function assignOwner(
         targetUserId = resolved.userId;
         if (resolved.created) tempPassword = resolved.tempPassword;
       }
-      const target = await findUserById(tx, targetUserId);
+      const target = await lookupUserById(tx, targetUserId);
       if (target === null) throw new AppError('VALIDATION_ERROR', 'The target user was not found.');
       if (target.accountStatus !== 'ACTIVE') {
         throw new AppError('VALIDATION_ERROR', 'The target user cannot receive ownership.');

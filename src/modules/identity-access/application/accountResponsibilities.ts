@@ -1,9 +1,9 @@
 import 'server-only';
 import type { Db } from '@/shared/db/transaction';
 import { AppError } from '@/shared/utils/errors';
-import { listPrivateRentalManagerGroups } from '@/modules/property-membership/application/accountResponsibilities';
-import { listPrivateBillingManagerGroups } from '@/modules/billing-payments/application/accountResponsibilities';
-import { listOpenPrivateManagerGroups } from '@/modules/maintenance/application/accountResponsibilities';
+import { listPrivateRentalManagerGroups } from '@/modules/property-membership/application/index';
+import { listPrivateBillingManagerGroups } from '@/modules/billing-payments/application/index';
+import { listOpenPrivateManagerGroups } from '@/modules/maintenance/application/index';
 import { listRetainedPrivateManagerIds } from '../infrastructure/userRepository';
 import { hasSolePrivateResponsibility } from '../domain/accountDeletionPolicy';
 

@@ -13,7 +13,7 @@ import {
 import {
   getRoomProvisioningPorts,
   setRoomProvisioningPorts,
-} from '@/modules/identity-access/application/roomProvisioningPorts';
+} from '@/modules/identity-access/application/index';
 import { findRoomById } from '../infrastructure/structureRepository';
 import { db } from '@/shared/db/client';
 import { listOwnershipsByRoom } from '../infrastructure/ownershipRepository';

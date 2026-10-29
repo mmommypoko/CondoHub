@@ -51,14 +51,14 @@ function resolveDeps(deps?: PresignedUrlDeps): { client: S3Client; bucket: strin
 export async function createUploadUrl(
   objectKey: string,
   contentType: AllowedImageContentType,
-  maxBytes: number,
+  expectedMaxBytes: number,
   deps?: PresignedUrlDeps,
 ): Promise<SignedUrl> {
   if (!isAllowedImageContentType(contentType)) {
     throw new AppError('FILE_NOT_ALLOWED', undefined);
   }
-  if (!Number.isInteger(maxBytes) || maxBytes < 1) {
-    throw new AppError('VALIDATION_ERROR', 'The max upload size is invalid.');
+  if (!Number.isInteger(expectedMaxBytes) || expectedMaxBytes < 1) {
+    throw new AppError('VALIDATION_ERROR', 'The expected upload size ceiling is invalid.');
   }
   const { client, bucket } = resolveDeps(deps);
   const url = await getSignedUrl(

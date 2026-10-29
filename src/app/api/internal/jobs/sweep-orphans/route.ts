@@ -68,6 +68,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       await heartbeatJobLease(db, 'sweep-orphans', runDate, lease.attempt);
       const sweep = await sweepOrphanImages(mediaCtx, {
         heartbeat: () => heartbeatJobLease(db, 'sweep-orphans', runDate, lease.attempt),
+        batchSize: body.batchSize,
       });
       await finishJobLease(db, 'sweep-orphans', runDate, lease.attempt, {
         state: 'DONE',
@@ -89,6 +90,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           skippedRaced: sweep.skippedRaced,
           s3Deleted: sweep.s3Deleted,
           s3Failures: sweep.s3Failures,
+          batchSize: body.batchSize ?? null,
           maxRows: SWEEP_ORPHANS_MAX_ROWS,
         },
         'sweep-orphans done',

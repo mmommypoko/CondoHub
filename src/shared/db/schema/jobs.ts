@@ -13,15 +13,17 @@ export const jobRunState = pgEnum('job_run_state', ['RUNNING', 'DONE', 'ERROR'])
 
 export type JobRunState = (typeof jobRunState.enumValues)[number];
 
-export const JOB_NAMES = ['generate-invoices', 'sweep-orphans'] as const;
+export const jobName = pgEnum('job_name', ['generate-invoices', 'sweep-orphans']);
 
-export type JobName = (typeof JOB_NAMES)[number];
+export type JobName = (typeof jobName.enumValues)[number];
+
+export const JOB_NAMES: readonly JobName[] = jobName.enumValues;
 
 export const jobRun = pgTable(
   'job_run',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    jobName: text('job_name').notNull(),
+    jobName: jobName('job_name').notNull(),
     businessKey: text('business_key').notNull(),
     state: jobRunState('state').notNull(),
     payload: jsonb('payload'),

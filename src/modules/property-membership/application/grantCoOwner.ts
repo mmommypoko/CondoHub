@@ -8,12 +8,10 @@ import { hashRequestBody } from '@/shared/utils/idempotency';
 import { writeAudit } from '@/shared/observability/audit';
 import {
   createIdentityCtx,
+  lookupUserById,
+  lookupUserIdByUsername,
   resolveOrCreateGrantUser,
 } from '@/modules/identity-access/application/index';
-import {
-  findUserById,
-  findUserByUsername,
-} from '@/modules/identity-access/infrastructure/userRepository';
 import { isOwnerAt, type OwnershipInterval } from '../domain/ownershipPolicy';
 import { findRoomById } from '../infrastructure/structureRepository';
 import { insertOwnership, listOwnershipsByRoom } from '../infrastructure/ownershipRepository';
@@ -117,7 +115,7 @@ export async function grantCoOwner(
         targetUserId = resolved.userId;
         if (resolved.created) tempPassword = resolved.tempPassword;
       } else {
-        const target = await findUserById(tx, targetUserId);
+        const target = await lookupUserById(tx, targetUserId);
         if (target === null)
           throw new AppError('VALIDATION_ERROR', 'The target user was not found.');
         if (target.accountStatus !== 'ACTIVE') {
@@ -182,6 +180,5 @@ export async function resolveGrantTargetByUsername(
   username: string,
   conn: Db = db,
 ): Promise<{ userId: string } | null> {
-  const found = await findUserByUsername(conn, username.trim().toLowerCase());
-  return found === null ? null : { userId: found.id };
+  return lookupUserIdByUsername(conn, username.trim().toLowerCase());
 }

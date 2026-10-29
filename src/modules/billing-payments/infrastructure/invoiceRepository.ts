@@ -6,7 +6,7 @@ import {
   membershipOverlapsServiceWindow,
   roomResidencyScope,
   tenantOverlapScope,
-} from '@/modules/property-membership/application/index';
+} from '@/modules/property-membership/infrastructure/membershipScope';
 import {
   commonFeeInvoiceResponsibleOwner,
   invoice,

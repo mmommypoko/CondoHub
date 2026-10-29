@@ -1,5 +1,6 @@
 import 'server-only';
 
+export { listPrivateBillingManagerGroups } from './accountResponsibilities';
 export { createBillingCtx } from './ctx';
 export type { BillingCtx } from './ctx';
 export {
