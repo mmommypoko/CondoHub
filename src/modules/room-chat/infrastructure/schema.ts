@@ -38,7 +38,7 @@ export const chatMessage = pgTable(
     type: chatMessageType('type').notNull(),
     text: text('text'),
     imageId: uuid('image_id').references(() => imageAttachment.id, { onDelete: 'restrict' }),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     unique('chat_message_sender_key_uq').on(
