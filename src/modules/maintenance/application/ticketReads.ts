@@ -4,7 +4,7 @@ import { db } from '@/shared/db/client';
 import type { Db } from '@/shared/db/transaction';
 import { AppError } from '@/shared/utils/errors';
 import { listAttachedImagesForEntity } from '@/modules/media-attachments/application/index';
-import type { MaintenanceRoutingKind, MaintenanceStatus } from '../infrastructure/schema';
+import type { MaintenanceRoutingKind, MaintenanceStatus, MaintenanceTicketState } from '../infrastructure/schema';
 import {
   allowedRoutingKinds,
   evaluateTicketAccess,
@@ -39,8 +39,8 @@ export interface TicketCommentDto {
 
 export interface TicketHistoryDto {
   id: string;
-  fromState: string;
-  toState: string;
+  fromState: MaintenanceTicketState;
+  toState: MaintenanceTicketState;
   actorId: string | null;
   reason: string | null;
   changedAt: string;
@@ -224,30 +224,53 @@ export async function listTickets(
   }
   const limit = Math.min(Math.max(input.pageSize, 1), 100);
   const offset = (Math.max(input.page, 1) - 1) * limit;
-  const page = actor.isSystemAdmin
-    ? await listTicketsForAdmin(conn, {
-        limit,
-        offset,
-        view: input.view,
-        ...(input.roomId !== undefined ? { roomId: input.roomId } : {}),
-        ...(input.routingKind !== undefined ? { routingKind: input.routingKind } : {}),
-        ...(input.status !== undefined ? { status: input.status } : {}),
-      })
-    : await listTicketsForMember(conn, {
-        userId: actor.userId,
-        limit,
-        offset,
-        view: input.view,
-        ...(input.roomId !== undefined ? { roomId: input.roomId } : {}),
-        ...(input.routingKind !== undefined ? { routingKind: input.routingKind } : {}),
-        ...(input.status !== undefined ? { status: input.status } : {}),
-      });
-  const rows: TicketDto[] = [];
-  for (const row of page.rows) {
-    const dto = await toTicketDto(conn, actor, row.id);
-    if (dto !== null) rows.push(dto);
+  const baseFilter = {
+    view: input.view,
+    ...(input.roomId !== undefined ? { roomId: input.roomId } : {}),
+    ...(input.routingKind !== undefined ? { routingKind: input.routingKind } : {}),
+    ...(input.status !== undefined ? { status: input.status } : {}),
+  } as const;
+  const fetchWindow = async (windowOffset: number, windowLimit: number) =>
+    actor.isSystemAdmin
+      ? listTicketsForAdmin(conn, { limit: windowLimit, offset: windowOffset, ...baseFilter })
+      : listTicketsForMember(conn, {
+          userId: actor.userId,
+          limit: windowLimit,
+          offset: windowOffset,
+          ...baseFilter,
+        });
+  const total = (await fetchWindow(0, 1)).total;
+  const visibleIds: string[] = [];
+  let cursor = 0;
+  const batch = 200;
+  while (cursor < total) {
+    const window = await fetchWindow(cursor, Math.min(batch, total - cursor));
+    if (window.rows.length === 0) break;
+    for (const row of window.rows) {
+      if (await isRowListVisible(conn, actor, row)) visibleIds.push(row.id);
+    }
+    cursor += window.rows.length;
   }
-  return { rows, total: page.total };
+  const pageRows: TicketDto[] = [];
+  for (const id of visibleIds.slice(offset, offset + limit)) {
+    const dto = await toTicketDto(conn, actor, id);
+    if (dto !== null) pageRows.push(dto);
+  }
+  return { rows: pageRows, total: visibleIds.length };
+}
+
+async function isRowListVisible(conn: Db, actor: Actor, row: TicketRecord): Promise<boolean> {
+  if (actor.isSystemAdmin && row.routingKind === 'PRIVATE_OWNER') return false;
+  if (!actor.isSystemAdmin) {
+    const visible = await isTicketMemberVisible(conn, { ticketId: row.id, userId: actor.userId });
+    if (!visible) return false;
+  }
+  const grants = await buildTicketGrants(conn, actor, row);
+  return evaluateTicketAccess(
+    grants,
+    { routingKind: row.routingKind, status: row.status },
+    'VIEW',
+  ).allowed;
 }
 
 export async function getTicket(

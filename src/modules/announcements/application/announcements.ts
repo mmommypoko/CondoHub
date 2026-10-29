@@ -102,6 +102,18 @@ export async function createAnnouncement(
         maxCount: IMAGE_COUNT_CAPS.PUBLISH_ANNOUNCEMENT.max,
         at: ctx.clock.now(),
       });
+      await insertAnnouncementRevision(tx, {
+        announcementId: row.id,
+        actorId: actor.userId,
+        version: 1,
+        snapshotJson: snapshotAnnouncement({
+          title: row.title,
+          body: row.body,
+          publishAt: row.publishAt,
+          imageIds: [...imageIds],
+          revision: 1,
+        }),
+      });
       await writeAudit(tx, {
         actorId: actor.userId,
         action: 'announcement.created',
@@ -147,6 +159,10 @@ export async function updateAnnouncementEntry(
     const updated = await db.transaction(async (tx) => {
       const locked = await findAnnouncementByIdForUpdate(tx, announcementId);
       if (locked === null) throw new AppError('RESOURCE_NOT_FOUND');
+      const preEditImages =
+        input.imageIds === undefined
+          ? null
+          : (await listAnnouncementAttachments(tx, announcementId)).map((image) => image.id);
       if (input.imageIds !== undefined) {
         await replaceAnnouncementAttachments(tx, actor, announcementId, {
           imageIds: input.imageIds,
@@ -154,22 +170,27 @@ export async function updateAnnouncementEntry(
           at: now,
         });
       }
-      const bump = publishedBefore ? bumpRevision(existing.revision, now) : null;
-      const revisionImages =
-        input.imageIds === undefined
-          ? (await listAnnouncementAttachments(tx, announcementId)).map((image) => image.id)
-          : [...new Set(input.imageIds)];
+      const contentChanged =
+        (input.title !== undefined && input.title !== locked.title) ||
+        (input.body !== undefined && input.body !== locked.body) ||
+        (patch.publishAt !== undefined &&
+          (patch.publishAt?.getTime() ?? null) !== (locked.publishAt?.getTime() ?? null)) ||
+        imageIdsChanged(preEditImages, input.imageIds);
+      const bump =
+        publishedBefore && contentChanged ? bumpRevision(locked.revision, now) : null;
       if (bump !== null) {
+        const snapshotImages =
+          preEditImages ?? (await listAnnouncementAttachments(tx, announcementId)).map((image) => image.id);
         await insertAnnouncementRevision(tx, {
           announcementId,
           actorId: actor.userId,
           version: bump.snapshotVersion,
           snapshotJson: snapshotAnnouncement({
-            title: input.title ?? existing.title,
-            body: input.body ?? existing.body,
-            publishAt: patch.publishAt !== undefined ? patch.publishAt : existing.publishAt,
-            imageIds: revisionImages,
-            revision: bump.nextRevision,
+            title: locked.title,
+            body: locked.body,
+            publishAt: locked.publishAt,
+            imageIds: snapshotImages,
+            revision: locked.revision,
           }),
         });
       }
@@ -206,6 +227,15 @@ export async function updateAnnouncementEntry(
       fallbackCodes: { '23505': 'VERSION_CONFLICT' },
     });
   }
+}
+
+function imageIdsChanged(before: string[] | null, input: string[] | undefined): boolean {
+  if (input === undefined) return false;
+  if (before === null) return input.length > 0;
+  const wanted = [...new Set(input)];
+  return (
+    wanted.length !== before.length || wanted.some((id) => !before.includes(id))
+  );
 }
 
 function resolvePatch(input: UpdateAnnouncementInput): {

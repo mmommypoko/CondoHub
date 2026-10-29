@@ -59,6 +59,7 @@ export function AnnouncementCreateForm() {
         title: values.title,
         body: values.body,
         publishAt: publishingTimestamp(values.publishMode, values.publishAt),
+        publishMode: values.publishMode,
         imageIds: images.map((image) => image.imageId),
       }),
     });

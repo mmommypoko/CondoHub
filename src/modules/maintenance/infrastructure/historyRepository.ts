@@ -1,13 +1,13 @@
 import 'server-only';
 import { asc, eq } from 'drizzle-orm';
 import type { Db, Tx } from '@/shared/db/transaction';
-import { maintenanceStatusHistory } from './schema';
+import { maintenanceStatusHistory, type MaintenanceTicketState } from './schema';
 
 export interface TicketHistoryRecord {
   id: string;
   requestId: string;
-  fromState: string;
-  toState: string;
+  fromState: MaintenanceTicketState;
+  toState: MaintenanceTicketState;
   actorId: string | null;
   reason: string | null;
   changedAt: Date;
@@ -29,8 +29,8 @@ export async function insertStatusHistory(
   tx: Tx,
   input: {
     requestId: string;
-    fromState: string;
-    toState: string;
+    fromState: MaintenanceTicketState;
+    toState: MaintenanceTicketState;
     actorId: string | null;
     reason: string | null;
     changedAt: Date;

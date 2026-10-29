@@ -32,6 +32,17 @@ export const maintenanceStatus = pgEnum('maintenance_status', [
 
 export type MaintenanceStatus = (typeof maintenanceStatus.enumValues)[number];
 
+export const maintenanceTicketState = pgEnum('maintenance_ticket_state', [
+  'PENDING',
+  'IN_PROGRESS',
+  'WAITING_FOR_INFO',
+  'COMPLETED',
+  'REJECTED',
+  'CANCELLED',
+]);
+
+export type MaintenanceTicketState = (typeof maintenanceTicketState.enumValues)[number];
+
 export const maintenanceRequest = pgTable(
   'maintenance_request',
   {
@@ -103,8 +114,8 @@ export const maintenanceStatusHistory = pgTable(
     requestId: uuid('request_id')
       .notNull()
       .references(() => maintenanceRequest.id, { onDelete: 'restrict' }),
-    fromState: text('from_state').notNull(),
-    toState: text('to_state').notNull(),
+    fromState: maintenanceTicketState('from_state').notNull(),
+    toState: maintenanceTicketState('to_state').notNull(),
     actorId: text('actor_id').references(() => user.id, { onDelete: 'set null' }),
     reason: text('reason'),
     changedAt: timestamp('changed_at', { withTimezone: true }).notNull(),
