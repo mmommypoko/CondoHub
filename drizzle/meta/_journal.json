@@ -120,6 +120,13 @@
       "when": 1793296231817,
       "tag": "0016_maintenance-ticket-state-enum",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793296266196,
+      "tag": "0017_booking-cancel-reason",
+      "breakpoints": true
     }
   ]
 }

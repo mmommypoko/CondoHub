@@ -151,6 +151,7 @@ export const bookingSlot = pgTable(
     state: bookingSlotState('state').notNull(),
     canceledBy: text('canceled_by').references(() => user.id, { onDelete: 'set null' }),
     refundQuota: boolean('refund_quota').notNull().default(false),
+    cancelReason: text('cancel_reason'),
   },
   (table) => [
     check('booking_slot_interval_ck', sql`"ends_at" > "starts_at"`),

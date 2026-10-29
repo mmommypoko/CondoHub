@@ -235,7 +235,9 @@ export async function getFacilityDetail(
         (left, right) =>
           right.effectiveAt.getTime() - left.effectiveAt.getTime() || right.version - left.version,
       )[0] ?? null;
-  const pending = configs.find((config) => config.isPending) ?? null;
+  const pending =
+    configs.find((config) => config.isPending && config.effectiveAt.getTime() > at.getTime()) ??
+    null;
   return {
     ...toFacilityDto(row),
     effectiveConfig:

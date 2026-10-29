@@ -73,6 +73,7 @@ export type FacilityPatchBody = z.infer<typeof facilityPatchBody>;
 
 export const facilityListQuery = z.object({
   status: facilityStatusSchema.optional(),
+  query: z.string().trim().max(255).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
@@ -153,6 +154,13 @@ export const roomBookingsQuery = z.object({
 });
 
 export type RoomBookingsQuery = z.infer<typeof roomBookingsQuery>;
+
+export const facilityBookingsQuery = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export type FacilityBookingsQuery = z.infer<typeof facilityBookingsQuery>;
 
 export const roomQuotaQuery = z.object({
   roomId: z.string().uuid(),

@@ -242,17 +242,22 @@ export async function insertFacilityConfig(
   return toConfigRow(row);
 }
 
-export async function clearPendingFlag(
+export async function clearStalePendingFlags(
   tx: Tx,
-  configId: string,
-): Promise<FacilityConfigRecord | null> {
+  input: { facilityId: string; at: Date },
+): Promise<number> {
   const rows = await tx
     .update(facilityConfig)
     .set({ isPending: false })
-    .where(eq(facilityConfig.id, configId))
-    .returning();
-  const row = rows[0];
-  return row === undefined ? null : toConfigRow(row);
+    .where(
+      and(
+        eq(facilityConfig.facilityId, input.facilityId),
+        eq(facilityConfig.isPending, true),
+        lte(facilityConfig.effectiveAt, input.at),
+      ),
+    )
+    .returning({ id: facilityConfig.id });
+  return rows.length;
 }
 
 export interface ClosureRecord {
@@ -414,6 +419,7 @@ export interface BookingSlotRecord {
   state: BookingSlotState;
   canceledBy: string | null;
   refundQuota: boolean;
+  cancelReason: string | null;
 }
 
 export function toBookingSlotRow(row: typeof bookingSlot.$inferSelect): BookingSlotRecord {
@@ -427,6 +433,7 @@ export function toBookingSlotRow(row: typeof bookingSlot.$inferSelect): BookingS
     state: row.state,
     canceledBy: row.canceledBy,
     refundQuota: row.refundQuota,
+    cancelReason: row.cancelReason,
   };
 }
 
@@ -544,11 +551,17 @@ export async function updateBookingSlotState(
     nextState: BookingSlotState;
     canceledBy: string | null;
     refundQuota: boolean;
+    cancelReason: string;
   },
 ): Promise<BookingSlotRecord | null> {
   const rows = await tx
     .update(bookingSlot)
-    .set({ state: input.nextState, canceledBy: input.canceledBy, refundQuota: input.refundQuota })
+    .set({
+      state: input.nextState,
+      canceledBy: input.canceledBy,
+      refundQuota: input.refundQuota,
+      cancelReason: input.cancelReason,
+    })
     .where(and(eq(bookingSlot.id, input.slotId), eq(bookingSlot.state, input.expectedState)))
     .returning();
   const row = rows[0];
