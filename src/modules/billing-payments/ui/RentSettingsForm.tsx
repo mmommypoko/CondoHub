@@ -24,6 +24,9 @@ const invoiceSchema = z.object({
   cycle: z.string().regex(/^20\d{2}-(0[1-9]|1[0-2])$/, 'Choose a billing month.'),
 });
 type Values = z.infer<typeof schema>;
+
+const FIELD_ORDER: Array<keyof Values> = ['amount', 'effectiveMonth'];
+const INVOICE_FIELD_ORDER: Array<keyof z.infer<typeof invoiceSchema>> = ['cycle'];
 export function RentSettingsForm({
   roomId,
   tenancyId,
@@ -41,6 +44,7 @@ export function RentSettingsForm({
   const {
     register,
     handleSubmit,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<Values>({
     resolver: zodResolver(schema),
@@ -50,6 +54,10 @@ export function RentSettingsForm({
         value && value.effectiveMonth >= currentMonth ? value.effectiveMonth : currentMonth,
     },
   });
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
   const dialog = useFormDialog(isSubmitting);
   const submit = handleSubmit(async (values) => {
     setError(null);
@@ -80,7 +88,7 @@ export function RentSettingsForm({
     } catch {
       setError('Could not reach the server. Check your connection and retry.');
     }
-  });
+  }, onInvalid);
   return (
     <form
       data-testid="rent-settings-form"
@@ -159,11 +167,16 @@ export function RentInvoiceForm({
   const {
     register,
     handleSubmit,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<z.infer<typeof invoiceSchema>>({
     resolver: zodResolver(invoiceSchema),
     defaultValues: { cycle: currentMonth },
   });
+  const onInvoiceInvalid = (fieldErrors: typeof errors) => {
+    const first = INVOICE_FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
   const [error, setError] = useState<string | null>(null);
   const dialog = useFormDialog(isSubmitting);
   const submit = handleSubmit(async ({ cycle }) => {
@@ -190,7 +203,7 @@ export function RentInvoiceForm({
     } catch {
       setError('Could not reach the server. Check your connection and retry.');
     }
-  });
+  }, onInvoiceInvalid);
   return (
     <form
       data-testid="rent-invoice-form"

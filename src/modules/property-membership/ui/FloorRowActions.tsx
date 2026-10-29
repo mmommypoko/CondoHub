@@ -23,6 +23,8 @@ const editSchema = z.object({
 
 type EditValues = z.infer<typeof editSchema>;
 
+const FIELD_ORDER: Array<keyof EditValues> = ['label'];
+
 export function FloorRowActions({
   floorId,
   label,
@@ -39,11 +41,17 @@ export function FloorRowActions({
   const {
     register,
     handleSubmit,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<EditValues>({
     resolver: zodResolver(editSchema),
     defaultValues: { label },
   });
+
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
 
   const onEdit = handleSubmit(async (values) => {
     setEditError(null);
@@ -60,7 +68,7 @@ export function FloorRowActions({
     setEditOpen(false);
     toast.success('Floor updated.');
     router.refresh();
-  });
+  }, onInvalid);
 
   return (
     <>

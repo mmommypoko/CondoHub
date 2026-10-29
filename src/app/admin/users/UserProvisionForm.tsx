@@ -24,6 +24,14 @@ const provisionSchema = z.object({
 
 type ProvisionValues = z.infer<typeof provisionSchema>;
 
+const FIELD_ORDER: Array<keyof ProvisionValues> = [
+  'username',
+  'email',
+  'name',
+  'phone',
+  'isSystemAdmin',
+];
+
 interface ProvisionPayload {
   data?: { userId?: unknown; tempPassword?: unknown; created?: unknown };
 }
@@ -54,11 +62,17 @@ export function UserProvisionForm({
   const {
     register,
     handleSubmit,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<ProvisionValues>({
     resolver: zodResolver(provisionSchema),
     defaultValues: { username: '', email: '', name: '', phone: '', isSystemAdmin: false },
   });
+
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
 
   useEffect(() => {
     onPendingChange(isSubmitting);
@@ -84,7 +98,7 @@ export function UserProvisionForm({
     }
     const { userId, tempPassword } = extractProvisionedAccount(payload);
     onDone(userId, tempPassword);
-  });
+  }, onInvalid);
 
   return (
     <form

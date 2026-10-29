@@ -24,6 +24,8 @@ const schema = z.object({
   email: z.string().trim().email('Enter a valid email address.').max(255),
 });
 type Values = z.infer<typeof schema>;
+
+const FIELD_ORDER: Array<keyof Values> = ['username', 'name', 'email'];
 export function TenantAccountForm({ roomId }: { roomId: string }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -34,8 +36,13 @@ export function TenantAccountForm({ roomId }: { roomId: string }) {
   const {
     register,
     handleSubmit,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<Values>({ resolver: zodResolver(schema) });
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
   const dialog = useFormDialog(isSubmitting);
   const submit = handleSubmit(async (values) => {
     setError(null);
@@ -59,7 +66,7 @@ export function TenantAccountForm({ roomId }: { roomId: string }) {
     } catch {
       setError('Could not reach the server. Check your connection and retry.');
     }
-  });
+  }, onInvalid);
   if (result)
     return (
       <div className="flex flex-col gap-5" data-testid="tenant-account-result">

@@ -26,6 +26,8 @@ const editSchema = z.object({
 
 type EditValues = z.infer<typeof editSchema>;
 
+const FIELD_ORDER: Array<keyof EditValues> = ['name', 'areaSqm'];
+
 interface DisableImpact {
   activeTenancies?: number;
   activeMemberships?: number;
@@ -77,11 +79,17 @@ export function RoomRowActions({
   const {
     register,
     handleSubmit,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<EditValues>({
     resolver: zodResolver(editSchema),
     defaultValues: { name, areaSqm },
   });
+
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
 
   const onEdit = handleSubmit(async (values) => {
     setEditError(null);
@@ -98,7 +106,7 @@ export function RoomRowActions({
     setEditOpen(false);
     toast.success('Room updated.');
     router.refresh();
-  });
+  }, onInvalid);
 
   async function setStatus(next: 'ACTIVE' | 'INACTIVE'): Promise<void> {
     setStatusError(null);

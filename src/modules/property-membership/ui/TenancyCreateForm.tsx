@@ -33,6 +33,8 @@ const createSchema = z
 
 type CreateValues = z.infer<typeof createSchema>;
 
+const FIELD_ORDER: Array<keyof CreateValues> = ['startsAt', 'endsAt', 'managementMode'];
+
 function toEffectiveAt(date: string): string {
   return `${date}T00:00:00+07:00`;
 }
@@ -50,6 +52,7 @@ export function TenancyCreateForm({
   const {
     register,
     handleSubmit,
+    setFocus,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<CreateValues>({
@@ -60,6 +63,11 @@ export function TenancyCreateForm({
       managementMode: allowProjectManaged ? 'PROJECT_MANAGED' : 'PRIVATE_OWNER_MANAGED',
     },
   });
+
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
 
   const dialog = useFormDialog(isSubmitting);
 
@@ -91,7 +99,7 @@ export function TenancyCreateForm({
     } catch {
       setServerError('Could not reach the server. Check your connection and try again.');
     }
-  });
+  }, onInvalid);
 
   return (
     <form

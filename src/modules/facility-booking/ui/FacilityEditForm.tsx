@@ -29,6 +29,8 @@ const editSchema = z.object({
 
 type EditValues = z.infer<typeof editSchema>;
 
+const FIELD_ORDER: Array<keyof EditValues> = ['name', 'capacity', 'description', 'status'];
+
 interface ErrorPayload {
   error?: { message?: string };
 }
@@ -51,6 +53,7 @@ export function FacilityEditForm({
   const {
     register,
     handleSubmit,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<EditValues>({
     resolver: zodResolver(editSchema),
@@ -61,6 +64,11 @@ export function FacilityEditForm({
       capacity: String(initial.capacity),
     },
   });
+
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
 
   const dialog = useFormDialog(isSubmitting);
 
@@ -84,7 +92,7 @@ export function FacilityEditForm({
     toast.success('Facility saved.');
     dialog?.complete();
     router.refresh();
-  });
+  }, onInvalid);
 
   return (
     <form

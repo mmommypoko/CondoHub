@@ -51,6 +51,21 @@ const createSchema = z.object({
 
 type CreateValues = z.infer<typeof createSchema>;
 
+const FIELD_ORDER: Array<keyof CreateValues> = [
+  'name',
+  'description',
+  'capacity',
+  'slotMinutes',
+  'quotaKind',
+  'quotaLimit',
+  'advanceDays',
+  'openDays',
+  'openStart',
+  'openEnd',
+  'breakStart',
+  'breakEnd',
+];
+
 interface ErrorPayload {
   error?: { message?: string };
 }
@@ -67,6 +82,7 @@ export function FacilityCreateForm({ projectId }: { projectId: string }) {
   const {
     register,
     handleSubmit,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<CreateValues>({
     resolver: zodResolver(createSchema),
@@ -81,6 +97,11 @@ export function FacilityCreateForm({ projectId }: { projectId: string }) {
       openDays: ['1', '2', '3', '4', '5'],
     },
   });
+
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
 
   const dialog = useFormDialog(isSubmitting);
 
@@ -151,7 +172,7 @@ export function FacilityCreateForm({ projectId }: { projectId: string }) {
     dialog?.complete();
     router.push(`/admin/facilities?query=${encodeURIComponent(values.name)}`);
     router.refresh();
-  });
+  }, onInvalid);
 
   return (
     <form

@@ -21,6 +21,12 @@ const changePasswordSchema = z
 
 type ChangePasswordValues = z.infer<typeof changePasswordSchema>;
 
+const FIELD_ORDER: Array<keyof ChangePasswordValues> = [
+  'currentPassword',
+  'newPassword',
+  'confirmPassword',
+];
+
 export default function ChangePasswordForm({
   mode = 'first-login',
   onCancel,
@@ -36,8 +42,14 @@ export default function ChangePasswordForm({
   const {
     register,
     handleSubmit,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<ChangePasswordValues>({ resolver: zodResolver(changePasswordSchema) });
+
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
 
   useEffect(() => {
     onPendingChange?.(isSubmitting);
@@ -70,7 +82,7 @@ export default function ChangePasswordForm({
     } catch {
       setServerError('Could not reach the server. Check your connection and try again.');
     }
-  });
+  }, onInvalid);
 
   return (
     <form

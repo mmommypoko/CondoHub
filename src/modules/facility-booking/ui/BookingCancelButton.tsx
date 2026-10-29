@@ -15,6 +15,8 @@ const cancelSchema = z.object({
 
 type CancelValues = z.infer<typeof cancelSchema>;
 
+const FIELD_ORDER: Array<keyof CancelValues> = ['reason', 'refundQuota'];
+
 interface ErrorPayload {
   error?: { message?: string };
 }
@@ -39,9 +41,15 @@ export function BookingCancelButton({
   const {
     register,
     handleSubmit,
+    setFocus,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<CancelValues>({ resolver: zodResolver(cancelSchema) });
+
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
@@ -62,7 +70,7 @@ export function BookingCancelButton({
     setOpen(false);
     reset();
     router.refresh();
-  });
+  }, onInvalid);
 
   const when = new Date(startsAt).toLocaleString('en-US', { timeZone: 'Asia/Bangkok' });
 

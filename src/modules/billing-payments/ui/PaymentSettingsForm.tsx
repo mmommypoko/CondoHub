@@ -17,6 +17,9 @@ const schema = z.object({
   accountNumber: z.string().trim().min(1, 'Enter the account number.').max(80),
 });
 type Values = z.infer<typeof schema>;
+
+const FIELD_ORDER: Array<keyof Values> = ['bankName', 'accountName', 'accountNumber'];
+
 export interface PaymentSettingsValue extends Values {
   id: string;
   qrImageId: string | null;
@@ -41,6 +44,7 @@ export function PaymentSettingsForm({
   const {
     register,
     handleSubmit,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<Values>({
     resolver: zodResolver(schema),
@@ -50,6 +54,10 @@ export function PaymentSettingsForm({
       accountNumber: value?.accountNumber ?? '',
     },
   });
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
   const dialog = useFormDialog(isSubmitting || uploading);
   const submit = handleSubmit(async (values) => {
     setError(null);
@@ -81,7 +89,7 @@ export function PaymentSettingsForm({
     } catch {
       setError('Could not save payment details. Check your connection and retry.');
     }
-  });
+  }, onInvalid);
   return (
     <form
       data-testid="payment-settings-form"

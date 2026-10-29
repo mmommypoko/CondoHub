@@ -37,6 +37,13 @@ interface ErrorPayload {
   error?: { message?: string };
 }
 
+const FIELD_ORDER: Array<keyof AnnouncementFormValues> = [
+  'title',
+  'body',
+  'publishMode',
+  'publishAt',
+];
+
 export function AnnouncementEditForm({
   announcementId,
   initialTitle,
@@ -70,6 +77,7 @@ export function AnnouncementEditForm({
   const {
     register,
     handleSubmit,
+    setFocus,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<AnnouncementFormValues>({
@@ -83,6 +91,11 @@ export function AnnouncementEditForm({
   });
   const publishMode = watch('publishMode');
   const published = initialPublishAt !== null && publishModeFor(initialPublishAt) === 'now';
+
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
 
   const dialog = useFormDialog(isSubmitting || busyAction);
 
@@ -109,7 +122,7 @@ export function AnnouncementEditForm({
     toast.success('Announcement saved.');
     dialog?.complete();
     router.refresh();
-  });
+  }, onInvalid);
 
   async function setHidden(nextHidden: string | null): Promise<void> {
     setBusyAction(true);

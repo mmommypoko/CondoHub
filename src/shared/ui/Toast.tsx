@@ -13,6 +13,7 @@ import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import { STATUS_ICONS } from "./status-icons";
 import { cx } from "./cx";
+import { PausableTimer } from "./pausableTimer";
 
 export type ToastVariant = "success" | "error" | "warning" | "info";
 
@@ -155,13 +156,29 @@ function ToastItem({
   record: ToastRecord;
   onDismiss: (id: string) => void;
 }) {
+  const [paused, setPaused] = useState(false);
+  const timerRef = useRef<PausableTimer | null>(null);
+
   useEffect(() => {
     if (record.durationMs <= 0) {
       return;
     }
-    const timer = window.setTimeout(() => onDismiss(record.id), record.durationMs);
-    return () => window.clearTimeout(timer);
+    const timer = new PausableTimer(() => onDismiss(record.id), record.durationMs);
+    timerRef.current = timer;
+    timer.start();
+    return () => {
+      timer.clear();
+      timerRef.current = null;
+    };
   }, [record.id, record.durationMs, onDismiss]);
+
+  useEffect(() => {
+    if (paused) {
+      timerRef.current?.pause();
+    } else {
+      timerRef.current?.resume();
+    }
+  }, [paused]);
 
   const Icon = TOAST_ICONS[record.variant];
 
@@ -169,6 +186,14 @@ function ToastItem({
     <div
       data-testid={`toast-${record.variant}`}
       role={record.variant === "error" ? "alert" : "status"}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={(event) => {
+        const next = event.relatedTarget;
+        if (next instanceof Node && event.currentTarget.contains(next)) return;
+        setPaused(false);
+      }}
       className="animate-ui-toast pointer-events-auto flex items-start gap-3 rounded-lg border border-border bg-surface-raised p-4 shadow-overlay"
     >
       <Icon aria-hidden="true" className={cx("size-5 shrink-0", TOAST_ICON_STYLES[record.variant])} />

@@ -26,6 +26,14 @@ export interface TicketRoomOption {
   label: string;
 }
 
+const FIELD_ORDER: Array<keyof TicketCreateFormValues> = [
+  'routingKind',
+  'roomId',
+  'locationDescription',
+  'subject',
+  'description',
+];
+
 interface ErrorPayload {
   error?: { code?: string; message?: string };
 }
@@ -75,6 +83,7 @@ export function TicketCreateForm({
   const {
     register,
     handleSubmit,
+    setFocus,
     setValue,
     watch,
     formState: { errors, isSubmitting },
@@ -92,6 +101,17 @@ export function TicketCreateForm({
   const roomOptions = routingKind === 'PRIVATE_OWNER' ? privateRooms : managedRooms;
 
   const dialog = useFormDialog(isSubmitting);
+
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first === undefined) return;
+    setFocus(first);
+    if (first === 'roomId') {
+      requestAnimationFrame(() => {
+        document.getElementById('maintenance-create-room')?.scrollIntoView({ block: 'nearest' });
+      });
+    }
+  };
 
   const onSubmit = handleSubmit(
     async (values) => {
@@ -132,28 +152,7 @@ export function TicketCreateForm({
       router.push(`/maintenance/${id}`);
       router.refresh();
     },
-    (invalid) => {
-      if (invalid.roomId !== undefined) {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            document.getElementById('maintenance-create-room')?.focus({ preventScroll: false });
-          });
-        });
-        return;
-      }
-      const target =
-        invalid.locationDescription !== undefined
-          ? document.getElementById('maintenance-create-location')
-          : invalid.subject !== undefined
-            ? document.getElementById('maintenance-create-subject')
-            : invalid.description !== undefined
-              ? document.getElementById('maintenance-create-description')
-              : null;
-      if (target !== null) {
-        target.focus({ preventScroll: false });
-        target.scrollIntoView({ block: 'nearest' });
-      }
-    },
+    onInvalid,
   );
 
   return (

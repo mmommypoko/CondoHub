@@ -46,6 +46,17 @@ const configSchema = z.object({
 
 type ConfigValues = z.infer<typeof configSchema>;
 
+const FIELD_ORDER: Array<keyof ConfigValues> = [
+  'slotMinutes',
+  'quotaKind',
+  'quotaLimit',
+  'advanceDays',
+  'effectiveAt',
+  'openDays',
+  'openStart',
+  'openEnd',
+];
+
 interface PreviewPayload {
   data: {
     facilityId: string;
@@ -107,6 +118,7 @@ export function ConfigChangeForm({
   const {
     register,
     handleSubmit,
+    setFocus,
     getValues,
     formState: { errors },
   } = useForm<ConfigValues>({
@@ -122,6 +134,11 @@ export function ConfigChangeForm({
       openDays: initial.openDays,
     },
   });
+
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
 
   const buildBody = (values: ConfigValues): Record<string, unknown> | null => {
     const closing = closingScheduleValue(values.openEnd);
@@ -183,7 +200,7 @@ export function ConfigChangeForm({
     } finally {
       setWorking(false);
     }
-  });
+  }, onInvalid);
 
   const onCommit = async () => {
     if (preview === null) return;

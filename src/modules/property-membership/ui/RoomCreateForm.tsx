@@ -25,6 +25,8 @@ const createSchema = z.object({
 
 type CreateValues = z.infer<typeof createSchema>;
 
+const FIELD_ORDER: Array<keyof CreateValues> = ['floorId', 'name', 'areaSqm', 'status'];
+
 export interface RoomFloorOption {
   id: string;
   code: string;
@@ -46,12 +48,18 @@ export function RoomCreateForm({
   const {
     register,
     handleSubmit,
+    setFocus,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<CreateValues>({
     resolver: zodResolver(createSchema),
     defaultValues: { floorId: defaultFloorId, name: '', areaSqm: '', status: 'ACTIVE' },
   });
+
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
 
   const dialog = useFormDialog(isSubmitting);
 
@@ -81,7 +89,7 @@ export function RoomCreateForm({
     } catch {
       setServerError('Could not reach the server. Check your connection and try again.');
     }
-  });
+  }, onInvalid);
 
   if (floors.length === 0) {
     return (

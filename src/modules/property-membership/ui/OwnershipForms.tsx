@@ -43,6 +43,13 @@ const removeSchema = z.object({
 type TransferValues = z.infer<typeof transferSchema>;
 type RemoveValues = z.infer<typeof removeSchema>;
 
+const TRANSFER_FIELD_ORDER: Array<keyof TransferValues> = [
+  'fromOwnershipId',
+  'toUsername',
+  'effectiveDate',
+];
+const REMOVE_FIELD_ORDER: Array<keyof RemoveValues> = ['ownershipId', 'effectiveDate'];
+
 export interface OwnerOption {
   ownershipId: string;
   userId: string;
@@ -110,11 +117,22 @@ function CorrectionForm({ roomId, owners }: { roomId: string; owners: OwnerOptio
   const {
     register,
     handleSubmit,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<z.infer<typeof correctionSchema>>({
     resolver: zodResolver(correctionSchema),
     defaultValues: { ownershipId: '', startDate: '', endDate: '', reason: '' },
   });
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const order: Array<keyof z.infer<typeof correctionSchema>> = [
+      'ownershipId',
+      'startDate',
+      'endDate',
+      'reason',
+    ];
+    const first = order.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
   const dialog = useFormDialog(isSubmitting);
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
@@ -145,7 +163,7 @@ function CorrectionForm({ roomId, owners }: { roomId: string; owners: OwnerOptio
     } catch {
       setServerError('Could not connect. Please try again.');
     }
-  });
+  }, onInvalid);
   return (
     <form
       data-testid="ownership-correct-form"
@@ -233,6 +251,8 @@ const assignSchema = z.object({
 
 type AssignValues = z.infer<typeof assignSchema>;
 
+const ASSIGN_FIELD_ORDER: Array<keyof AssignValues> = ['username', 'effectiveDate'];
+
 export function OwnershipAssignForm({
   roomId,
   mode = 'assign',
@@ -246,12 +266,18 @@ export function OwnershipAssignForm({
   const {
     register,
     handleSubmit,
+    setFocus,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<AssignValues>({
     resolver: zodResolver(assignSchema),
     defaultValues: { username: '', effectiveDate: '' },
   });
+
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = ASSIGN_FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
 
   const dialog = useFormDialog(isSubmitting);
 
@@ -285,7 +311,7 @@ export function OwnershipAssignForm({
     } catch {
       setServerError('Could not connect. Please try again.');
     }
-  });
+  }, onInvalid);
 
   return (
     <form
@@ -350,12 +376,18 @@ function TransferForm({ roomId, owners }: { roomId: string; owners: OwnerOption[
   const {
     register,
     handleSubmit,
+    setFocus,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<TransferValues>({
     resolver: zodResolver(transferSchema),
     defaultValues: { fromOwnershipId: '', toUsername: '', effectiveDate: '' },
   });
+
+  const onTransferInvalid = (fieldErrors: typeof errors) => {
+    const first = TRANSFER_FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
 
   const dialog = useFormDialog(isSubmitting);
 
@@ -389,7 +421,7 @@ function TransferForm({ roomId, owners }: { roomId: string; owners: OwnerOption[
     } catch {
       setServerError('Could not connect. Please try again.');
     }
-  });
+  }, onTransferInvalid);
 
   return (
     <form
@@ -473,12 +505,18 @@ function RemoveForm({ roomId, owners }: { roomId: string; owners: OwnerOption[] 
   const {
     register,
     handleSubmit,
+    setFocus,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<RemoveValues>({
     resolver: zodResolver(removeSchema),
     defaultValues: { ownershipId: '', effectiveDate: '' },
   });
+
+  const onRemoveInvalid = (fieldErrors: typeof errors) => {
+    const first = REMOVE_FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
 
   const dialog = useFormDialog(isSubmitting);
 
@@ -506,7 +544,7 @@ function RemoveForm({ roomId, owners }: { roomId: string; owners: OwnerOption[] 
     } catch {
       setServerError('Could not connect. Please try again.');
     }
-  });
+  }, onRemoveInvalid);
 
   return (
     <form

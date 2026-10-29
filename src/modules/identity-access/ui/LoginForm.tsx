@@ -15,6 +15,8 @@ const loginSchema = z.object({
 
 type LoginValues = z.infer<typeof loginSchema>;
 
+const FIELD_ORDER: Array<keyof LoginValues> = ['username', 'password'];
+
 function safeReturnUrl(value: string | null): string {
   if (value === null || value === '') return '/';
   if (!value.startsWith('/')) return '/';
@@ -29,8 +31,14 @@ export default function LoginForm() {
   const {
     register,
     handleSubmit,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<LoginValues>({ resolver: zodResolver(loginSchema) });
+
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
@@ -57,7 +65,7 @@ export default function LoginForm() {
     }
     router.push(safeReturnUrl(searchParams.get('returnUrl')));
     router.refresh();
-  });
+  }, onInvalid);
 
   return (
     <form data-testid="login-form" onSubmit={onSubmit} noValidate className="flex flex-col gap-5">

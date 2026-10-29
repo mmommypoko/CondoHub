@@ -19,6 +19,13 @@ import {
   type UploadedImage,
 } from '@/modules/announcements/ui/AnnouncementImageUploader';
 
+const FIELD_ORDER: Array<keyof AnnouncementFormValues> = [
+  'title',
+  'body',
+  'publishMode',
+  'publishAt',
+];
+
 export function AnnouncementCreateForm() {
   const router = useRouter();
   const { toast } = useToast();
@@ -27,6 +34,7 @@ export function AnnouncementCreateForm() {
   const {
     register,
     handleSubmit,
+    setFocus,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<AnnouncementFormValues>({
@@ -34,6 +42,11 @@ export function AnnouncementCreateForm() {
     defaultValues: { publishMode: 'draft' },
   });
   const publishMode = watch('publishMode');
+
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
 
   const dialog = useFormDialog(isSubmitting);
 
@@ -67,7 +80,7 @@ export function AnnouncementCreateForm() {
     dialog?.complete();
     router.push(`/admin/announcements/${created.data.id}`);
     router.refresh();
-  });
+  }, onInvalid);
 
   return (
     <form

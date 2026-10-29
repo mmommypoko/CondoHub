@@ -41,6 +41,8 @@ function buildAddSchema(requiresTenancy: boolean) {
 
 type AddValues = z.infer<ReturnType<typeof buildAddSchema>>;
 
+const FIELD_ORDER: Array<keyof AddValues> = ['username', 'memberRole', 'tenancyId'];
+
 export interface MemberTenancyOption {
   id: string;
   managementMode: string;
@@ -60,6 +62,7 @@ export function RoomMemberAddForm({
   const {
     register,
     handleSubmit,
+    setFocus,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<AddValues>({
@@ -70,6 +73,11 @@ export function RoomMemberAddForm({
       tenancyId: activeTenancies.length === 1 ? (activeTenancies[0]?.id ?? '') : '',
     },
   });
+
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
 
   const dialog = useFormDialog(isSubmitting);
 
@@ -99,7 +107,7 @@ export function RoomMemberAddForm({
     } catch {
       setServerError('Could not reach the server. Check your connection and try again.');
     }
-  });
+  }, onInvalid);
 
   return (
     <form

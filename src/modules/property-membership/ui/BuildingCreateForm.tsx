@@ -20,6 +20,8 @@ const createSchema = z.object({
 
 type CreateValues = z.infer<typeof createSchema>;
 
+const FIELD_ORDER: Array<keyof CreateValues> = ['name', 'status'];
+
 export function BuildingCreateForm({ projectId }: { projectId: string }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -27,11 +29,17 @@ export function BuildingCreateForm({ projectId }: { projectId: string }) {
   const {
     register,
     handleSubmit,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<CreateValues>({
     resolver: zodResolver(createSchema),
     defaultValues: { name: '', status: 'ACTIVE' },
   });
+
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
 
   const dialog = useFormDialog(isSubmitting);
 
@@ -59,7 +67,7 @@ export function BuildingCreateForm({ projectId }: { projectId: string }) {
     } catch {
       setServerError('Could not reach the server. Check your connection and try again.');
     }
-  });
+  }, onInvalid);
 
   return (
     <form

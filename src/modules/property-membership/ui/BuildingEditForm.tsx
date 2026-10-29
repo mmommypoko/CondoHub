@@ -17,6 +17,10 @@ import {
 
 const schema = z.object({ name: z.string().trim().min(1, 'Building name is required.').max(255) });
 
+type EditValues = z.infer<typeof schema>;
+
+const FIELD_ORDER: Array<keyof EditValues> = ['name'];
+
 export function BuildingEditForm({ buildingId, name }: { buildingId: string; name: string }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -24,8 +28,13 @@ export function BuildingEditForm({ buildingId, name }: { buildingId: string; nam
   const {
     register,
     handleSubmit,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<z.infer<typeof schema>>({ resolver: zodResolver(schema), defaultValues: { name } });
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
   const dialog = useFormDialog(isSubmitting);
   const submit = handleSubmit(async (values) => {
     setError(null);
@@ -50,7 +59,7 @@ export function BuildingEditForm({ buildingId, name }: { buildingId: string; nam
     } catch {
       setError('Could not reach the server. Check your connection and try again.');
     }
-  });
+  }, onInvalid);
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-4">
       {error ? (

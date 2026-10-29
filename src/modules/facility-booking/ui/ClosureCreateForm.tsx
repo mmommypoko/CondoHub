@@ -19,6 +19,8 @@ const closureSchema = z.object({
 
 type ClosureValues = z.infer<typeof closureSchema>;
 
+const FIELD_ORDER: Array<keyof ClosureValues> = ['startsAt', 'endsAt', 'reason'];
+
 interface ErrorPayload {
   error?: { message?: string };
 }
@@ -30,9 +32,15 @@ export function ClosureCreateForm({ facilityId }: { facilityId: string }) {
   const {
     register,
     handleSubmit,
+    setFocus,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<ClosureValues>({ resolver: zodResolver(closureSchema) });
+
+  const onInvalid = (fieldErrors: typeof errors) => {
+    const first = FIELD_ORDER.find((name) => fieldErrors[name] !== undefined);
+    if (first !== undefined) setFocus(first);
+  };
 
   const dialog = useFormDialog(isSubmitting);
 
@@ -66,7 +74,7 @@ export function ClosureCreateForm({ facilityId }: { facilityId: string }) {
     dialog?.complete();
     reset();
     router.refresh();
-  });
+  }, onInvalid);
 
   return (
     <form
