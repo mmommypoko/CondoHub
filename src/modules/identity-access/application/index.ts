@@ -1,6 +1,8 @@
 import 'server-only';
 export { getPeopleProfiles, searchUserAccounts } from './accountQueries';
 export { deleteUser } from './deleteUser';
+export { getRoomProvisioningPorts, setRoomProvisioningPorts } from './roomProvisioningPorts';
+export { lookupUserById, lookupUserIdByUsername } from './userLookups';
 
 export { resolveOrCreateGrantUser } from './provisioning';
 export type { GrantUserInput, GrantUserResult } from './provisioning';

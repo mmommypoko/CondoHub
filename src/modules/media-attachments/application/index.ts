@@ -11,6 +11,10 @@ export type { CommitAttachmentsOptions } from './commitAttachments';
 export { listAttachedImagesForEntity } from './attachedImages';
 export type { AttachedImageDto } from './attachedImages';
 export {
+  listAnnouncementAttachments,
+  replaceAnnouncementAttachments,
+} from './announcementAttachments';
+export {
   evaluateScopeAcl,
   registerScopeAcl,
   resolveScopeAcl,

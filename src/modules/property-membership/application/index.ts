@@ -1,5 +1,6 @@
 import 'server-only';
 export { deletePropertyResource } from './resourceLifecycle';
+export { listPrivateRentalManagerGroups } from './accountResponsibilities';
 
 export { createPropertyCtx } from './ctx';
 export type { PropertyCtx } from './ctx';

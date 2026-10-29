@@ -23,7 +23,7 @@ import {
   type RoomManagementMode as GuardManagementMode,
 } from '../domain/managementModeGuards';
 import { type PmAction, type RoomActVerdict } from '../domain/pmActions';
-import { findUserById } from '@/modules/identity-access/infrastructure/userRepository';
+import { lookupUserById } from '@/modules/identity-access/application/index';
 import {
   queryRoomPage,
   listRoomLabels,
@@ -142,7 +142,7 @@ function toOwnerRefs(rows: OwnershipRow[], at: Date): OwnerRef[] {
 }
 
 async function requireKnownActor(actorId: string, conn: Db = db): Promise<void> {
-  const found = await findUserById(conn, actorId);
+  const found = await lookupUserById(conn, actorId);
   if (found === null) throw new AppError('AUTH_REQUIRED');
 }
 

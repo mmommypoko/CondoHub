@@ -1,0 +1,2 @@
+CREATE TYPE "public"."job_name" AS ENUM('generate-invoices', 'sweep-orphans');--> statement-breakpoint
+ALTER TABLE "job_run" ALTER COLUMN "job_name" SET DATA TYPE "public"."job_name" USING "job_name"::"public"."job_name";

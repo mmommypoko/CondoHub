@@ -43,6 +43,10 @@ export function exceedsByteCap(sizeBytes: number, byteCap: number): boolean {
   return sizeBytes > byteCap;
 }
 
+export function byteCeilingExceededMessage(actualBytes: number, ceilingBytes: number): string {
+  return `The image is ${actualBytes} bytes, exceeding the ${ceilingBytes} byte limit.`;
+}
+
 export function canonicalObjectKey(objectKey: string, mime: string): string {
   if (mime !== 'image/jpeg' && mime !== 'image/png' && mime !== 'image/webp') return objectKey;
   const dot = objectKey.lastIndexOf('.');

@@ -19,6 +19,7 @@ import {
 } from '../infrastructure/imageRepository';
 import { verifyAndStripImage } from '../infrastructure/imageVerification';
 import {
+  byteCeilingExceededMessage,
   canonicalObjectKey,
   detectMimeFromMagic,
   exceedsByteCap,
@@ -60,26 +61,21 @@ export async function completeImageUpload(
     await rejectInTx(actor.userId, imageId, 'UPLOAD_MISSING', ctx.requestId);
     throw new AppError('VALIDATION_ERROR', 'The uploaded file was not found. Please upload again.');
   }
-  if (exceedsByteCap(head.sizeBytes, IMAGE_BYTE_CAPS[image.scope])) {
+  const byteCeiling = IMAGE_BYTE_CAPS[image.scope];
+  if (exceedsByteCap(head.sizeBytes, byteCeiling)) {
     await rejectInTx(actor.userId, imageId, 'BYTE_CAP_EXCEEDED', ctx.requestId);
     await removeObjectBestEffort(image.objectKey, ctx.requestId);
-    throw new AppError(
-      'FILE_TOO_LARGE',
-      `The image exceeds the ${Math.round(IMAGE_BYTE_CAPS[image.scope] / 1_000_000)} MB limit.`,
-    );
+    throw new AppError('FILE_TOO_LARGE', byteCeilingExceededMessage(head.sizeBytes, byteCeiling));
   }
   const stored = await getObjectBytes(image.objectKey);
   if (stored === null) {
     await rejectInTx(actor.userId, imageId, 'UPLOAD_MISSING', ctx.requestId);
     throw new AppError('VALIDATION_ERROR', 'The uploaded file was not found. Please upload again.');
   }
-  if (exceedsByteCap(stored.length, IMAGE_BYTE_CAPS[image.scope])) {
+  if (exceedsByteCap(stored.length, byteCeiling)) {
     await rejectInTx(actor.userId, imageId, 'BYTE_CAP_EXCEEDED', ctx.requestId);
     await removeObjectBestEffort(image.objectKey, ctx.requestId);
-    throw new AppError(
-      'FILE_TOO_LARGE',
-      `The image exceeds the ${Math.round(IMAGE_BYTE_CAPS[image.scope] / 1_000_000)} MB limit.`,
-    );
+    throw new AppError('FILE_TOO_LARGE', byteCeilingExceededMessage(stored.length, byteCeiling));
   }
   const magicMime = detectMimeFromMagic(stored);
   if (magicMime === null) {

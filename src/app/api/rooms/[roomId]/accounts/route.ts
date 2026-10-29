@@ -4,9 +4,12 @@ import { requireActiveActor } from '@/shared/auth/guards';
 import { AppError } from '@/shared/utils/errors';
 import { RATE_LIMIT_PRESETS } from '@/shared/utils/rateLimit';
 import { getIdempotencyKey } from '@/shared/utils/idempotency';
-import { createIdentityCtx, provisionUser } from '@/modules/identity-access/application/index';
-import { getRoomProvisioningPorts } from '@/modules/identity-access/application/roomProvisioningPorts';
-import { wireRoomProvisioningPorts } from '@/modules/property-membership/application/provisioningPorts';
+import {
+  createIdentityCtx,
+  getRoomProvisioningPorts,
+  provisionUser,
+} from '@/modules/identity-access/application/index';
+import { wireRoomProvisioningPorts } from '@/modules/property-membership/application/index';
 import {
   parseWithFieldErrors,
   provisionAccountBody,

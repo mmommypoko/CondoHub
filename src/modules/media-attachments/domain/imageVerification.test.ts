@@ -7,6 +7,7 @@ import {
   IMAGE_COUNT_CAPS,
 } from '@/config/imageLimits';
 import {
+  byteCeilingExceededMessage,
   detectMimeFromMagic,
   exceedsByteCap,
   extensionForMime,
@@ -40,6 +41,15 @@ describe('UT-UP-01 byte caps D09 decimal megabytes', () => {
       expect(exceedsByteCap(5_000_000, IMAGE_BYTE_CAPS[scope])).toBe(false);
       expect(exceedsByteCap(5_000_001, IMAGE_BYTE_CAPS[scope])).toBe(true);
     }
+  });
+
+  it('over-ceiling rejection message carries the actual size and the ceiling', () => {
+    expect(byteCeilingExceededMessage(10_000_001, IMAGE_BYTE_CAPS.PAYMENT_SLIP)).toBe(
+      'The image is 10000001 bytes, exceeding the 10000000 byte limit.',
+    );
+    expect(byteCeilingExceededMessage(5_000_001, IMAGE_BYTE_CAPS.CHAT)).toBe(
+      'The image is 5000001 bytes, exceeding the 5000000 byte limit.',
+    );
   });
 });
 
