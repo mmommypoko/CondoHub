@@ -5,7 +5,7 @@ import { requireActiveActor } from '@/shared/auth/guards';
 import { db } from '@/shared/db/client';
 import { AppError, mapPgError } from '@/shared/utils/errors';
 import { decimalStringToSatang } from '@/shared/utils/money';
-import { formatProjectDate, projectDateParts } from '@/shared/utils/clock';
+import { cycleStartOfMonth, formatProjectDate, projectDateParts } from '@/shared/utils/clock';
 import { writeAudit } from '@/shared/observability/audit';
 import {
   getRoomDetail,
@@ -86,7 +86,10 @@ export async function saveRentSettings(
       'VALIDATION_ERROR',
       'Choose this month or a future month. Existing invoices keep their issued amounts.',
     );
-  const effectiveAt = new Date(`${input.effectiveMonth}-01T00:00:00+07:00`);
+  const effectiveAt = cycleStartOfMonth(
+    Number(input.effectiveMonth.slice(0, 4)),
+    Number(input.effectiveMonth.slice(5, 7)),
+  );
   try {
     return await db.transaction(
       async (tx) => {
@@ -134,7 +137,10 @@ export async function issueRoomRentInvoice(
   const { room, tenancy, kind } = await assertRentManager(actor, roomId, input.tenancyId, now);
   if (room.status !== 'ACTIVE')
     throw new AppError('VALIDATION_ERROR', 'Activate the room before issuing rent.');
-  const start = new Date(`${input.cycle}-01T00:00:00+07:00`);
+  const start = cycleStartOfMonth(
+    Number(input.cycle.slice(0, 4)),
+    Number(input.cycle.slice(5, 7)),
+  );
   const currentMonth = formatProjectDate(projectDateParts(now)).slice(0, 7);
   if (input.cycle < currentMonth)
     throw new AppError('VALIDATION_ERROR', 'Choose this month or a future month.');

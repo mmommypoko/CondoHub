@@ -148,8 +148,8 @@ export function resolveInvoiceTotal(input: {
     return { totalSatang: input.derivedSatang, overridden: false };
   }
   if (!input.actorIsSystemAdmin) throw new AppError('ACCESS_DENIED');
-  if (input.amountOverrideSatang < 0n) {
-    throw new AppError('VALIDATION_ERROR', 'The override amount must not be negative.');
+  if (input.amountOverrideSatang <= 0n) {
+    throw new AppError('VALIDATION_ERROR', 'The override amount must be greater than zero.');
   }
   if (input.overrideReason === undefined || input.overrideReason === null || input.overrideReason.trim().length === 0) {
     throw new AppError('VALIDATION_ERROR', 'The override reason is required when overriding the amount.');

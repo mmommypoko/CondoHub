@@ -93,7 +93,7 @@ async function main() {
   const { fillMissingInvoiceInstructions, readPayeeSnapshot } = await import(
     '../../src/modules/billing-payments/infrastructure/invoiceRepository'
   );
-  const { systemAutoPayee, payeeSnapshotToRecord } = await import(
+  const { buildPayeeSnapshot, payeeSnapshotToRecord } = await import(
     '../../src/modules/billing-payments/domain/payeePolicy'
   );
   const { eq } = await import('drizzle-orm');
@@ -104,7 +104,16 @@ async function main() {
     await db.transaction(async (tx) => {
       await tx
         .update(invoice)
-        .set({ paymentInstructionSnapshot: payeeSnapshotToRecord(systemAutoPayee()) })
+        .set({
+          paymentInstructionSnapshot: payeeSnapshotToRecord(
+            buildPayeeSnapshot({
+              bankName: 'System Auto',
+              accountName: 'System Auto',
+              accountNumber: 'SYSTEM-AUTO',
+              confirmed: true,
+            }),
+          ),
+        })
         .where(eq(invoice.id, invoiceId));
       const snapshot = {
         bankName: 'Verified Bank',

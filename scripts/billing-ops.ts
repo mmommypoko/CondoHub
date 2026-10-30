@@ -230,7 +230,7 @@ async function probePayments(invoiceId: string): Promise<void> {
   }));
 }
 
-async function probePayee(roomCode: string, payeeType: string): Promise<void> {
+async function probePayee(roomCode: string, payeeType: 'PROJECT' | 'OWNER'): Promise<void> {
   const { db } = await import('@/shared/db/client');
   const { room } = await import('@/modules/property-membership/infrastructure/schema');
   const { findPayeeEffectiveAt } = await import(
@@ -383,7 +383,7 @@ async function main(): Promise<void> {
     const roomCode = flagValue(argv, '--room');
     const payeeType = flagValue(argv, '--type');
     if (roomCode === undefined || roomCode === '') throw new Error('Missing required --room <room-code>.');
-    if (payeeType === undefined || payeeType === '') throw new Error('Missing required --type <payee-type>.');
+    if (payeeType !== 'PROJECT' && payeeType !== 'OWNER') throw new Error('Missing required --type <PROJECT|OWNER>.');
     await probePayee(roomCode, payeeType);
     return;
   }

@@ -134,6 +134,13 @@
       "when": 1793296271757,
       "tag": "0018_chat-message-created-default",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793339074962,
+      "tag": "0019_first_psylocke",
+      "breakpoints": true
     }
   ]
 }

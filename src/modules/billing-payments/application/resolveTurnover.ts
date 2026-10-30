@@ -42,7 +42,7 @@ import {
 } from '../infrastructure/turnoverReviewRepository';
 import { findRuleEffectiveFor, type BillingRuleRecord } from '../infrastructure/billingRepository';
 import { findInvoicePayee, findPayeeEffectiveAt } from '../infrastructure/payeeRepository';
-import type { InvoiceKind } from '../infrastructure/schema';
+import type { InvoiceKind, PayeeType } from '../infrastructure/schema';
 import {
   getTurnoverIdempotencyRecord,
   upsertTurnoverIdempotencyRecord,
@@ -173,7 +173,7 @@ function issueDateFor(now: Date, timeZone: string): string {
   return formatProjectDate(parts);
 }
 
-function payeeTypeForKind(kind: InvoiceKind): string {
+function payeeTypeForKind(kind: InvoiceKind): PayeeType {
   return kind === 'PRIVATE_RENT' ? 'OWNER' : 'PROJECT';
 }
 

@@ -36,15 +36,6 @@ export function buildPayeeSnapshot(input: PayeeConfirmInput): PayeeSnapshot {
   };
 }
 
-export function systemAutoPayee(): PayeeSnapshot {
-  return {
-    bankName: 'System Auto',
-    accountName: 'System Auto',
-    accountNumber: 'SYSTEM-AUTO',
-    qrImageId: null,
-  };
-}
-
 export function payeeSnapshotToRecord(snapshot: PayeeSnapshot): Record<string, unknown> {
   return {
     bankName: snapshot.bankName,

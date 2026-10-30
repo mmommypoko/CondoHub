@@ -17,6 +17,7 @@ export interface PaymentSubmissionRecord {
   reviewedBy: string | null;
   reviewedAt: Date | null;
   rejectReason: string | null;
+  submittedAt: Date;
 }
 
 function toSubmissionRecord(row: typeof paymentSubmission.$inferSelect): PaymentSubmissionRecord {
@@ -30,6 +31,7 @@ function toSubmissionRecord(row: typeof paymentSubmission.$inferSelect): Payment
     reviewedBy: row.reviewedBy,
     reviewedAt: row.reviewedAt,
     rejectReason: row.rejectReason,
+    submittedAt: row.submittedAt,
   };
 }
 

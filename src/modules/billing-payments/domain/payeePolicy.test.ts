@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildPayeeSnapshot, payeeSnapshotToRecord, systemAutoPayee } from './payeePolicy';
+import * as payeePolicy from './payeePolicy';
+import { buildPayeeSnapshot, payeeSnapshotToRecord } from './payeePolicy';
 
 describe('S6 payee-confirm input policy', () => {
   it('builds a snapshot when confirmation is present', () => {
@@ -35,7 +36,7 @@ describe('S6 payee-confirm input policy', () => {
     ).toThrowError();
   });
 
-  it('provides a system auto payee for recurring generation', () => {
-    expect(systemAutoPayee().accountNumber).toBe('SYSTEM-AUTO');
+  it('offers no system fallback payee; generation must configure a real account', () => {
+    expect(Object.keys(payeePolicy)).not.toContain('systemAutoPayee');
   });
 });

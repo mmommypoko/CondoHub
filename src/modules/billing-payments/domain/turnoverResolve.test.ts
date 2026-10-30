@@ -282,6 +282,27 @@ describe('UT-BL-02C admin-only override needs a reason; PRIVATE issuer sending o
       'VALIDATION_ERROR',
     );
   });
+
+  it('BUG-019 rejects a zero override like rent settings rejects zero rent', () => {
+    expectCode(
+      () =>
+        resolveInvoiceTotal({
+          derivedSatang: 1_200_000n,
+          amountOverrideSatang: 0n,
+          overrideReason: 'Zero is invalid',
+          actorIsSystemAdmin: true,
+        }),
+      'VALIDATION_ERROR',
+    );
+    expect(
+      resolveInvoiceTotal({
+        derivedSatang: 1_200_000n,
+        amountOverrideSatang: 1n,
+        overrideReason: 'Smallest valid override',
+        actorIsSystemAdmin: true,
+      }),
+    ).toEqual({ totalSatang: 1n, overridden: true });
+  });
 });
 
 describe('UT-BL-02C S1b copies the whole S2 set verbatim; missing S2 fails with no fallback', () => {

@@ -213,7 +213,7 @@ export async function listInvoices(
   const limit = Math.min(Math.max(input.pageSize, 1), 100);
   const offset = (Math.max(input.page, 1) - 1) * limit;
   if (actor.isSystemAdmin) {
-    if (input.view === 'receivable') return { rows: [], total: 0 };
+    if (input.view === 'receivable') throw new AppError('ACCESS_DENIED');
     const page = await listInvoicesScoped(conn, {
       allowedKinds,
       limit,

@@ -80,6 +80,16 @@ describe('UT-SH-01 clock and periodKey', () => {
     );
   });
 
+  it('BUG-006 follows the configured zone instead of a fixed plus-seven offset', () => {
+    expect(cycleStartOfMonth(2026, 10, 'UTC').toISOString()).toBe('2026-10-01T00:00:00.000Z');
+    expect(cycleStartOfMonth(2026, 10, 'America/New_York').toISOString()).toBe(
+      '2026-10-01T04:00:00.000Z',
+    );
+    expect(cycleStartOfMonth(2026, 1, 'Pacific/Kiritimati').toISOString()).toBe(
+      '2025-12-31T10:00:00.000Z',
+    );
+  });
+
   it('rejects invalid instants and calendar inputs', () => {
     expect(() => projectDateParts(new Date('invalid'), BANGKOK)).toThrowError();
     expect(() => daysInMonth(2026, 13)).toThrowError();

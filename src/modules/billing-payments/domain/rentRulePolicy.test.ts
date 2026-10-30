@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { selectRentRule, canManageRent } from './rentRulePolicy';
+import { selectFeeRule, selectRentRule, canManageRent } from './rentRulePolicy';
 const at = new Date('2026-11-01T00:00:00+07:00');
 const rule = (id: string, roomId: string | null, date: string) => ({
   id,
@@ -42,5 +42,40 @@ describe('rent rule selection', () => {
     expect(canManageRent(false, true, 'PRIVATE_OWNER_MANAGED')).toBe(true);
     expect(canManageRent(true, true, 'PRIVATE_OWNER_MANAGED')).toBe(false);
     expect(canManageRent(false, false, 'PRIVATE_OWNER_MANAGED')).toBe(false);
+  });
+});
+
+describe('BUG-002 BUG-003 common fee rule selection per frequency', () => {
+  const feeRule = (id: string, roomId: string | null, date: string, frequency = 'MONTHLY') => ({
+    id,
+    roomId,
+    kind: 'COMMON_FEE',
+    frequency,
+    effectiveAt: new Date(date),
+    enabled: true,
+  });
+  it('prefers the room rule over a newer global rule', () => {
+    const rows = [
+      feeRule('global-new', null, '2026-10-01'),
+      feeRule('room-old', 'room', '2026-01-01'),
+      feeRule('room-future', 'room', '2026-12-01'),
+    ];
+    expect(selectFeeRule(rows, 'room', 'COMMON_FEE', 'MONTHLY', at)?.id).toBe('room-old');
+  });
+  it('prefers the newest effective rule among room rules', () => {
+    const rows = [
+      feeRule('room-old', 'room', '2026-01-01'),
+      feeRule('room-new', 'room', '2026-10-01'),
+    ];
+    expect(selectFeeRule(rows, 'room', 'COMMON_FEE', 'MONTHLY', at)?.id).toBe('room-new');
+  });
+  it('isolates frequencies and rooms', () => {
+    const rows = [
+      feeRule('yearly', 'room', '2026-01-01', 'YEARLY'),
+      feeRule('other-room', 'elsewhere', '2026-01-01'),
+      feeRule('one-time', null, '2026-01-01', 'ONE_TIME'),
+    ];
+    expect(selectFeeRule(rows, 'room', 'COMMON_FEE', 'MONTHLY', at)).toBeNull();
+    expect(selectFeeRule(rows, 'room', 'COMMON_FEE', 'ONE_TIME', at)?.id).toBe('one-time');
   });
 });
