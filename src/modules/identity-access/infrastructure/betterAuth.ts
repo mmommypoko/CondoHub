@@ -1,6 +1,7 @@
 import 'server-only';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { withLiveUserLookups } from './liveUserAdapter';
 import { createUsernamePlugin } from './usernamePlugin';
 import { nextCookies } from 'better-auth/next-js';
 import { env } from '@/config/env';
@@ -11,7 +12,7 @@ export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
   secret: env.BETTER_AUTH_SECRET,
   trustedOrigins: [env.APP_BASE_URL],
-  database: drizzleAdapter(db, { provider: 'pg', schema }),
+  database: withLiveUserLookups(drizzleAdapter(db, { provider: 'pg', schema })),
   emailAndPassword: {
     enabled: true,
     disableSignUp: true,
@@ -24,6 +25,7 @@ export const auth = betterAuth({
   ],
   user: {
     additionalFields: {
+      deletedAt: { type: 'date', required: false, input: false, returned: false },
       phone: { type: 'string', required: false },
       accountStatus: { type: 'string', required: true, defaultValue: 'ACTIVE', input: false },
       mustChangePassword: { type: 'boolean', required: true, defaultValue: true, input: false },
