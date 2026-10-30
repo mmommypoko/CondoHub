@@ -21,6 +21,7 @@ export {
   getTenancyLabels,
   resolveActorRooms,
   listActorRoomPage,
+  listActorRoomListPage,
   roomResidencyScope,
   tenantOverlapScope,
 } from './queries';

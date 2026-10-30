@@ -1,6 +1,7 @@
 import 'server-only';
 import { and, eq } from 'drizzle-orm';
 import type { Db, Tx } from '@/shared/db/transaction';
+import { AppError } from '@/shared/utils/errors';
 import { idempotencyKey, type IdempotencyScope } from '@/shared/db/schema/idempotency';
 
 export interface IdempotencyRecord {
@@ -34,6 +35,18 @@ export async function getIdempotencyRecord(
     .limit(1);
   const row = rows[0];
   return row === undefined ? null : toRecord(row);
+}
+
+export function assertReplayRequest(
+  existing: IdempotencyRecord,
+  requestHash: string,
+): void {
+  if (existing.requestHash !== requestHash) {
+    throw new AppError(
+      'VALIDATION_ERROR',
+      'The Idempotency-Key was already used with a different request.',
+    );
+  }
 }
 
 export async function upsertIdempotencyRecord(

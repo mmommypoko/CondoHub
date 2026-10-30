@@ -2,6 +2,8 @@ import 'server-only';
 import type { Actor } from '@/shared/auth/actor';
 import { db } from '@/shared/db/client';
 import { mapPgError, AppError } from '@/shared/utils/errors';
+import { hashRequestBody } from '@/shared/utils/idempotency';
+import { assertReplayRequest, getIdempotencyRecord, upsertIdempotencyRecord } from './idempotencyStore';
 import { writeAudit } from '@/shared/observability/audit';
 import { canPlaceTenancy } from '../domain/tenancyPolicy';
 import { canManageTenancy } from '../domain/managementModeGuards';
@@ -127,18 +129,39 @@ export async function createTenancy(
 
 export async function endTenancyAt(
   actor: Actor,
-  input: { tenancyId: string; endsAt?: Date | undefined },
+  input: { tenancyId: string; endsAt?: Date | undefined; idempotencyKey?: string | undefined },
   ctx: PropertyCtx,
-): Promise<TenancyRow> {
+): Promise<TenancyRow & { replayed: boolean }> {
   if (actor.accountStatus !== 'ACTIVE') throw new AppError('ACCESS_DENIED');
   if (actor.mustChangePassword) throw new AppError('FIRST_LOGIN_PASSWORD_CHANGE_REQUIRED');
   const tenancy = await findTenancyById(db, input.tenancyId);
   if (tenancy === null) throw new AppError('RESOURCE_NOT_FOUND');
+  const now = ctx.clock.now();
+  const endsAt = input.endsAt ?? now;
+  const requestHash = hashRequestBody({
+    action: 'END',
+    tenancyId: input.tenancyId,
+    endsAt: input.endsAt === undefined ? null : input.endsAt.toISOString(),
+  });
+  if (input.idempotencyKey !== undefined) {
+    const existing = await getIdempotencyRecord(db, {
+      scope: 'TENANCY_END',
+      key: input.idempotencyKey,
+    });
+    if (existing !== null) {
+      assertReplayRequest(existing, requestHash);
+      if (existing.resultRefId === input.tenancyId) {
+        const replayed = await findTenancyById(db, input.tenancyId);
+        if (replayed !== null && replayed.roomId === tenancy.roomId && replayed.state !== 'ACTIVE') {
+          return { ...replayed, replayed: true };
+        }
+      }
+      throw new AppError('RATE_LIMITED');
+    }
+  }
   if (tenancy.state !== 'ACTIVE') {
     throw new AppError('VALIDATION_ERROR', 'The tenancy is already ended.');
   }
-  const now = ctx.clock.now();
-  const endsAt = input.endsAt ?? now;
   if (endsAt.getTime() <= tenancy.startsAt.getTime()) {
     throw new AppError('VALIDATION_ERROR', 'The tenancy end must be after its start.');
   }
@@ -178,7 +201,18 @@ export async function endTenancyAt(
         before: { state: 'ACTIVE' },
         after: { state: 'ENDED', endsAt: endsAt.toISOString() },
       });
-      return ended;
+      if (input.idempotencyKey !== undefined) {
+        await upsertIdempotencyRecord(tx, {
+          scope: 'TENANCY_END',
+          key: input.idempotencyKey,
+          actorId: actor.userId,
+          requestHash,
+          resultRefType: 'rental_period',
+          resultRefId: tenancy.id,
+          expiresAt: new Date(ctx.clock.now().getTime() + 24 * 60 * 60 * 1000),
+        });
+      }
+      return { ...ended, replayed: false };
     });
   } catch (error) {
     throw mapPgError(error);
@@ -189,10 +223,24 @@ export async function cancelScheduledTenancy(
   actor: Actor,
   tenancyId: string,
   ctx: PropertyCtx,
-): Promise<TenancyRow> {
+  input?: { idempotencyKey?: string | undefined },
+): Promise<TenancyRow & { replayed: boolean }> {
   if (actor.accountStatus !== 'ACTIVE') throw new AppError('ACCESS_DENIED');
   if (actor.mustChangePassword) throw new AppError('FIRST_LOGIN_PASSWORD_CHANGE_REQUIRED');
   const now = ctx.clock.now();
+  const idempotencyKey = input?.idempotencyKey;
+  const requestHash = hashRequestBody({ action: 'CANCEL', tenancyId });
+  if (idempotencyKey !== undefined) {
+    const existing = await getIdempotencyRecord(db, { scope: 'TENANCY_END', key: idempotencyKey });
+    if (existing !== null) {
+      assertReplayRequest(existing, requestHash);
+      if (existing.resultRefId === tenancyId) {
+        const replayed = await findTenancyById(db, tenancyId);
+        if (replayed !== null && replayed.state === 'CANCELLED') return { ...replayed, replayed: true };
+      }
+      throw new AppError('RATE_LIMITED');
+    }
+  }
   return db.transaction(async (tx) => {
     const tenancy = await lockTenancyById(tx, tenancyId);
     if (!tenancy) throw new AppError('RESOURCE_NOT_FOUND');
@@ -233,7 +281,18 @@ export async function cancelScheduledTenancy(
       before: { state: tenancy.state },
       after: { state: 'CANCELLED' },
     });
-    return cancelled;
+    if (idempotencyKey !== undefined) {
+      await upsertIdempotencyRecord(tx, {
+        scope: 'TENANCY_END',
+        key: idempotencyKey,
+        actorId: actor.userId,
+        requestHash,
+        resultRefType: 'rental_period',
+        resultRefId: tenancy.id,
+        expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+      });
+    }
+    return { ...cancelled, replayed: false };
   });
 }
 

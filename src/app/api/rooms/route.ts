@@ -6,7 +6,7 @@ import { RATE_LIMIT_PRESETS } from '@/shared/utils/rateLimit';
 import { systemClock } from '@/shared/utils/clock';
 import {
   parseWithFieldErrors,
-  resolveActorRooms,
+  listActorRoomListPage,
 } from '@/modules/property-membership/application/index';
 import { roomListQuery } from '@/modules/property-membership/application/routeSchemas';
 
@@ -21,22 +21,26 @@ export const GET = withApi(
       page: url.searchParams.get('page') ?? undefined,
       pageSize: url.searchParams.get('pageSize') ?? undefined,
     });
-    const rooms = await resolveActorRooms(ctx.actor, systemClock.now());
-    const filtered = rooms.filter(
-      (room) =>
-        (query.buildingId === undefined || room.buildingId === query.buildingId) &&
-        (query.status === undefined || room.status === query.status) &&
-        (query.query === undefined ||
-          `${room.name} ${room.roomCode}`.toLowerCase().includes(query.query.toLowerCase())),
+    const feed = await listActorRoomListPage(
+      ctx.actor,
+      {
+        query: query.query,
+        buildingId: query.buildingId,
+        status: query.status,
+        page: query.page,
+        pageSize: query.pageSize,
+      },
+      systemClock.now(),
     );
-    const total = filtered.length;
-    const start = (query.page - 1) * query.pageSize;
-    const page = filtered.slice(start, start + query.pageSize);
-    if (query.buildingId !== undefined && ctx.actor.isSystemAdmin === false && total === 0) {
+    if (
+      query.buildingId !== undefined &&
+      ctx.actor.isSystemAdmin === false &&
+      feed.total === 0
+    ) {
       throw new AppError('RESOURCE_NOT_FOUND');
     }
     return paged(
-      page.map((room) => ({
+      feed.rows.map((room) => ({
         id: room.id,
         floorId: room.floorId,
         buildingId: room.buildingId,
@@ -45,7 +49,7 @@ export const GET = withApi(
         areaSqm: room.areaSqm,
         status: room.status,
       })),
-      { page: query.page, pageSize: query.pageSize, total },
+      { page: query.page, pageSize: query.pageSize, total: feed.total },
     );
   },
   { rateLimit: RATE_LIMIT_PRESETS.generalApi ?? { capacity: 300, windowMs: 60_000 } },

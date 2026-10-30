@@ -10,6 +10,10 @@ export const idempotencyScope = pgEnum('idempotency_scope', [
   'USER_PROVISION',
   'CO_OWNER_GRANT',
   'OWNER_ASSIGN',
+  'OWNER_TRANSFER',
+  'OWNER_REMOVE',
+  'OWNER_CORRECT',
+  'TENANCY_END',
 ]);
 
 export type IdempotencyScope = (typeof idempotencyScope.enumValues)[number];

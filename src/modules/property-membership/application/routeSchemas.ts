@@ -15,9 +15,9 @@ export const memberAddBody = z
   .object({
     userId: z.string().min(1).optional(),
     username: z.string().min(1).max(30).optional(),
-    email: z.string().email().max(255).optional(),
-    name: z.string().min(1).max(255).optional(),
-    phone: z.string().max(32).optional(),
+    email: z.never({ message: 'Create the account first, then add the member by userId or username.' }).optional(),
+    name: z.never({ message: 'Create the account first, then add the member by userId or username.' }).optional(),
+    phone: z.never({ message: 'Create the account first, then add the member by userId or username.' }).optional(),
     memberRole: z.enum(['MAIN', 'SUB']),
     tenancyId: z.string().uuid().nullable().optional(),
   })

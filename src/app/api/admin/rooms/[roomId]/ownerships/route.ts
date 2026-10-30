@@ -3,6 +3,7 @@ import { withApi } from '@/shared/auth/withApi';
 import { requireAdmin } from '@/shared/auth/guards';
 import { AppError } from '@/shared/utils/errors';
 import { RATE_LIMIT_PRESETS } from '@/shared/utils/rateLimit';
+import { getIdempotencyKey } from '@/shared/utils/idempotency';
 import {
   correctOwnershipInterval,
   createPropertyCtx,
@@ -23,6 +24,7 @@ export const POST = withApi(
       throw new AppError('VALIDATION_ERROR', 'The room id is invalid.');
     }
     const body = parseWithFieldErrors(ownershipAdminBody, await request.json());
+    const idempotencyKey = getIdempotencyKey(request.headers);
     const propertyCtx = createPropertyCtx({ requestId: ctx.requestId });
     if (body.action === 'TRANSFER') {
       let toUserId = body.toUserId ?? null;
@@ -43,10 +45,11 @@ export const POST = withApi(
           fromUserId: body.fromUserId,
           toUserId,
           effectiveAt: new Date(body.effectiveAt),
+          idempotencyKey: idempotencyKey ?? undefined,
         },
         propertyCtx,
       );
-      emitRoomAccessRevoked(roomId);
+      if (!result.replayed) emitRoomAccessRevoked(roomId);
       return {
         endedOwnershipId: result.endedOwnershipId,
         createdOwnershipId: result.createdOwnershipId,
@@ -56,10 +59,15 @@ export const POST = withApi(
     if (body.action === 'REMOVE') {
       const result = await removeOwnership(
         ctx.actor,
-        { roomId, ownershipId: body.ownershipId, effectiveAt: new Date(body.effectiveAt) },
+        {
+          roomId,
+          ownershipId: body.ownershipId,
+          effectiveAt: new Date(body.effectiveAt),
+          idempotencyKey: idempotencyKey ?? undefined,
+        },
         propertyCtx,
       );
-      emitRoomAccessRevoked(roomId);
+      if (!result.replayed) emitRoomAccessRevoked(roomId);
       return { ownershipId: result.ownershipId, effectiveAt: result.effectiveAt.toISOString() };
     }
     const result = await correctOwnershipInterval(
@@ -70,6 +78,7 @@ export const POST = withApi(
         startAt: body.startAt === undefined ? undefined : new Date(body.startAt),
         endAt: body.endAt === undefined ? undefined : body.endAt === null ? null : new Date(body.endAt),
         reason: body.reason,
+        idempotencyKey: idempotencyKey ?? undefined,
       },
       propertyCtx,
     );

@@ -226,12 +226,68 @@ export async function listAllRooms(db: Db): Promise<RoomRow[]> {
 
 export async function listRoomsByIds(db: Db, ids: string[]): Promise<RoomRow[]> {
   if (ids.length === 0) return [];
-  const result: RoomRow[] = [];
-  for (const id of ids) {
-    const found = await findRoomById(db, id);
-    if (found !== null) result.push(found);
-  }
-  return result;
+  const rows = await db
+    .select()
+    .from(room)
+    .where(and(inArray(room.id, ids), isNull(room.deletedAt)))
+    .orderBy(room.roomCode);
+  return rows.map(toRoomRow);
+}
+
+export interface RoomListPageInput {
+  roomIds: string[] | null;
+  buildingId?: string | undefined;
+  status?: 'ACTIVE' | 'INACTIVE' | undefined;
+  query?: string | undefined;
+  page: number;
+  pageSize: number;
+}
+
+export async function queryRoomListPage(
+  conn: Db,
+  input: RoomListPageInput,
+): Promise<{ rows: RoomRow[]; total: number }> {
+  if (input.roomIds !== null && input.roomIds.length === 0) return { rows: [], total: 0 };
+  const search = input.query?.trim();
+  const pattern = search ? `%${search.replace(/[\\%_]/g, '\\$&')}%` : null;
+  const effectiveStatus =
+    sql<'ACTIVE' | 'INACTIVE'>`case when ${building.status} = 'ACTIVE' and ${floor.status} = 'ACTIVE' then ${room.status} else 'INACTIVE' end`;
+  const where = and(
+    isNull(room.deletedAt),
+    isNull(building.deletedAt),
+    isNull(floor.deletedAt),
+    input.roomIds === null ? undefined : inArray(room.id, input.roomIds),
+    input.buildingId === undefined ? undefined : eq(room.buildingId, input.buildingId),
+    input.status === undefined ? undefined : eq(effectiveStatus, input.status),
+    pattern ? or(ilike(room.name, pattern), ilike(room.roomCode, pattern)) : undefined,
+  );
+  const [rows, counted] = await Promise.all([
+    conn
+      .select({ room, floorStatus: floor.status, buildingStatus: building.status })
+      .from(room)
+      .innerJoin(building, eq(room.buildingId, building.id))
+      .innerJoin(floor, eq(room.floorId, floor.id))
+      .where(where)
+      .orderBy(room.roomCode, room.id)
+      .limit(input.pageSize)
+      .offset((input.page - 1) * input.pageSize),
+    conn
+      .select({ total: sql<number>`count(*)`.mapWith(Number) })
+      .from(room)
+      .innerJoin(building, eq(room.buildingId, building.id))
+      .innerJoin(floor, eq(room.floorId, floor.id))
+      .where(where),
+  ]);
+  return {
+    rows: rows.map((row) => ({
+      ...toRoomRow(row.room),
+      status:
+        row.floorStatus === 'ACTIVE' && row.buildingStatus === 'ACTIVE'
+          ? row.room.status
+          : 'INACTIVE',
+    })),
+    total: counted[0]?.total ?? 0,
+  };
 }
 
 export async function insertRoom(

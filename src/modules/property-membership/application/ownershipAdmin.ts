@@ -1,8 +1,9 @@
 import 'server-only';
 import type { Actor } from '@/shared/auth/actor';
 import { db } from '@/shared/db/client';
+import type { Db } from '@/shared/db/transaction';
 import { mapPgError, AppError } from '@/shared/utils/errors';
-import { getIdempotencyRecord, upsertIdempotencyRecord } from './idempotencyStore';
+import { assertReplayRequest, getIdempotencyRecord, upsertIdempotencyRecord } from './idempotencyStore';
 import { hashRequestBody } from '@/shared/utils/idempotency';
 import { writeAudit } from '@/shared/observability/audit';
 import {
@@ -37,6 +38,42 @@ function toIntervals(
   }));
 }
 
+type OwnershipListRow = Awaited<ReturnType<typeof listOwnershipsByRoom>>[number];
+
+async function replayTransfer(
+  conn: Db,
+  input: TransferOwnershipInput,
+  requestHash: string,
+  ownerships: OwnershipListRow[],
+): Promise<TransferOwnershipResult | null> {
+  if (input.idempotencyKey === undefined) return null;
+  const existing = await getIdempotencyRecord(conn, {
+    scope: 'OWNER_TRANSFER',
+    key: input.idempotencyKey,
+  });
+  if (existing === null) return null;
+  assertReplayRequest(existing, requestHash);
+  if (existing.resultRefId === null) throw new AppError('RATE_LIMITED');
+  const created = ownerships.find((row) => row.id === existing.resultRefId);
+  if (created === undefined || created.roomId !== input.roomId || created.userId !== input.toUserId) {
+    throw new AppError('RATE_LIMITED');
+  }
+  const ended = ownerships.find(
+    (row) =>
+      row.roomId === input.roomId &&
+      row.userId === input.fromUserId &&
+      row.endAt !== null &&
+      row.endAt.getTime() === created.startAt.getTime(),
+  );
+  if (ended === undefined) throw new AppError('RATE_LIMITED');
+  return {
+    endedOwnershipId: ended.id,
+    createdOwnershipId: created.id,
+    effectiveAt: created.startAt,
+    replayed: true,
+  };
+}
+
 export interface TransferOwnershipInput {
   roomId: string;
   fromUserId: string;
@@ -49,6 +86,7 @@ export interface TransferOwnershipResult {
   endedOwnershipId: string;
   createdOwnershipId: string;
   effectiveAt: Date;
+  replayed: boolean;
 }
 
 export async function transferOwnership(
@@ -73,6 +111,14 @@ export async function transferOwnership(
     throw new AppError('VALIDATION_ERROR', 'The target user cannot receive ownership.');
   }
   const ownerships = await listOwnershipsByRoom(db, input.roomId);
+  const transferRequestHash = hashRequestBody({
+    roomId: input.roomId,
+    fromUserId: input.fromUserId,
+    toUserId: input.toUserId,
+    effectiveAt: input.effectiveAt.toISOString(),
+  });
+  const replayed = await replayTransfer(db, input, transferRequestHash, ownerships);
+  if (replayed !== null) return replayed;
   const activeFrom = ownerships.find(
     (row) =>
       row.userId === input.fromUserId &&
@@ -105,10 +151,22 @@ export async function transferOwnership(
           effectiveAt: input.effectiveAt.toISOString(),
         },
       });
+      if (input.idempotencyKey !== undefined) {
+        await upsertIdempotencyRecord(tx, {
+          scope: 'OWNER_TRANSFER',
+          key: input.idempotencyKey,
+          actorId: actor.userId,
+          requestHash: transferRequestHash,
+          resultRefType: 'room_ownership',
+          resultRefId: created.id,
+          expiresAt: new Date(ctx.clock.now().getTime() + 24 * 60 * 60 * 1000),
+        });
+      }
       return {
         endedOwnershipId: activeFrom.id,
         createdOwnershipId: created.id,
         effectiveAt: input.effectiveAt,
+        replayed: false,
       };
     });
   } catch (error) {
@@ -259,15 +317,33 @@ export async function assignOwner(
 
 export async function removeOwnership(
   actor: Actor,
-  input: { roomId: string; ownershipId: string; effectiveAt: Date },
+  input: { roomId: string; ownershipId: string; effectiveAt: Date; idempotencyKey?: string | undefined },
   ctx: PropertyCtx,
-): Promise<{ ownershipId: string; effectiveAt: Date }> {
+): Promise<{ ownershipId: string; effectiveAt: Date; replayed: boolean }> {
   requireAdmin(actor);
   const room = await findRoomById(db, input.roomId);
   if (room === null) throw new AppError('RESOURCE_NOT_FOUND');
   const ownership = await findOwnershipById(db, input.ownershipId);
   if (ownership === null || ownership.roomId !== input.roomId) {
     throw new AppError('RESOURCE_NOT_FOUND');
+  }
+  const requestHash = hashRequestBody({
+    roomId: input.roomId,
+    ownershipId: input.ownershipId,
+    effectiveAt: input.effectiveAt.toISOString(),
+  });
+  if (input.idempotencyKey !== undefined) {
+    const existing = await getIdempotencyRecord(db, {
+      scope: 'OWNER_REMOVE',
+      key: input.idempotencyKey,
+    });
+    if (existing !== null) {
+      assertReplayRequest(existing, requestHash);
+      if (existing.resultRefId === input.ownershipId) {
+        return { ownershipId: input.ownershipId, effectiveAt: input.effectiveAt, replayed: true };
+      }
+      throw new AppError('RATE_LIMITED');
+    }
   }
   try {
     const ended = await db.transaction(async (tx) => {
@@ -282,9 +358,20 @@ export async function removeOwnership(
         before: { userId: ownership.userId, startAt: ownership.startAt.toISOString() },
         after: { effectiveAt: input.effectiveAt.toISOString() },
       });
+      if (input.idempotencyKey !== undefined) {
+        await upsertIdempotencyRecord(tx, {
+          scope: 'OWNER_REMOVE',
+          key: input.idempotencyKey,
+          actorId: actor.userId,
+          requestHash,
+          resultRefType: 'room_ownership',
+          resultRefId: input.ownershipId,
+          expiresAt: new Date(ctx.clock.now().getTime() + 24 * 60 * 60 * 1000),
+        });
+      }
       return next;
     });
-    return { ownershipId: ended.id, effectiveAt: input.effectiveAt };
+    return { ownershipId: ended.id, effectiveAt: input.effectiveAt, replayed: false };
   } catch (error) {
     throw mapPgError(error);
   }
@@ -298,6 +385,7 @@ export async function correctOwnershipInterval(
     startAt?: Date | undefined;
     endAt?: Date | null | undefined;
     reason: string;
+    idempotencyKey?: string | undefined;
   },
   ctx: PropertyCtx,
 ): Promise<{ ownershipId: string }> {
@@ -312,6 +400,26 @@ export async function correctOwnershipInterval(
   const nextEnd = input.endAt === undefined ? ownership.endAt : input.endAt;
   if (nextEnd !== null && nextEnd.getTime() <= nextStart.getTime()) {
     throw new AppError('VALIDATION_ERROR', 'The corrected interval is invalid.');
+  }
+  const requestHash = hashRequestBody({
+    roomId: input.roomId,
+    ownershipId: input.ownershipId,
+    startAt: input.startAt?.toISOString() ?? null,
+    endAt: input.endAt === undefined ? undefined : (input.endAt?.toISOString() ?? null),
+    reason: input.reason,
+  });
+  if (input.idempotencyKey !== undefined) {
+    const existing = await getIdempotencyRecord(db, {
+      scope: 'OWNER_CORRECT',
+      key: input.idempotencyKey,
+    });
+    if (existing !== null) {
+      assertReplayRequest(existing, requestHash);
+      if (existing.resultRefId === input.ownershipId) {
+        return { ownershipId: input.ownershipId };
+      }
+      throw new AppError('RATE_LIMITED');
+    }
   }
   try {
     await db.transaction(async (tx) => {
@@ -336,6 +444,17 @@ export async function correctOwnershipInterval(
           reason: input.reason,
         },
       });
+      if (input.idempotencyKey !== undefined) {
+        await upsertIdempotencyRecord(tx, {
+          scope: 'OWNER_CORRECT',
+          key: input.idempotencyKey,
+          actorId: actor.userId,
+          requestHash,
+          resultRefType: 'room_ownership',
+          resultRefId: input.ownershipId,
+          expiresAt: new Date(ctx.clock.now().getTime() + 24 * 60 * 60 * 1000),
+        });
+      }
     });
     return { ownershipId: input.ownershipId };
   } catch (error) {
