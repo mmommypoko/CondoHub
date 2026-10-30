@@ -48,6 +48,7 @@ export async function changePassword(
     const violation = validatePassword({
       password: input.newPassword,
       username: target.username ?? '',
+      tempPassword: target.mustChangePassword ? input.currentPassword : undefined,
     });
     if (violation !== null) {
       throw new AppError('VALIDATION_ERROR', undefined, {

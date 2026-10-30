@@ -8,10 +8,10 @@ export function evaluateSessionGate(actor: Actor): SessionGateOutcome {
   return 'ALLOW';
 }
 
-export function isRevocationEvent(event: 'PASSWORD_CHANGE' | 'PASSWORD_RESET' | 'SUSPEND'): boolean {
-  return event === 'PASSWORD_CHANGE' || event === 'PASSWORD_RESET' || event === 'SUSPEND';
+export function isRevocationEvent(event: 'PASSWORD_CHANGE' | 'PASSWORD_RESET' | 'SUSPEND' | 'DELETE'): boolean {
+  return event === 'PASSWORD_CHANGE' || event === 'PASSWORD_RESET' || event === 'SUSPEND' || event === 'DELETE';
 }
 
-export function requiresFullLogout(event: 'PASSWORD_CHANGE' | 'PASSWORD_RESET' | 'SUSPEND'): boolean {
+export function requiresFullLogout(event: 'PASSWORD_CHANGE' | 'PASSWORD_RESET' | 'SUSPEND' | 'DELETE'): boolean {
   return isRevocationEvent(event);
 }

@@ -7,6 +7,7 @@ import { createTxInternalAdapter } from '../infrastructure/txAdapter';
 import { deleteUserSessions, lockUserById } from '../infrastructure/userRepository';
 import { emitRevokeFanOut } from '../infrastructure/revokeFanOut';
 import type { IdentityCtx } from './ctx';
+import { lockCurrentLifecycleAdministrator } from './lifecycleAuthorization';
 
 export interface ResetPasswordResult {
   userId: string;
@@ -23,6 +24,7 @@ export async function resetPassword(
   if (actor.userId === userId) throw new AppError('ACCESS_DENIED');
   const tempPassword = ctx.tempPasswords.generate();
   const outcome = await db.transaction(async (tx) => {
+    await lockCurrentLifecycleAdministrator(tx, actor.userId);
     const target = await lockUserById(tx, userId);
     if (target === null || target.deletedAt !== null) throw new AppError('RESOURCE_NOT_FOUND');
     const authCtx = await createTxInternalAdapter(tx);

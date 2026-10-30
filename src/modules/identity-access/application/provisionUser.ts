@@ -10,6 +10,14 @@ import {
   type RoomEntitlement,
 } from '../domain/provisioningPolicy';
 import { resolveOrCreateGrantUser } from './provisioning';
+import {
+  assertProvisionReplayRequest,
+  getProvisionIdempotencyRecord,
+  upsertProvisionIdempotencyRecord,
+} from './provisionIdempotencyStore';
+import { hashRequestBody } from '@/shared/utils/idempotency';
+import { findUserByEmail, findUserByUsername } from '../infrastructure/userRepository';
+import { normalizeEmail, normalizeUsername } from '../domain/username';
 import type { IdentityCtx } from './ctx';
 
 export interface ProvisionRoomUserInput {
@@ -44,6 +52,29 @@ export async function provisionUser(
   if (entitlement === null) throw new AppError('RESOURCE_NOT_FOUND');
   const verdict = canProvisionInRoom(actor, entitlement, input.targetRole);
   if (!verdict.allowed) throw new AppError('ACCESS_DENIED');
+  const requestHash = hashRequestBody({
+    roomId: input.roomId,
+    username: input.username ?? null,
+    email: input.email,
+    name: input.name,
+    phone: input.phone ?? null,
+    targetRole: input.targetRole,
+  });
+  if (input.idempotencyKey !== undefined) {
+    const existing = await getProvisionIdempotencyRecord(db, {
+      scope: 'USER_PROVISION',
+      key: input.idempotencyKey,
+    });
+    if (existing !== null) {
+      assertProvisionReplayRequest(existing, requestHash);
+      const replayed = await findProvisionedUser(
+        input.username === undefined ? null : normalizeUsername(input.username),
+        normalizeEmail(input.email),
+      );
+      if (replayed !== null) return { created: false, userId: replayed };
+      throw new AppError('RATE_LIMITED');
+    }
+  }
   return db.transaction(async (tx) => {
     const resolved = await resolveOrCreateGrantUser(
       tx,
@@ -63,9 +94,32 @@ export async function provisionUser(
       requestId: ctx.requestId,
       after: { roomId: input.roomId, targetRole: input.targetRole, membershipId: attached.membershipId },
     });
+    if (input.idempotencyKey !== undefined) {
+      await upsertProvisionIdempotencyRecord(tx, {
+        scope: 'USER_PROVISION',
+        key: input.idempotencyKey,
+        actorId: actor.userId,
+        requestHash,
+        resultRefType: 'user',
+        resultRefId: null,
+        expiresAt: new Date(ctx.clock.now().getTime() + 24 * 60 * 60 * 1000),
+      });
+    }
     if (resolved.created) {
       return { created: true, userId: resolved.userId, tempPassword: resolved.tempPassword };
     }
     return { created: false, userId: resolved.userId };
   });
+}
+
+async function findProvisionedUser(
+  normalizedUsername: string | null,
+  normalizedEmail: string,
+): Promise<string | null> {
+  if (normalizedUsername !== null) {
+    const byUsername = await findUserByUsername(db, normalizedUsername);
+    if (byUsername !== null) return byUsername.id;
+  }
+  const byEmail = await findUserByEmail(db, normalizedEmail);
+  return byEmail === null ? null : byEmail.id;
 }

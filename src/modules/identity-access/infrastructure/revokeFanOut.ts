@@ -1,6 +1,6 @@
 import type { Server as SocketServer } from 'socket.io';
 
-export type RevokeFanOut = (input: { userId: string; reason: 'SUSPEND' | 'RESET' | 'PASSWORD_CHANGE' }) => void;
+export type RevokeFanOut = (input: { userId: string; reason: 'SUSPEND' | 'RESET' | 'PASSWORD_CHANGE' | 'DELETE' }) => void;
 
 const GLOBAL_KEY = '__condohub_revoke_fanout__';
 
@@ -21,7 +21,7 @@ export function setRevokeFanOut(fanOut: RevokeFanOut): void {
   store().current = fanOut;
 }
 
-export function emitRevokeFanOut(input: { userId: string; reason: 'SUSPEND' | 'RESET' | 'PASSWORD_CHANGE' }): void {
+export function emitRevokeFanOut(input: { userId: string; reason: 'SUSPEND' | 'RESET' | 'PASSWORD_CHANGE' | 'DELETE' }): void {
   store().current(input);
 }
 

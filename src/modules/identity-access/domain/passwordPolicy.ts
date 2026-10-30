@@ -25,7 +25,7 @@ export type PasswordViolation =
 export interface PasswordCheckInput {
   password: string;
   username: string;
-  tempPassword?: string;
+  tempPassword?: string | undefined;
 }
 
 export function validatePassword(input: PasswordCheckInput): PasswordViolation | null {
