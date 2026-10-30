@@ -61,7 +61,7 @@ export async function upsertProvisionIdempotencyRecord(
     expiresAt: Date;
   },
 ): Promise<void> {
-  await tx
+  const inserted = await tx
     .insert(idempotencyKey)
     .values({
       scope: input.scope,
@@ -72,13 +72,11 @@ export async function upsertProvisionIdempotencyRecord(
       resultRefId: input.resultRefId,
       expiresAt: input.expiresAt,
     })
-    .onConflictDoUpdate({
-      target: [idempotencyKey.scope, idempotencyKey.key],
-      set: {
-        requestHash: input.requestHash,
-        resultRefType: input.resultRefType,
-        resultRefId: input.resultRefId,
-        expiresAt: input.expiresAt,
-      },
-    });
+    .onConflictDoNothing({ target: [idempotencyKey.scope, idempotencyKey.key] })
+    .returning({ key: idempotencyKey.key });
+  if (inserted.length > 0) return;
+  const existing = await getProvisionIdempotencyRecord(tx, input);
+  if (existing !== null) assertProvisionReplayRequest(existing, input.requestHash);
+  // Throw inside the mutation transaction so a competing request cannot commit its effects.
+  throw new AppError('RATE_LIMITED');
 }
