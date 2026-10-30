@@ -8,6 +8,7 @@ import {
   turnoverReviewResponsibleOwner,
   type InvoiceKind,
   type ReviewerSnapshotSource,
+  type TurnoverCreationMode,
   type TurnoverDecisionType,
   type TurnoverReviewState,
 } from './schema';
@@ -18,7 +19,7 @@ export interface TurnoverReviewRecord {
   calendarMonth: string;
   cycleStart: Date;
   cycleTimezone: string;
-  managementModeAtCreation: string;
+  managementModeAtCreation: TurnoverCreationMode;
   state: TurnoverReviewState;
   candidateTenancyIds: string[];
   candidateContext: unknown;

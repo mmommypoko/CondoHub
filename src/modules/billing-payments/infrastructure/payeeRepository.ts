@@ -2,11 +2,11 @@ import 'server-only';
 import { PROJECT_PAYEE_ID } from '@/config/project';
 import { and, desc, eq, lte } from 'drizzle-orm';
 import type { Db } from '@/shared/db/transaction';
-import { paymentInstruction } from './schema';
+import { paymentInstruction, type PayeeType } from './schema';
 
 export interface PaymentInstructionRecord {
   id: string;
-  payeeType: string;
+  payeeType: PayeeType;
   payeeId: string;
   bankName: string;
   accountName: string;
@@ -30,7 +30,7 @@ function toRecord(row: typeof paymentInstruction.$inferSelect): PaymentInstructi
 
 export async function findPayeeEffectiveAt(
   conn: Db,
-  input: { payeeType: string; payeeId: string; at: Date },
+  input: { payeeType: PayeeType; payeeId: string; at: Date },
 ): Promise<PaymentInstructionRecord | null> {
   const rows = await conn
     .select()
@@ -51,7 +51,7 @@ export async function findPayeeEffectiveAt(
 export async function insertPayeeInstruction(
   conn: Db,
   input: {
-    payeeType: string;
+    payeeType: PayeeType;
     payeeId: string;
     bankName: string;
     accountName: string;
@@ -93,17 +93,18 @@ export async function findInvoicePayee(
   conn: Db,
   input: { payeeType: 'PROJECT' | 'OWNER'; roomId: string; at: Date },
 ) {
-  if (input.payeeType === 'PROJECT') {
-    const shared = await findPayeeEffectiveAt(conn, {
-      payeeType: 'PROJECT',
-      payeeId: PROJECT_PAYEE_ID,
-      at: input.at,
-    });
-    if (shared) return shared;
-  }
-  return findPayeeEffectiveAt(conn, {
+  const scoped = await findPayeeEffectiveAt(conn, {
     payeeType: input.payeeType,
     payeeId: input.roomId,
     at: input.at,
   });
+  if (scoped) return scoped;
+  if (input.payeeType === 'PROJECT') {
+    return findPayeeEffectiveAt(conn, {
+      payeeType: 'PROJECT',
+      payeeId: PROJECT_PAYEE_ID,
+      at: input.at,
+    });
+  }
+  return null;
 }

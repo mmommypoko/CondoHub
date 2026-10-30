@@ -23,6 +23,7 @@ export interface PaymentSubmissionDto {
   reviewedBy: string | null;
   reviewedAt: string | null;
   rejectReason: string | null;
+  submittedAt: string;
 }
 
 export interface InvoiceRevisionDto {
@@ -54,6 +55,7 @@ function toSubmissionDto(row: PaymentSubmissionRecord): PaymentSubmissionDto {
     reviewedBy: row.reviewedBy,
     reviewedAt: row.reviewedAt === null ? null : row.reviewedAt.toISOString(),
     rejectReason: row.rejectReason,
+    submittedAt: row.submittedAt.toISOString(),
   };
 }
 

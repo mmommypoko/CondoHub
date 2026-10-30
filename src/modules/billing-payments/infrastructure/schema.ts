@@ -80,6 +80,18 @@ export const paymentSubmissionState = pgEnum('payment_submission_state', [
 
 export type PaymentSubmissionState = (typeof paymentSubmissionState.enumValues)[number];
 
+export const payeeType = pgEnum('payee_type', ['PROJECT', 'OWNER']);
+
+export type PayeeType = (typeof payeeType.enumValues)[number];
+
+export const turnoverCreationMode = pgEnum('turnover_creation_mode', [
+  'PROJECT_MANAGED',
+  'PRIVATE_OWNER_MANAGED',
+  'UNKNOWN',
+]);
+
+export type TurnoverCreationMode = (typeof turnoverCreationMode.enumValues)[number];
+
 export const billingRule = pgTable(
   'billing_rule',
   {
@@ -111,7 +123,7 @@ export const turnoverBillingReview = pgTable(
     calendarMonth: date('calendar_month').notNull(),
     cycleStart: timestamp('cycle_start', { withTimezone: true }).notNull(),
     cycleTimezone: text('cycle_timezone').notNull(),
-    managementModeAtCreation: text('management_mode_at_creation').notNull(),
+    managementModeAtCreation: turnoverCreationMode('management_mode_at_creation').notNull(),
     state: turnoverReviewState('state').notNull(),
     candidateTenancyIds: uuid('candidate_tenancy_ids').array().notNull(),
     candidateContext: jsonb('candidate_context'),
@@ -318,6 +330,7 @@ export const paymentSubmission = pgTable(
     reviewedBy: text('reviewed_by').references(() => user.id, { onDelete: 'set null' }),
     reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
     rejectReason: text('reject_reason'),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     uniqueIndex('payment_submission_pending_puq')
@@ -335,7 +348,7 @@ export type PaymentSubmissionInsert = typeof paymentSubmission.$inferInsert;
 
 export const paymentInstruction = pgTable('payment_instruction', {
   id: uuid('id').primaryKey().defaultRandom(),
-  payeeType: text('payee_type').notNull(),
+  payeeType: payeeType('payee_type').notNull(),
   payeeId: uuid('payee_id').notNull(),
   bankName: text('bank_name').notNull(),
   accountName: text('account_name').notNull(),

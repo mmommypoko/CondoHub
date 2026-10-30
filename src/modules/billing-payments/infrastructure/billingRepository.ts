@@ -15,6 +15,7 @@ import {
   type FeeFrequency,
   type InvoiceKind,
   type ReviewerSnapshotSource,
+  type TurnoverCreationMode,
 } from './schema';
 
 export interface BillingRuleRecord {
@@ -325,7 +326,7 @@ export interface TurnoverReviewRecord {
   calendarMonth: string;
   cycleStart: Date;
   cycleTimezone: string;
-  managementModeAtCreation: string;
+  managementModeAtCreation: TurnoverCreationMode;
   state: 'UNRESOLVED' | 'RESOLVED' | 'NO_CHARGE';
   candidateTenancyIds: string[];
   version: number;
@@ -338,7 +339,7 @@ export async function insertTurnoverReviewIdempotent(
     calendarMonth: string;
     cycleStart: Date;
     cycleTimezone: string;
-    managementModeAtCreation: string;
+    managementModeAtCreation: TurnoverCreationMode;
     candidateTenancyIds: string[];
     candidateContext?: Record<string, unknown> | null | undefined;
   },

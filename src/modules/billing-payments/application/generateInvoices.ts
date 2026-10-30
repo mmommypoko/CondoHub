@@ -19,11 +19,11 @@ import {
   type TenancyOverlapInput,
 } from '../domain/rentRecurrence';
 import { recurringFeeDueDateForCycle, rentDueDateForCycle } from '../domain/dueDatePolicy';
-import { selectRentRule } from '../domain/rentRulePolicy';
+import { selectFeeRule, selectRentRule } from '../domain/rentRulePolicy';
 import { feeAmountSatang } from '../domain/feeCalc';
 import { decideFeeSnapshot } from '../domain/snapshotPolicy';
 import { findInvoicePayee } from '../infrastructure/payeeRepository';
-import { payeeSnapshotToRecord, systemAutoPayee } from '../domain/payeePolicy';
+import { payeeSnapshotToRecord } from '../domain/payeePolicy';
 import { cycleError, type CycleError } from '../domain/cycleError';
 import {
   eventMidnight,
@@ -99,13 +99,13 @@ async function effectivePayee(
   roomId: string,
   kind: string,
   at: Date,
-): Promise<Record<string, unknown>> {
+): Promise<Record<string, unknown> | null> {
   const stored = await findInvoicePayee(conn, {
     payeeType: kind === 'PRIVATE_RENT' ? 'OWNER' : 'PROJECT',
     roomId,
     at,
   });
-  return payeeSnapshotToRecord(stored ?? systemAutoPayee());
+  return stored === null ? null : payeeSnapshotToRecord(stored);
 }
 
 async function generateRentForRoom(
@@ -194,6 +194,17 @@ async function generateRentForRoom(
     if (kind === 'PRIVATE_RENT') input.counts.privateRentSkipped += 1;
     return;
   }
+  const payee = await effectivePayee(tx, input.room.id, kind, input.issuedAt);
+  if (payee === null) {
+    input.counts.cycleErrors.push(
+      cycleError(
+        input.room.id,
+        input.cycleYm,
+        'Configure the receiving account in Payment settings before issuing invoices for this room.',
+      ),
+    );
+    return;
+  }
   const inserted = await insertInvoiceIdempotent(tx, {
     roomId: input.room.id,
     tenancyId: decision.tenancy.id,
@@ -208,7 +219,7 @@ async function generateRentForRoom(
     snapshotBoundaryAt: input.issuedAt,
     snapshotTimezone: PROJECT_TIMEZONE,
     issuedAt: input.issuedAt,
-    paymentInstructionSnapshot: await effectivePayee(tx, input.room.id, kind, input.issuedAt),
+    paymentInstructionSnapshot: payee,
     version: 1,
   });
   if (!inserted.inserted) {
@@ -257,26 +268,20 @@ async function generateFeesForRoom(
   const frequencies: FeeFrequency[] = ['MONTHLY', 'QUARTERLY', 'HALF_YEARLY', 'YEARLY'];
   for (const frequency of frequencies) {
     if (!isCycleStartMonth(frequency as CommonFeeFrequency, input.year, input.month)) continue;
-    const rule = input.rules.find(
-      (candidate) =>
-        candidate.kind === 'COMMON_FEE' &&
-        candidate.frequency === frequency &&
-        candidate.effectiveAt.getTime() <=
-          cycleForMonth(
-            frequency as CommonFeeFrequency,
-            input.year,
-            input.month,
-            PROJECT_TIMEZONE,
-          ).cycleStart.getTime() &&
-        (candidate.roomId === null || candidate.roomId === input.room.id),
-    );
-    if (rule === undefined) continue;
     const cycle = cycleForMonth(
       frequency as CommonFeeFrequency,
       input.year,
       input.month,
       PROJECT_TIMEZONE,
     );
+    const rule = selectFeeRule(
+      input.rules,
+      input.room.id,
+      'COMMON_FEE',
+      frequency,
+      cycle.cycleStart,
+    );
+    if (rule === null) continue;
     const owners = await input.getOwners(input.room.id, cycle.cycleStart);
     const boundaryTenancies = await input.getTenancies(
       input.room.id,
@@ -298,6 +303,18 @@ async function generateFeesForRoom(
       roomAreaSqm: input.room.areaSqm,
     });
     const startYm = parseYearMonth(cycle.periodStart.slice(0, 7));
+    const payee = await effectivePayee(tx, input.room.id, 'COMMON_FEE', input.issuedAt);
+    if (payee === null) {
+      const feeCycle = `${cycle.periodStart.slice(0, 7)}`;
+      input.counts.cycleErrors.push(
+        cycleError(
+          input.room.id,
+          feeCycle,
+          'Configure the receiving account in Payment settings before issuing invoices for this room.',
+        ),
+      );
+      continue;
+    }
     const inserted = await insertInvoiceIdempotent(tx, {
       roomId: input.room.id,
       kind: 'COMMON_FEE',
@@ -311,12 +328,7 @@ async function generateFeesForRoom(
       snapshotBoundaryAt: cycle.cycleStart,
       snapshotTimezone: PROJECT_TIMEZONE,
       issuedAt: input.issuedAt,
-      paymentInstructionSnapshot: await effectivePayee(
-        tx,
-        input.room.id,
-        'COMMON_FEE',
-        input.issuedAt,
-      ),
+      paymentInstructionSnapshot: payee,
       version: 1,
     });
     if (!inserted.inserted) {
@@ -443,9 +455,6 @@ export async function generateOneTimeEventInvoices(
         managementMode: period.managementMode,
       }));
     });
-  const fallbackRule = rules.find(
-    (candidate) => candidate.kind === 'COMMON_FEE' && candidate.frequency === 'ONE_TIME',
-  );
   for (const room of rooms) {
     if (room.status !== 'ACTIVE') continue;
     await database.transaction(async (tx) => {
@@ -474,7 +483,8 @@ export async function generateOneTimeEventInvoices(
       }
       let total = event.configuredAmount;
       if (total === null) {
-        if (fallbackRule === undefined) {
+        const fallbackRule = selectFeeRule(rules, room.id, 'COMMON_FEE', 'ONE_TIME', boundary);
+        if (fallbackRule === null) {
           counts.cycleErrors.push(
             cycleError(
               room.id,
@@ -490,6 +500,17 @@ export async function generateOneTimeEventInvoices(
           roomAreaSqm: room.areaSqm,
         });
       }
+      const payee = await effectivePayee(tx, room.id, 'COMMON_FEE', issuedAt);
+      if (payee === null) {
+        counts.cycleErrors.push(
+          cycleError(
+            room.id,
+            event.eventEffectiveDate.slice(0, 7),
+            'Configure the receiving account in Payment settings before issuing invoices for this room.',
+          ),
+        );
+        return;
+      }
       const inserted = await insertInvoiceIdempotent(tx, {
         roomId: room.id,
         kind: 'COMMON_FEE',
@@ -503,7 +524,7 @@ export async function generateOneTimeEventInvoices(
         snapshotBoundaryAt: boundary,
         snapshotTimezone: event.projectTimezone ?? PROJECT_TIMEZONE,
         issuedAt,
-        paymentInstructionSnapshot: await effectivePayee(tx, room.id, 'COMMON_FEE', issuedAt),
+        paymentInstructionSnapshot: payee,
         version: 1,
       });
       if (!inserted.inserted) {

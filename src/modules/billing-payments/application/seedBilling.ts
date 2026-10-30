@@ -15,7 +15,7 @@ import {
   insertPayeeInstruction,
   type PaymentInstructionRecord,
 } from '../infrastructure/payeeRepository';
-import type { FeeConfigMode, FeeFrequency, InvoiceKind } from '../infrastructure/schema';
+import type { FeeConfigMode, FeeFrequency, InvoiceKind, PayeeType } from '../infrastructure/schema';
 import type { BillingCtx } from './ctx';
 
 function requireSeedAdmin(actor: Actor, ctx: BillingCtx): void {
@@ -65,7 +65,7 @@ export async function seedBillingRule(
 }
 
 export interface SeedPayeeInstructionInput {
-  payeeType: string;
+  payeeType: PayeeType;
   payeeId: string;
   bankName: string;
   accountName: string;

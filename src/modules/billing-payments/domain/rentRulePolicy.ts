@@ -15,13 +15,23 @@ export function selectRentRule<T extends RentRule>(
   kind: string,
   at: Date,
 ): T | null {
+  return selectFeeRule(rules, roomId, kind, 'MONTHLY', at);
+}
+
+export function selectFeeRule<T extends RentRule>(
+  rules: T[],
+  roomId: string,
+  kind: string,
+  frequency: string,
+  at: Date,
+): T | null {
   return (
     [...rules]
       .filter(
         (rule) =>
           rule.enabled &&
           rule.kind === kind &&
-          rule.frequency === 'MONTHLY' &&
+          rule.frequency === frequency &&
           rule.effectiveAt <= at &&
           (rule.roomId === roomId || rule.roomId === null),
       )

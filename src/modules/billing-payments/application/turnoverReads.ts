@@ -12,6 +12,7 @@ import {
   listVisibleTurnoverReviews,
   type TurnoverReviewRecord,
 } from '../infrastructure/turnoverReviewRepository';
+import type { TurnoverCreationMode } from '../infrastructure/schema';
 
 export interface TurnoverReviewDto {
   id: string;
@@ -19,7 +20,7 @@ export interface TurnoverReviewDto {
   calendarMonth: string;
   cycleStart: string;
   cycleTimezone: string;
-  managementModeAtCreation: string;
+  managementModeAtCreation: TurnoverCreationMode;
   state: 'UNRESOLVED' | 'RESOLVED' | 'NO_CHARGE';
   candidateTenancyIds: string[];
   version: number;

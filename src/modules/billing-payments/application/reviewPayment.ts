@@ -58,6 +58,7 @@ export interface ReviewSubmissionDto {
   reviewedBy: string;
   reviewedAt: string;
   rejectReason: string | null;
+  submittedAt: string;
   invoiceState: DerivedInvoiceState;
   outstanding: { amount: string; currency: 'THB' };
   overdue: boolean;
@@ -98,6 +99,7 @@ function toReviewDto(input: {
     reviewedBy: input.submission.reviewedBy,
     reviewedAt: input.submission.reviewedAt.toISOString(),
     rejectReason: input.submission.rejectReason,
+    submittedAt: input.submission.submittedAt.toISOString(),
     invoiceState,
     outstanding: { amount: satangToDecimalString(outstanding), currency: 'THB' },
     overdue: isOverdue({
@@ -156,7 +158,6 @@ async function replayReview(
   }
   const row = await findInvoiceById(conn, submission.invoiceId);
   if (row === null) throw new AppError('RESOURCE_NOT_FOUND');
-  await assertReviewerVisible(conn, actor, submission, at);
   const balance = await conn.transaction((tx) => readInvoiceBalance(tx, row.id));
   return toReviewDto({
     submission,

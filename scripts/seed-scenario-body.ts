@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Actor } from '@/shared/auth/actor';
+import { PROJECT_PAYEE_ID } from '@/config/project';
 import {
   createIdentityCtx,
   provisionSeedUser,
@@ -193,6 +194,11 @@ export async function runPropertyScenario(runId: string): Promise<void> {
   await createTenancy(
     admin,
     { roomId: room104, startsAt: new Date(), endsAt: null, managementMode: 'PRIVATE_OWNER_MANAGED' },
+    propertyCtx,
+  );
+  await seedOwnership(
+    admin,
+    { roomId: room104, userId: ownerAId, startAt: new Date('2023-01-01T00:00:00.000Z') },
     propertyCtx,
   );
   await seedOwnership(
@@ -1183,6 +1189,18 @@ async function runBillingScenario(
   await seedPayeeInstruction(
     admin,
     {
+      payeeType: 'PROJECT',
+      payeeId: PROJECT_PAYEE_ID,
+      bankName: 'E2E Test Bank',
+      accountName: 'CondoHub Project Account',
+      accountNumber: '000-0-00001-9',
+      effectiveFrom: payeeEffectiveAt,
+    },
+    billingCtx,
+  );
+  await seedPayeeInstruction(
+    admin,
+    {
       payeeType: 'OWNER',
       payeeId: room206,
       bankName: 'E2E Test Bank',
@@ -1228,6 +1246,29 @@ async function runBillingScenario(
     },
     billingCtx,
   );
+  for (const [code, roomId] of [
+    ['201', room201],
+    ['202', room202],
+    ['203', rooms.get('203') ?? ''],
+    ['204', room204],
+    ['205', room205],
+    ['211', room211],
+    ['212', room212],
+    ['213', room213],
+  ] as const) {
+    await seedPayeeInstruction(
+      admin,
+      {
+        payeeType: 'OWNER',
+        payeeId: roomId,
+        bankName: 'E2E Test Bank',
+        accountName: 'Amara Original Owner',
+        accountNumber: `${code}-0-00001-9`,
+        effectiveFrom: payeeEffectiveAt,
+      },
+      billingCtx,
+    );
+  }
   const { default: seedQrSharp } = await import('sharp');
   const qrPng = await seedQrSharp({
     create: { width: 8, height: 8, channels: 3, background: '#2f2f2f' },
