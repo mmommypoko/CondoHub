@@ -95,8 +95,7 @@ export async function countActiveSessions(db: Db, userId: string, now: Date): Pr
   const rows = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(session)
-    .where(eq(session.userId, userId));
-  void now;
+    .where(and(eq(session.userId, userId), sql`${session.expiresAt} > ${now}`));
   const row = rows[0];
   return row === undefined ? 0 : row.count;
 }

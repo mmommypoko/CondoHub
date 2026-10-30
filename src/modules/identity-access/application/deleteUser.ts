@@ -38,6 +38,6 @@ export async function deleteUser(actor: Actor, userId: string, ctx: IdentityCtx)
     });
     return { userId, revokedSessions };
   });
-  emitRevokeFanOut({ userId, reason: 'SUSPEND' });
+  emitRevokeFanOut({ userId, reason: 'DELETE' });
   return outcome;
 }

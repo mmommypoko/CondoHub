@@ -134,6 +134,13 @@
       "when": 1793296271757,
       "tag": "0018_chat-message-created-default",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793337473824,
+      "tag": "0019_fair_mandroid",
+      "breakpoints": true
     }
   ]
 }

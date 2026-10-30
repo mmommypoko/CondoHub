@@ -1,10 +1,10 @@
-import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
+import { pgTable, text, timestamp, boolean, index, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  email: text("email").notNull().unique(),
+  email: text("email").notNull(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -12,13 +12,16 @@ export const user = pgTable("user", {
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
-  username: text("username").unique(),
+  username: text("username"),
   phone: text("phone"),
   accountStatus: text("account_status").default("ACTIVE").notNull(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
   mustChangePassword: boolean("must_change_password").default(true).notNull(),
   isSystemAdmin: boolean("is_system_admin").default(false).notNull(),
-});
+}, (table) => [
+  uniqueIndex("user_email_live_uq").on(table.email).where(sql`${table.deletedAt} is null`),
+  uniqueIndex("user_username_live_uq").on(table.username).where(sql`${table.deletedAt} is null`),
+]);
 
 export const session = pgTable(
   "session",
