@@ -26,6 +26,7 @@ import { type PmAction, type RoomActVerdict } from '../domain/pmActions';
 import { lookupUserById } from '@/modules/identity-access/application/index';
 import {
   queryRoomPage,
+  queryRoomListPage,
   listRoomLabels,
   findRoomById,
   isRoomOperational,
@@ -448,6 +449,28 @@ export async function listActorRoomPage(
     throw new AppError('ACCESS_DENIED');
   const roomIds = actor.isSystemAdmin ? null : await visibleRoomIds(actor.userId, at);
   return queryRoomPage(db, {
+    ...input,
+    roomIds,
+    page: Math.max(1, input.page),
+    pageSize: Math.min(100, Math.max(1, input.pageSize)),
+  });
+}
+
+export async function listActorRoomListPage(
+  actor: Actor,
+  input: {
+    query?: string | undefined;
+    buildingId?: string | undefined;
+    status?: 'ACTIVE' | 'INACTIVE' | undefined;
+    page: number;
+    pageSize: number;
+  },
+  at: Date,
+) {
+  if (actor.accountStatus !== 'ACTIVE' || actor.mustChangePassword)
+    throw new AppError('ACCESS_DENIED');
+  const roomIds = actor.isSystemAdmin ? null : await visibleRoomIds(actor.userId, at);
+  return queryRoomListPage(db, {
     ...input,
     roomIds,
     page: Math.max(1, input.page),

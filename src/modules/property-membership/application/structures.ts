@@ -2,7 +2,9 @@ import 'server-only';
 import type { Actor } from '@/shared/auth/actor';
 import { db } from '@/shared/db/client';
 import { mapPgError, AppError } from '@/shared/utils/errors';
+import { systemClock } from '@/shared/utils/clock';
 import { writeAudit } from '@/shared/observability/audit';
+import { covers } from '../domain/intervals';
 import {
   queryBuildingPage,
   findBuildingById,
@@ -14,6 +16,8 @@ import {
   listBuildings,
   listFloorsByBuilding,
   listRoomsByBuilding,
+  listRoomDeletionBlockers,
+  lockPropertyScope,
   updateBuildingStatus,
   updateBuildingDetails as updateBuildingDetailsRow,
   updateFloor as updateFloorRow,
@@ -25,11 +29,9 @@ import {
   type RoomRow,
 } from '../infrastructure/structureRepository';
 import {
-  listActiveMembershipsByRoom,
   listMembershipsByRoom,
 } from '../infrastructure/membershipRepository';
 import {
-  listActiveTenanciesByRoom,
   listTenanciesByRoom,
 } from '../infrastructure/tenancyRepository';
 import { listOwnershipsByRoom } from '../infrastructure/ownershipRepository';
@@ -158,20 +160,33 @@ export async function createRoom(
   }
 }
 
-export async function previewRoomImpact(roomId: string): Promise<RoomImpactPreview> {
+export async function previewRoomImpact(
+  roomId: string,
+  at: Date = systemClock.now(),
+): Promise<RoomImpactPreview> {
   const room = await findRoomById(db, roomId);
   if (room === null) throw new AppError('RESOURCE_NOT_FOUND');
-  const [activeTenancies, activeMemberships, ownerships, tenancies, memberships] =
-    await Promise.all([
-      listActiveTenanciesByRoom(db, roomId),
-      listActiveMembershipsByRoom(db, roomId),
-      listOwnershipsByRoom(db, roomId),
-      listTenanciesByRoom(db, roomId),
-      listMembershipsByRoom(db, roomId),
-    ]);
+  const [ownerships, tenancies, memberships] = await Promise.all([
+    listOwnershipsByRoom(db, roomId),
+    listTenanciesByRoom(db, roomId),
+    listMembershipsByRoom(db, roomId),
+  ]);
+  const liveTenancyIds = new Set(
+    tenancies
+      .filter(
+        (tenancy) =>
+          tenancy.state === 'ACTIVE' &&
+          covers({ start: tenancy.startsAt, end: tenancy.endsAt }, at),
+      )
+      .map((tenancy) => tenancy.id),
+  );
   return {
-    activeTenancies: activeTenancies.length,
-    activeMemberships: activeMemberships.length,
+    activeTenancies: liveTenancyIds.size,
+    activeMemberships: memberships.filter(
+      (membership) =>
+        covers({ start: membership.startAt, end: membership.endAt }, at) &&
+        (membership.tenancyId === null || liveTenancyIds.has(membership.tenancyId)),
+    ).length,
     ownershipIntervals: ownerships.length,
     tenancyIntervals: tenancies.length,
     membershipIntervals: memberships.length,
@@ -184,10 +199,20 @@ export async function disableRoom(
   ctx: PropertyCtx,
 ): Promise<{ room: RoomRow; impact: RoomImpactPreview }> {
   requireAdmin(actor);
-  const impact = await previewRoomImpact(roomId);
+  const now = ctx.clock.now();
+  const impact = await previewRoomImpact(roomId, now);
   const room = await findRoomById(db, roomId);
   if (room === null) throw new AppError('RESOURCE_NOT_FOUND');
   const updated = await db.transaction(async (tx) => {
+    const scope = await lockPropertyScope(tx, 'room', roomId);
+    if (scope === null) throw new AppError('RESOURCE_NOT_FOUND');
+    const blockedIds = await listRoomDeletionBlockers(tx, [roomId], now);
+    if (blockedIds.length > 0) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'End active or scheduled rentals and room memberships before deactivating.',
+      );
+    }
     const next = await updateRoom(tx, roomId, { status: 'INACTIVE' });
     if (next === null) throw new AppError('RESOURCE_NOT_FOUND');
     await writeAudit(tx, {

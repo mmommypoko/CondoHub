@@ -3,6 +3,7 @@ import {
   buildingBody,
   buildingPatchBody,
   floorBody,
+  memberAddBody,
   roomBody,
   roomPatchBody,
 } from './routeSchemas';
@@ -46,5 +47,45 @@ describe('named property creation', () => {
 
   it('allows changing the room name without changing the internal code', () => {
     expect(roomPatchBody.parse({ name: 'Garden suite' })).toEqual({ name: 'Garden suite' });
+  });
+});
+
+describe('BUG-013 member add rejects account creation fields', () => {
+  it('accepts username plus role without email, name, or phone', () => {
+    const result = memberAddBody.safeParse({ username: 'malee.room', memberRole: 'SUB' });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects email with a message that points at account creation', () => {
+    const result = memberAddBody.safeParse({
+      username: 'malee.room',
+      email: 'malee@example.com',
+      memberRole: 'SUB',
+    });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues.map((issue) => [...issue.path, issue.message])).toContainEqual([
+      'email',
+      'Create the account first, then add the member by userId or username.',
+    ]);
+  });
+
+  it('rejects name and phone with the same account creation message', () => {
+    const result = memberAddBody.safeParse({
+      userId: id,
+      name: 'Malee Room',
+      phone: '+66810000000',
+      memberRole: 'MAIN',
+    });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues.map((issue) => [...issue.path, issue.message])).toContainEqual([
+      'name',
+      'Create the account first, then add the member by userId or username.',
+    ]);
+    expect(result.error.issues.map((issue) => [...issue.path, issue.message])).toContainEqual([
+      'phone',
+      'Create the account first, then add the member by userId or username.',
+    ]);
   });
 });

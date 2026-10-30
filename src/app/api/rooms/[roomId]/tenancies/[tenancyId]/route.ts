@@ -2,7 +2,7 @@ import 'server-only';
 import { withApi } from '@/shared/auth/withApi';
 import { requireActiveActor } from '@/shared/auth/guards';
 import { AppError } from '@/shared/utils/errors';
-import { isUuid } from '@/shared/utils/idempotency';
+import { getIdempotencyKey, isUuid } from '@/shared/utils/idempotency';
 import { systemClock } from '@/shared/utils/clock';
 import { RATE_LIMIT_PRESETS } from '@/shared/utils/rateLimit';
 import {
@@ -26,6 +26,7 @@ export const PATCH = withApi(
       throw new AppError('VALIDATION_ERROR', 'The room or tenancy id is invalid.');
     }
     const body = parseWithFieldErrors(tenancyPatchBody, await request.json());
+    const idempotencyKey = getIdempotencyKey(request.headers);
     const propertyCtx = createPropertyCtx({ requestId: ctx.requestId });
     if (!ctx.actor.isSystemAdmin) {
       const visible = await canActInRoom(
@@ -40,21 +41,25 @@ export const PATCH = withApi(
       if (!visible?.allowed) throw new AppError('RESOURCE_NOT_FOUND');
     }
     const scoped = await listRoomTenancies(roomId);
-    if (!scoped.some((tenancy) => tenancy.id === tenancyId)) {
+    const before = scoped.find((tenancy) => tenancy.id === tenancyId);
+    if (before === undefined) {
       throw new AppError('RESOURCE_NOT_FOUND');
     }
     const ended =
       body.action === 'CANCEL'
-        ? await cancelScheduledTenancy(ctx.actor, tenancyId, propertyCtx)
+        ? await cancelScheduledTenancy(ctx.actor, tenancyId, propertyCtx, {
+            idempotencyKey: idempotencyKey ?? undefined,
+          })
         : await endTenancyAt(
             ctx.actor,
             {
               tenancyId,
               endsAt: body.endsAt === undefined ? undefined : new Date(body.endsAt),
+              idempotencyKey: idempotencyKey ?? undefined,
             },
             propertyCtx,
           );
-    emitRoomAccessRevoked(roomId);
+    if (!ended.replayed) emitRoomAccessRevoked(roomId);
     return {
       id: ended.id,
       roomId: ended.roomId,
